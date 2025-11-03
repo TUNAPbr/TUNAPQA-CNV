@@ -33,16 +33,30 @@
     .fade-in {
       animation: fadeIn 0.5s ease-out;
     }
+    
+    .palestrante-badge {
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.3);
+    }
   </style>
 </head>
 <body class="flex flex-col p-6">
   
   <!-- Header -->
   <header class="text-center mb-8">
-    <h1 id="palestraTitulo" class="text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-2">
+    <h1 id="palestraTitulo" class="text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-3">
       Carregando...
     </h1>
-    <p id="palestraSala" class="text-xl text-blue-100"></p>
+    <!-- Badge do Palestrante -->
+    <div class="inline-flex items-center gap-2 palestrante-badge px-6 py-3 rounded-full">
+      <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"></path>
+      </svg>
+      <span id="palestrante" class="text-xl text-white font-semibold">
+        <!-- Nome do palestrante -->
+      </span>
+    </div>
   </header>
   
   <!-- Loading -->
@@ -112,12 +126,8 @@
   </footer>
   
   <!-- Scripts -->
-  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-config-v2.js"></script>
   <script>
-    // =====================================================
-    // TELÃO - SINCRONIZADO COM MODERADOR
-    // =====================================================
-    
     let palestraId = null;
     let palestra = null;
     let perguntaAtual = null;
@@ -125,190 +135,142 @@
     let canalPalestraAtiva = null;
     let canalPalestra = null;
     
-    // Inicializar
     async function inicializar() {
       console.log('🖥️ Telão inicializando...');
-      
-      // Conectar ao Realtime da palestra ativa
       await conectarRealtimePalestraAtiva();
-      
-      // Carregar palestra ativa inicial
       await carregarPalestraAtiva();
     }
     
-    // Conectar ao Realtime da tabela palestra_ativa
     function conectarRealtimePalestraAtiva() {
       canalPalestraAtiva = supabase
         .channel('palestra_ativa_telao')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'cnv25_palestra_ativa',
-            filter: 'id=eq.1'
-          },
-          async (payload) => {
-            console.log('🔄 Moderador mudou palestra:', payload);
-            const novaPalestraId = payload.new.palestra_id;
-            
-            if (novaPalestraId !== palestraId) {
-              await carregarPalestraAtiva();
-            }
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cnv25_palestra_ativa',
+          filter: 'id=eq.1'
+        }, async (payload) => {
+          console.log('🔄 Palestra mudou:', payload);
+          if (payload.new.palestra_id !== palestraId) {
+            await carregarPalestraAtiva();
           }
-        )
+        })
         .subscribe();
     }
     
-    // Carregar palestra ativa
     async function carregarPalestraAtiva() {
       try {
-        // Buscar palestra ativa
-        const { data: palestraAtiva, error: errorAtiva } = await supabase
+        const { data: palestraAtiva } = await supabase
           .from('cnv25_palestra_ativa')
           .select('palestra_id')
           .eq('id', 1)
           .single();
         
-        if (errorAtiva) throw errorAtiva;
-        
         const novaPalestraId = palestraAtiva?.palestra_id;
         
-        // Se não tem palestra ativa
         if (!novaPalestraId) {
           mostrarLoading();
           return;
         }
         
-        // Se mudou de palestra, desconectar canal anterior
         if (canalPalestra && palestraId !== novaPalestraId) {
-          window.window.supabase.removeChannel(canalPalestra);
+          window.supabase.removeChannel(canalPalestra);
           canalPalestra = null;
         }
         
         palestraId = novaPalestraId;
         
-        // Buscar dados da palestra
-        const { data: palestraData, error: errorPalestra } = await supabase
+        const { data: palestraData } = await supabase
           .from('cnv25_palestras')
           .select('*')
           .eq('id', palestraId)
           .single();
         
-        if (errorPalestra) throw errorPalestra;
-        
         palestra = palestraData;
         
-        // Atualizar header
+        // Atualizar header COM PALESTRANTE
         document.getElementById('palestraTitulo').textContent = palestra.titulo;
-        document.getElementById('palestraSala').textContent = `Sala ${palestra.sala}`;
+        document.getElementById('palestrante').textContent = palestra.palestrante || 'Palestrante não definido';
         
-        // Mostrar container
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('containerPergunta').classList.remove('hidden');
         
-        // Carregar pergunta atual
         await carregarPerguntaAtual();
-        
-        // Conectar ao Realtime da palestra específica
         conectarRealtimePalestra();
         
       } catch (error) {
-        console.error('Erro ao carregar palestra ativa:', error);
+        console.error('Erro:', error);
         mostrarLoading();
       }
     }
     
-    // Conectar ao Realtime da palestra específica
     function conectarRealtimePalestra() {
       if (canalPalestra) return;
       
       canalPalestra = supabase
         .channel(`telao:${palestraId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'cnv25_perguntas',
-            filter: `palestra_id=eq.${palestraId}`
-          },
-          async (payload) => {
-            console.log('📢 Pergunta atualizada:', payload);
-            
-            const pergunta = payload.new;
-            
-            // Se mudou para 'exibida', é a nova pergunta atual
-            if (pergunta.status === 'exibida') {
-              perguntaAtual = pergunta;
-              await atualizarProxima();
-              renderizarPergunta();
-            }
-            
-            // Se a atual foi respondida, limpar
-            if (perguntaAtual && pergunta.id === perguntaAtual.id && pergunta.status === 'respondida') {
-              perguntaAtual = null;
-              await atualizarProxima();
-              renderizarPergunta();
-            }
-            
-            // Se uma aprovada foi adicionada, atualizar próxima
-            if (pergunta.status === 'aprovada') {
-              await atualizarProxima();
-              renderizarPergunta();
-            }
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cnv25_perguntas',
+          filter: `palestra_id=eq.${palestraId}`
+        }, async (payload) => {
+          console.log('📢 Pergunta atualizada:', payload);
+          
+          const pergunta = payload.new;
+          
+          if (pergunta.status === 'exibida') {
+            perguntaAtual = pergunta;
+            await atualizarProxima();
+            renderizarPergunta();
           }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'cnv25_perguntas',
-            filter: `palestra_id=eq.${palestraId}`
-          },
-          async (payload) => {
-            if (payload.new.status === 'aprovada' && !proximaPergunta) {
-              await atualizarProxima();
-              renderizarPergunta();
-            }
+          
+          if (perguntaAtual && pergunta.id === perguntaAtual.id && pergunta.status === 'respondida') {
+            perguntaAtual = null;
+            await atualizarProxima();
+            renderizarPergunta();
           }
-        )
+          
+          if (pergunta.status === 'aprovada') {
+            await atualizarProxima();
+            renderizarPergunta();
+          }
+        })
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'cnv25_perguntas',
+          filter: `palestra_id=eq.${palestraId}`
+        }, async (payload) => {
+          if (payload.new.status === 'aprovada' && !proximaPergunta) {
+            await atualizarProxima();
+            renderizarPergunta();
+          }
+        })
         .subscribe();
     }
     
-    // Carregar pergunta atual
     async function carregarPerguntaAtual() {
       try {
-        // Buscar pergunta exibida
-        const { data: exibida, error: errorExibida } = await supabase
+        const { data: exibida } = await supabase
           .from('cnv25_perguntas')
           .select('*')
           .eq('palestra_id', palestraId)
           .eq('status', 'exibida')
           .single();
         
-        if (errorExibida && errorExibida.code !== 'PGRST116') {
-          throw errorExibida;
-        }
-        
         perguntaAtual = exibida || null;
-        
-        // Buscar próxima
         await atualizarProxima();
-        
-        // Renderizar
         renderizarPergunta();
         
       } catch (error) {
-        console.error('Erro ao carregar pergunta:', error);
+        console.error('Erro:', error);
       }
     }
     
-    // Atualizar próxima pergunta
     async function atualizarProxima() {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('cnv25_perguntas')
           .select('*')
           .eq('palestra_id', palestraId)
@@ -316,16 +278,13 @@
           .order('created_at', { ascending: true })
           .limit(1);
         
-        if (error) throw error;
-        
         proximaPergunta = (data && data.length > 0) ? data[0] : null;
         
       } catch (error) {
-        console.error('Erro ao buscar próxima:', error);
+        console.error('Erro:', error);
       }
     }
     
-    // Renderizar pergunta na tela
     function renderizarPergunta() {
       const semPergunta = document.getElementById('semPergunta');
       const comPergunta = document.getElementById('comPergunta');
@@ -334,14 +293,12 @@
       const containerProxima = document.getElementById('containerProxima');
       const textoProxima = document.getElementById('textoProxima');
       
-      // Se não tem pergunta atual
       if (!perguntaAtual) {
         semPergunta.classList.remove('hidden');
         comPergunta.classList.add('hidden');
         return;
       }
       
-      // Exibir pergunta atual
       semPergunta.classList.add('hidden');
       comPergunta.classList.remove('hidden');
       comPergunta.classList.add('fade-in');
@@ -354,7 +311,6 @@
         nomePergunta.innerHTML = `👤 ${escapeHtml(perguntaAtual.nome_opt)}`;
       }
       
-      // Exibir próxima (preview)
       if (proximaPergunta) {
         containerProxima.classList.remove('hidden');
         textoProxima.textContent = proximaPergunta.texto;
@@ -363,31 +319,27 @@
       }
     }
     
-    // Mostrar loading
     function mostrarLoading() {
       document.getElementById('loading').classList.remove('hidden');
       document.getElementById('containerPergunta').classList.add('hidden');
       document.getElementById('palestraTitulo').textContent = 'Aguardando palestra ativa...';
-      document.getElementById('palestraSala').textContent = '';
+      document.getElementById('palestrante').textContent = '';
     }
     
-    // Escape HTML
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
     
-    // Iniciar
     window.addEventListener('DOMContentLoaded', inicializar);
     
-    // Cleanup
     window.addEventListener('beforeunload', () => {
-      if (canalPalestraAtiva) window.window.supabase.removeChannel(canalPalestraAtiva);
-      if (canalPalestra) window.window.supabase.removeChannel(canalPalestra);
+      if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
+      if (canalPalestra) window.supabase.removeChannel(canalPalestra);
     });
     
-    console.log('✅ Telão carregado');
+    console.log('✅ Telão carregado (v2)');
   </script>
   
 </body>
