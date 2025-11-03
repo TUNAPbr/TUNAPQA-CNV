@@ -217,7 +217,7 @@
         
         // Se mudou de palestra, desconectar canal anterior
         if (canalPalestra && palestraId !== novaPalestraId) {
-          supabase.removeChannel(canalPalestra);
+          window.window.supabase.removeChannel(canalPalestra);
           canalPalestra = null;
         }
         
@@ -488,8 +488,8 @@
     
     // Cleanup
     window.addEventListener('beforeunload', () => {
-      if (canalPalestraAtiva) supabase.removeChannel(canalPalestraAtiva);
-      if (canalPalestra) supabase.removeChannel(canalPalestra);
+      if (canalPalestraAtiva) window.window.supabase.removeChannel(canalPalestraAtiva);
+      if (canalPalestra) window.window.supabase.removeChannel(canalPalestra);
     });
   </script>
   
