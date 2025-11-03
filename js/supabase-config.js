@@ -1,5 +1,5 @@
 // =====================================================
-// CONFIGURAÇÃO DO SUPABASE
+// CONFIGURAÇÃO DO SUPABASE - VERSÃO CORRIGIDA
 // =====================================================
 // IMPORTANTE: Substitua os valores abaixo pelas suas credenciais do Supabase
 // Encontre em: Supabase → Project Settings → API
@@ -12,7 +12,7 @@ const SUPABASE_CONFIG = {
   // Substitua pela sua chave pública (anon key)
   // ATENÇÃO: Use apenas a ANON KEY (pública), nunca a service_role key
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3cWZhbGhmZWFqd2F2a3Vld3BwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA2NDM5OTgsImV4cCI6MjAzNjIxOTk5OH0.4JsrInoo7vxhuE52BgnWVpgbJQfowo03HQjBS5OhTvMI',
-};
+}
 
 // Validação básica (avisa se não configurou)
 if (SUPABASE_CONFIG.url.includes('SUA_URL') || SUPABASE_CONFIG.anonKey.includes('SUA_ANON')) {
@@ -20,8 +20,9 @@ if (SUPABASE_CONFIG.url.includes('SUA_URL') || SUPABASE_CONFIG.anonKey.includes(
   alert('⚠️ Configure o Supabase primeiro!\n\nEdite o arquivo js/supabase-config.js e cole suas credenciais.');
 }
 
-// Inicializar cliente Supabase
-const supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+// ⚠️ CORREÇÃO: Usar window.supabase ao invés de const supabase
+// Isso evita o erro "Cannot access before initialization"
+window.supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
 
 console.log('✅ Supabase configurado');
 
@@ -114,7 +115,7 @@ function registrarEnvio() {
 
 // Contar perguntas do device nesta palestra
 async function contarPerguntasDevice(palestraId, deviceIdHash) {
-  const { count, error } = await supabase
+  const { count, error } = await window.supabase
     .from('cnv25_perguntas')
     .select('*', { count: 'exact', head: true })
     .eq('palestra_id', palestraId)
@@ -130,7 +131,7 @@ async function contarPerguntasDevice(palestraId, deviceIdHash) {
 
 // Obter palestra por ID
 async function obterPalestra(palestraId) {
-  const { data, error } = await supabase
+  const { data, error } = await window.supabase
     .from('cnv25_palestras')
     .select('*')
     .eq('id', palestraId)
@@ -146,7 +147,7 @@ async function obterPalestra(palestraId) {
 
 // Verificar silêncio ativo
 async function verificarSilencio(palestraId) {
-  const { data, error } = await supabase
+  const { data, error } = await window.supabase
     .from('cnv25_palestras_flags')
     .select('silencio_ate')
     .eq('palestra_id', palestraId)
