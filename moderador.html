@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moderador - CNV 2025</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  
+  <!-- Header -->
+  <header class="bg-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-4">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        
+        <!-- Voltar -->
+        <a href="index.html" class="text-purple-600 hover:underline">← Voltar</a>
+        
+        <!-- Título da Palestra -->
+        <div class="flex-1 text-center">
+          <h1 class="text-xl font-bold text-gray-800" id="palestraTitulo">Carregando...</h1>
+          <p class="text-sm text-gray-600" id="palestraInfo"></p>
+        </div>
+        
+        <!-- Status -->
+        <div>
+          <span id="statusPalestra" class="px-4 py-2 rounded-full text-sm font-semibold"></span>
+        </div>
+        
+      </div>
+      
+      <!-- Controles -->
+      <div class="mt-4 flex flex-wrap gap-2 justify-center">
+        <button id="btnAbrir" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
+          ✓ Abrir Perguntas
+        </button>
+        <button id="btnFechar" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+          ✗ Fechar Perguntas
+        </button>
+        <button id="btnSilencio" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition">
+          🔇 Silêncio 60s
+        </button>
+        <button id="btnExportar" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+          📥 Exportar CSV
+        </button>
+        <button id="btnEncerrar" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition">
+          ⏹ Encerrar Palestra
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Conteúdo Principal -->
+  <main class="container mx-auto px-4 py-6">
+    
+    <!-- Grid de Colunas -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Coluna 1: FILA (Pendentes) -->
+      <div class="bg-white rounded-lg shadow-lg p-4">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+          <span>📋 Fila de Perguntas</span>
+          <span id="contadorPendentes" class="bg-yellow-500 text-white text-sm px-3 py-1 rounded-full">0</span>
+        </h2>
+        
+        <div id="filaPendentes" class="space-y-3 max-h-[70vh] overflow-y-auto">
+          <p class="text-gray-500 text-center py-8">Nenhuma pergunta pendente</p>
+        </div>
+      </div>
+      
+      <!-- Coluna 2: NO TELÃO -->
+      <div class="bg-white rounded-lg shadow-lg p-4">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+          <span>📺 No Telão</span>
+          <span id="contadorExibida" class="bg-green-500 text-white text-sm px-3 py-1 rounded-full">0</span>
+        </h2>
+        
+        <!-- Pergunta Atual -->
+        <div id="perguntaAtual" class="mb-4">
+          <h3 class="text-sm font-semibold text-gray-600 mb-2">ATUAL:</h3>
+          <div id="atualCard" class="p-4 bg-green-50 rounded-lg text-center text-gray-500">
+            Nenhuma pergunta exibida
+          </div>
+        </div>
+        
+        <!-- Próxima -->
+        <div id="proximaPergunta">
+          <h3 class="text-sm font-semibold text-gray-600 mb-2">PRÓXIMA:</h3>
+          <div id="proximaCard" class="p-3 bg-gray-50 rounded-lg text-center text-gray-400 text-sm">
+            —
+          </div>
+        </div>
+        
+        <!-- Aprovadas (aguardando exibição) -->
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold text-gray-600 mb-2">APROVADAS:</h3>
+          <div id="listaAprovadas" class="space-y-2 max-h-60 overflow-y-auto">
+            <p class="text-gray-400 text-sm text-center py-4">Nenhuma pergunta aprovada</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Coluna 3: RESPONDIDAS -->
+      <div class="bg-white rounded-lg shadow-lg p-4">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+          <span>✓ Respondidas</span>
+          <span id="contadorRespondidas" class="bg-blue-500 text-white text-sm px-3 py-1 rounded-full">0</span>
+        </h2>
+        
+        <div id="listaRespondidas" class="space-y-3 max-h-[70vh] overflow-y-auto">
+          <p class="text-gray-500 text-center py-8">Nenhuma pergunta respondida</p>
+        </div>
+      </div>
+      
+    </div>
+    
+    <!-- Logs -->
+    <div class="mt-6 bg-white rounded-lg shadow-lg p-4">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">📜 Logs de Ações</h2>
+      <div id="listaLogs" class="space-y-1 max-h-40 overflow-y-auto text-sm text-gray-600">
+        <p class="text-gray-400">Aguardando ações...</p>
+      </div>
+    </div>
+    
+  </main>
+  
+  <!-- Scripts -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/moderador.js"></script>
+  
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telão - CNV 2025</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    .pergunta-atual {
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1.3;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .proxima-preview {
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease-out;
+    }
+  </style>
+</head>
+<body class="flex flex-col p-6">
+  
+  <!-- Header -->
+  <header class="text-center mb-8">
+    <h1 id="palestraTitulo" class="text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-2">
+      Carregando...
+    </h1>
+    <p id="palestraSala" class="text-xl text-blue-100"></p>
+  </header>
+  
+  <!-- Pergunta Principal -->
+  <main class="flex-1 flex items-center justify-center px-4">
+    <div id="containerPergunta" class="w-full max-w-6xl">
+      
+      <!-- Sem Pergunta -->
+      <div id="semPergunta" class="text-center">
+        <div class="bg-white/10 backdrop-blur-sm rounded-3xl p-16 border-2 border-white/20">
+          <svg class="w-32 h-32 mx-auto mb-6 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+          </svg>
+          <p class="text-3xl text-white/70 font-semibold">
+            Aguardando perguntas...
+          </p>
+        </div>
+      </div>
+      
+      <!-- Com Pergunta -->
+      <div id="comPergunta" class="hidden">
+        <!-- Label -->
+        <div class="mb-4">
+          <span class="inline-block bg-white/20 text-white px-6 py-2 rounded-full text-lg font-semibold backdrop-blur-sm">
+            📌 PERGUNTA ATUAL
+          </span>
+        </div>
+        
+        <!-- Card da Pergunta -->
+        <div class="bg-white rounded-3xl shadow-2xl p-12 mb-8">
+          <p id="textoPergunta" class="pergunta-atual text-gray-800 font-bold text-center mb-6">
+            <!-- Será preenchido -->
+          </p>
+          <div id="nomePergunta" class="text-center text-gray-600 text-2xl">
+            <!-- Nome ou Anônimo -->
+          </div>
+        </div>
+        
+        <!-- Próxima (Preview) -->
+        <div id="containerProxima" class="hidden">
+          <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
+            <p class="text-white/70 text-sm font-semibold mb-2">PRÓXIMA:</p>
+            <p id="textoProxima" class="proxima-preview text-white font-medium">
+              <!-- Próxima pergunta -->
+            </p>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="text-center">
+    <div class="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
+      <p class="text-white text-lg">
+        <strong>CNV 2025</strong> • Sistema de Perguntas
+      </p>
+    </div>
+  </footer>
+  
+  <!-- Scripts -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/telao.js"></script>
+  
+</body>
+</html>

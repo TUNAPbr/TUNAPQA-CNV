@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CNV 2025 - Sistema de Perguntas</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center p-4">
+  
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-gray-800 mb-2">CNV 2025</h1>
+      <p class="text-gray-600">Sistema de Perguntas em Palestras</p>
+    </div>
+    
+    <!-- Seleção de Palestra -->
+    <div class="mb-8">
+      <label class="block text-sm font-semibold text-gray-700 mb-3">
+        Selecione uma palestra:
+      </label>
+      <select id="palestraSelect" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+        <option value="">Carregando palestras...</option>
+      </select>
+    </div>
+    
+    <!-- Informações da Palestra Selecionada -->
+    <div id="palestraInfo" class="mb-8 p-4 bg-purple-50 rounded-lg hidden">
+      <h3 class="font-semibold text-purple-900 mb-2" id="palestraTitulo"></h3>
+      <div class="text-sm text-purple-700">
+        <p><strong>Sala:</strong> <span id="palestraSala"></span></p>
+        <p><strong>Horário:</strong> <span id="palestraHorario"></span></p>
+        <p><strong>Status:</strong> <span id="palestraStatus" class="font-semibold"></span></p>
+      </div>
+    </div>
+    
+    <!-- Botões de Acesso -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      
+      <!-- Participante -->
+      <a id="btnParticipante" href="#" class="block p-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white text-center hover:shadow-lg transform hover:scale-105 transition duration-200 opacity-50 pointer-events-none">
+        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+        </svg>
+        <h3 class="text-lg font-bold mb-1">Participante</h3>
+        <p class="text-sm text-blue-100">Enviar perguntas</p>
+      </a>
+      
+      <!-- Moderador -->
+      <a id="btnModerador" href="#" class="block p-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl text-white text-center hover:shadow-lg transform hover:scale-105 transition duration-200 opacity-50 pointer-events-none">
+        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+        </svg>
+        <h3 class="text-lg font-bold mb-1">Moderador</h3>
+        <p class="text-sm text-purple-100">Gerenciar perguntas</p>
+      </a>
+      
+      <!-- Telão -->
+      <a id="btnTelao" href="#" class="block p-6 bg-gradient-to-br from-green-500 to-green-600 rounded-xl text-white text-center hover:shadow-lg transform hover:scale-105 transition duration-200 opacity-50 pointer-events-none">
+        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+        <h3 class="text-lg font-bold mb-1">Telão</h3>
+        <p class="text-sm text-green-100">Exibição pública</p>
+      </a>
+      
+    </div>
+    
+    <!-- Aviso -->
+    <div class="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+      <p class="text-sm text-yellow-800">
+        <strong>💡 Dica:</strong> Selecione uma palestra acima para habilitar os acessos.
+      </p>
+    </div>
+  </div>
+  
+  <!-- Configuração -->
+  <script src="js/supabase-config.js"></script>
+  
+  <!-- Script da Página -->
+  <script>
+    let palestraSelecionada = null;
+    
+    // Carregar palestras ao iniciar
+    async function carregarPalestras() {
+      const select = document.getElementById('palestraSelect');
+      
+      try {
+        const { data, error } = await supabase
+          .from('cnv25_palestras')
+          .select('*')
+          .order('inicio', { ascending: true });
+        
+        if (error) throw error;
+        
+        select.innerHTML = '<option value="">Selecione uma palestra...</option>';
+        
+        if (data && data.length > 0) {
+          data.forEach(palestra => {
+            const option = document.createElement('option');
+            option.value = palestra.id;
+            option.textContent = `${palestra.titulo} - Sala ${palestra.sala}`;
+            option.dataset.palestra = JSON.stringify(palestra);
+            select.appendChild(option);
+          });
+        } else {
+          select.innerHTML = '<option value="">Nenhuma palestra disponível</option>';
+        }
+        
+      } catch (error) {
+        console.error('Erro ao carregar palestras:', error);
+        select.innerHTML = '<option value="">Erro ao carregar palestras</option>';
+      }
+    }
+    
+    // Quando selecionar uma palestra
+    document.getElementById('palestraSelect').addEventListener('change', function(e) {
+      const selectedOption = e.target.options[e.target.selectedIndex];
+      
+      if (selectedOption.value) {
+        palestraSelecionada = JSON.parse(selectedOption.dataset.palestra);
+        mostrarInfoPalestra(palestraSelecionada);
+        habilitarBotoes(palestraSelecionada);
+      } else {
+        document.getElementById('palestraInfo').classList.add('hidden');
+        desabilitarBotoes();
+      }
+    });
+    
+    // Mostrar informações da palestra
+    function mostrarInfoPalestra(palestra) {
+      document.getElementById('palestraTitulo').textContent = palestra.titulo;
+      document.getElementById('palestraSala').textContent = palestra.sala;
+      
+      const inicio = new Date(palestra.inicio).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      document.getElementById('palestraHorario').textContent = inicio;
+      
+      const statusEl = document.getElementById('palestraStatus');
+      const statusMap = {
+        'planejada': { text: 'Planejada', class: 'text-gray-600' },
+        'aberta': { text: 'ABERTA ✓', class: 'text-green-600' },
+        'fechada': { text: 'Fechada', class: 'text-red-600' },
+        'encerrada': { text: 'Encerrada', class: 'text-gray-600' }
+      };
+      
+      const status = statusMap[palestra.status] || statusMap['planejada'];
+      statusEl.textContent = status.text;
+      statusEl.className = `font-semibold ${status.class}`;
+      
+      document.getElementById('palestraInfo').classList.remove('hidden');
+    }
+    
+    // Habilitar botões de acesso
+    function habilitarBotoes(palestra) {
+      const btnParticipante = document.getElementById('btnParticipante');
+      const btnModerador = document.getElementById('btnModerador');
+      const btnTelao = document.getElementById('btnTelao');
+      
+      btnParticipante.href = `participante.html?palestra=${palestra.id}`;
+      btnParticipante.classList.remove('opacity-50', 'pointer-events-none');
+      
+      btnModerador.href = `moderador.html?palestra=${palestra.id}`;
+      btnModerador.classList.remove('opacity-50', 'pointer-events-none');
+      
+      btnTelao.href = `telao.html?palestra=${palestra.id}`;
+      btnTelao.classList.remove('opacity-50', 'pointer-events-none');
+    }
+    
+    // Desabilitar botões
+    function desabilitarBotoes() {
+      const botoes = ['btnParticipante', 'btnModerador', 'btnTelao'];
+      botoes.forEach(id => {
+        const btn = document.getElementById(id);
+        btn.href = '#';
+        btn.classList.add('opacity-50', 'pointer-events-none');
+      });
+    }
+    
+    // Iniciar
+    carregarPalestras();
+  </script>
+  
+</body>
+</html>

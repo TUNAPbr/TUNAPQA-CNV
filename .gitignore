@@ -1,0 +1,20 @@
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporários
+*.tmp
+*.bak
+
+# Nota: js/supabase-config.js DEVE ser commitado
+# pois contém apenas a chave pública (anon key), que é segura
