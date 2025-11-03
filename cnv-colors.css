@@ -1,0 +1,213 @@
+/* =====================================================
+   CNV 2025 - PALETA DE CORES OFICIAL
+   ===================================================== */
+
+:root {
+  /* Primary Colors */
+  --cnv-primary: #2797ff;
+  --cnv-secondary: #0b67bc;
+  --cnv-tertiary: #acc420;
+  --cnv-alternate: #e0e3e7;
+  
+  /* Utility Colors */
+  --cnv-text-primary: #161c24;
+  --cnv-text-secondary: #636f81;
+  --cnv-bg-primary: #ebeef2;
+  --cnv-bg-secondary: #fefefe;
+  
+  /* Accent Colors */
+  --cnv-accent-1: #222c3a;
+  --cnv-accent-2: #0b67bc;
+  --cnv-accent-3: #acc420;
+  --cnv-accent-4: #eeeeee;
+  
+  /* Semantic Colors */
+  --cnv-success: #27ae52;
+  --cnv-error: #ee4444;
+  --cnv-warning: #fc964d;
+  --cnv-info: #ffffff;
+}
+
+/* =====================================================
+   CLASSES UTILITÁRIAS
+   ===================================================== */
+
+/* Backgrounds */
+.bg-cnv-primary { background-color: var(--cnv-primary) !important; }
+.bg-cnv-secondary { background-color: var(--cnv-secondary) !important; }
+.bg-cnv-tertiary { background-color: var(--cnv-tertiary) !important; }
+.bg-cnv-alternate { background-color: var(--cnv-alternate) !important; }
+.bg-cnv-accent-1 { background-color: var(--cnv-accent-1) !important; }
+.bg-cnv-success { background-color: var(--cnv-success) !important; }
+.bg-cnv-error { background-color: var(--cnv-error) !important; }
+.bg-cnv-warning { background-color: var(--cnv-warning) !important; }
+
+/* Text Colors */
+.text-cnv-primary { color: var(--cnv-primary) !important; }
+.text-cnv-secondary { color: var(--cnv-secondary) !important; }
+.text-cnv-tertiary { color: var(--cnv-tertiary) !important; }
+.text-cnv-text-primary { color: var(--cnv-text-primary) !important; }
+.text-cnv-text-secondary { color: var(--cnv-text-secondary) !important; }
+.text-cnv-success { color: var(--cnv-success) !important; }
+.text-cnv-error { color: var(--cnv-error) !important; }
+.text-cnv-warning { color: var(--cnv-warning) !important; }
+
+/* Border Colors */
+.border-cnv-primary { border-color: var(--cnv-primary) !important; }
+.border-cnv-secondary { border-color: var(--cnv-secondary) !important; }
+.border-cnv-tertiary { border-color: var(--cnv-tertiary) !important; }
+
+/* Gradientes CNV */
+.bg-gradient-cnv-primary {
+  background: linear-gradient(135deg, var(--cnv-primary) 0%, var(--cnv-secondary) 100%) !important;
+}
+
+.bg-gradient-cnv-success {
+  background: linear-gradient(135deg, var(--cnv-success) 0%, var(--cnv-tertiary) 100%) !important;
+}
+
+.bg-gradient-cnv-dark {
+  background: linear-gradient(135deg, var(--cnv-accent-1) 0%, var(--cnv-secondary) 100%) !important;
+}
+
+/* =====================================================
+   COMPONENTES ESPECÍFICOS
+   ===================================================== */
+
+/* Botões CNV */
+.btn-cnv-primary {
+  background-color: var(--cnv-primary);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.btn-cnv-primary:hover {
+  background-color: var(--cnv-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 151, 255, 0.3);
+}
+
+.btn-cnv-success {
+  background-color: var(--cnv-success);
+  color: white;
+}
+
+.btn-cnv-success:hover {
+  background-color: #1f8e42;
+}
+
+.btn-cnv-error {
+  background-color: var(--cnv-error);
+  color: white;
+}
+
+.btn-cnv-error:hover {
+  background-color: #cc3333;
+}
+
+.btn-cnv-warning {
+  background-color: var(--cnv-warning);
+  color: white;
+}
+
+.btn-cnv-warning:hover {
+  background-color: #e8803d;
+}
+
+/* Cards CNV */
+.card-cnv {
+  background-color: var(--cnv-bg-secondary);
+  border: 1px solid var(--cnv-alternate);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(22, 28, 36, 0.08);
+}
+
+.card-cnv:hover {
+  box-shadow: 0 4px 16px rgba(22, 28, 36, 0.12);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* Badges CNV */
+.badge-cnv-success {
+  background-color: var(--cnv-success);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-cnv-error {
+  background-color: var(--cnv-error);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-cnv-warning {
+  background-color: var(--cnv-warning);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-cnv-primary {
+  background-color: var(--cnv-primary);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Inputs CNV */
+.input-cnv {
+  border: 2px solid var(--cnv-alternate);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.input-cnv:focus {
+  outline: none;
+  border-color: var(--cnv-primary);
+  box-shadow: 0 0 0 3px rgba(39, 151, 255, 0.1);
+}
+
+/* Alerts CNV */
+.alert-cnv-success {
+  background-color: rgba(39, 174, 82, 0.1);
+  border-left: 4px solid var(--cnv-success);
+  color: var(--cnv-text-primary);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.alert-cnv-error {
+  background-color: rgba(238, 68, 68, 0.1);
+  border-left: 4px solid var(--cnv-error);
+  color: var(--cnv-text-primary);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.alert-cnv-warning {
+  background-color: rgba(252, 150, 77, 0.1);
+  border-left: 4px solid var(--cnv-warning);
+  color: var(--cnv-text-primary);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.alert-cnv-info {
+  background-color: rgba(39, 151, 255, 0.1);
+  border-left: 4px solid var(--cnv-primary);
+  color: var(--cnv-text-primary);
+  padding: 1rem;
+  border-radius: 8px;
+}
