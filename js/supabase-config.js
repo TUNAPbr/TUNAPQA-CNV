@@ -1,5 +1,5 @@
 // =====================================================
-// CONFIGURAÇÃO DO SUPABASE - VERSÃO FINAL CORRIGIDA
+// CONFIGURAÇÃO DO SUPABASE - VERSÃO MELHORADA
 // =====================================================
 
 const SUPABASE_CONFIG = {
@@ -7,10 +7,10 @@ const SUPABASE_CONFIG = {
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3cWZhbGhmZWFqd2F2a3Vld3BwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA2NDM5OTgsImV4cCI6MjAzNjIxOTk5OH0.4JsrInoo7vxhuE52BgnWVpgbJQfowo03HQjBS5OhTvM',
 };
 
-// Validação básica (avisa se não configurou)
+// Validação básica
 if (SUPABASE_CONFIG.url.includes('SUA_URL') || SUPABASE_CONFIG.anonKey.includes('SUA_ANON')) {
-  console.error('❌ ATENÇÃO: Configure suas credenciais do Supabase no arquivo js/supabase-config.js');
-  alert('⚠️ Configure o Supabase primeiro!\n\nEdite o arquivo js/supabase-config.js e cole suas credenciais.');
+  console.error('❌ ATENÇÃO: Configure suas credenciais do Supabase');
+  alert('⚠️ Configure o Supabase primeiro!');
 }
 
 // Inicializar cliente Supabase
@@ -19,10 +19,9 @@ window.supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CON
 console.log('✅ Supabase configurado');
 
 // =====================================================
-// FUNÇÕES AUXILIARES
+// FUNÇÕES AUXILIARES ORIGINAIS
 // =====================================================
 
-// Gerar ou recuperar Device ID
 function getDeviceId() {
   let deviceId = localStorage.getItem('cnv_device_id');
   if (!deviceId) {
@@ -32,7 +31,6 @@ function getDeviceId() {
   return deviceId;
 }
 
-// Hash do device ID (SHA-256)
 async function hashDeviceId(deviceId) {
   const encoder = new TextEncoder();
   const data = encoder.encode(deviceId + 'salt-secreto-cnv2025');
@@ -41,7 +39,6 @@ async function hashDeviceId(deviceId) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Validar pergunta
 function validarPergunta(texto) {
   const erros = [];
   
@@ -69,7 +66,12 @@ function validarPergunta(texto) {
   return erros;
 }
 
-// Formatar data/hora
+function validarEmail(email) {
+  if (!email) return true; // Email é opcional
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}
+
 function formatarDataHora(timestamp) {
   const data = new Date(timestamp);
   return data.toLocaleString('pt-BR', {
@@ -80,7 +82,6 @@ function formatarDataHora(timestamp) {
   });
 }
 
-// Verificar rate limit (1 envio por 60s)
 function verificarRateLimit() {
   const ultimoEnvio = localStorage.getItem('cnv_ultimo_envio');
   if (ultimoEnvio) {
@@ -98,12 +99,28 @@ function verificarRateLimit() {
   return { permitido: true };
 }
 
-// Registrar envio
+// Nova função com intervalo dinâmico
+function verificarRateLimitDinamico(intervaloSegundos) {
+  const ultimoEnvio = localStorage.getItem('cnv_ultimo_envio');
+  if (ultimoEnvio) {
+    const tempoDecorrido = Date.now() - parseInt(ultimoEnvio);
+    const tempoRestante = (intervaloSegundos * 1000) - tempoDecorrido;
+    
+    if (tempoRestante > 0) {
+      return {
+        permitido: false,
+        segundosRestantes: Math.ceil(tempoRestante / 1000)
+      };
+    }
+  }
+  
+  return { permitido: true };
+}
+
 function registrarEnvio() {
   localStorage.setItem('cnv_ultimo_envio', Date.now().toString());
 }
 
-// Contar perguntas do device
 async function contarPerguntasDevice(palestraId, deviceIdHash) {
   const { count, error } = await window.supabase
     .from('cnv25_perguntas')
@@ -119,7 +136,6 @@ async function contarPerguntasDevice(palestraId, deviceIdHash) {
   return count || 0;
 }
 
-// Obter palestra por ID
 async function obterPalestra(palestraId) {
   const { data, error } = await window.supabase
     .from('cnv25_palestras')
@@ -135,7 +151,6 @@ async function obterPalestra(palestraId) {
   return data;
 }
 
-// Verificar silêncio ativo
 async function verificarSilencio(palestraId) {
   const { data, error } = await window.supabase
     .from('cnv25_palestras_flags')
@@ -151,4 +166,188 @@ async function verificarSilencio(palestraId) {
   return silencioAte > new Date();
 }
 
-console.log('✅ Funções auxiliares carregadas');
+// =====================================================
+// NOVAS FUNÇÕES - MELHORIAS
+// =====================================================
+
+// Obter palestra com controles
+async function obterPalestraCompleta(palestraId) {
+  const { data: palestra } = await window.supabase
+    .from('cnv25_palestras')
+    .select('*')
+    .eq('id', palestraId)
+    .single();
+  
+  if (!palestra) return null;
+  
+  const { data: controle } = await window.supabase
+    .from('cnv25_palestra_controle')
+    .select('*')
+    .eq('palestra_id', palestraId)
+    .single();
+  
+  return {
+    ...palestra,
+    controle: controle || { perguntas_abertas: false, silencio_ativo: false }
+  };
+}
+
+// Verificar se perguntas estão abertas (novo sistema)
+async function verificarPerguntasAbertas(palestraId) {
+  const { data, error } = await window.supabase
+    .from('cnv25_palestra_controle')
+    .select('perguntas_abertas, silencio_ativo')
+    .eq('palestra_id', palestraId)
+    .single();
+  
+  if (error || !data) return false;
+  
+  // Perguntas abertas E silêncio inativo
+  return data.perguntas_abertas && !data.silencio_ativo;
+}
+
+// Atualizar controle de palestra
+async function atualizarControlePalestra(palestraId, updates) {
+  const { data, error } = await window.supabase
+    .from('cnv25_palestra_controle')
+    .upsert({
+      palestra_id: palestraId,
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Erro ao atualizar controle:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+// =====================================================
+// FUNÇÕES DE ENQUETE
+// =====================================================
+
+// Criar enquete
+async function criarEnquete(palestraId, titulo, tipo, opcoes = null) {
+  const { data, error } = await window.supabase
+    .from('cnv25_enquetes')
+    .insert([{
+      palestra_id: palestraId,
+      titulo: titulo,
+      tipo: tipo,
+      opcoes: opcoes,
+      ativa: true
+    }])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Erro ao criar enquete:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+// Obter enquete ativa
+async function obterEnqueteAtiva(palestraId) {
+  const { data, error } = await window.supabase
+    .from('cnv25_enquetes')
+    .select('*')
+    .eq('palestra_id', palestraId)
+    .eq('ativa', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') {
+    console.error('Erro ao buscar enquete:', error);
+    return null;
+  }
+  
+  return data || null;
+}
+
+// Votar em enquete
+async function votarEnquete(enqueteId, deviceIdHash, resposta) {
+  const { data, error } = await window.supabase
+    .from('cnv25_enquete_respostas')
+    .insert([{
+      enquete_id: enqueteId,
+      device_id_hash: deviceIdHash,
+      resposta: { valor: resposta }
+    }])
+    .select()
+    .single();
+  
+  if (error) {
+    if (error.code === '23505') {
+      return { error: 'Você já votou nesta enquete' };
+    }
+    console.error('Erro ao votar:', error);
+    return { error: 'Erro ao registrar voto' };
+  }
+  
+  return { success: true, data };
+}
+
+// Obter resultados da enquete
+async function obterResultadosEnquete(enqueteId) {
+  const { data, error } = await window.supabase
+    .from('cnv25_enquete_respostas')
+    .select('resposta')
+    .eq('enquete_id', enqueteId);
+  
+  if (error) {
+    console.error('Erro ao buscar resultados:', error);
+    return null;
+  }
+  
+  // Contar votos por resposta
+  const contagem = {};
+  data.forEach(r => {
+    const valor = r.resposta.valor;
+    contagem[valor] = (contagem[valor] || 0) + 1;
+  });
+  
+  return {
+    total: data.length,
+    distribuicao: contagem
+  };
+}
+
+// Encerrar enquete
+async function encerrarEnquete(enqueteId) {
+  const { data, error } = await window.supabase
+    .from('cnv25_enquetes')
+    .update({
+      ativa: false,
+      encerrada_em: new Date().toISOString()
+    })
+    .eq('id', enqueteId)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Erro ao encerrar enquete:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+// Verificar se já votou
+async function verificouVotou(enqueteId, deviceIdHash) {
+  const { count } = await window.supabase
+    .from('cnv25_enquete_respostas')
+    .select('*', { count: 'exact', head: true })
+    .eq('enquete_id', enqueteId)
+    .eq('device_id_hash', deviceIdHash);
+  
+  return count > 0;
+}
+
+console.log('✅ Funções auxiliares carregadas (versão melhorada)');
