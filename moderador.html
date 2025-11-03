@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moderador - CNV 2025</title>
+  <title>Moderador - CNV 2025 v2</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -19,7 +19,7 @@
         <label class="block text-sm font-semibold text-gray-700 mb-2">
           🎯 Selecione a palestra para moderar:
         </label>
-        <select id="palestraSelect" class="w-full px-4 py-3 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg font-semibold">
+        <select id="palestraSelect" class="w-full px-4 py-3 border-2 border-purple-300 rounded-lg text-lg font-semibold">
           <option value="">Carregando palestras...</option>
         </select>
       </div>
@@ -30,38 +30,94 @@
           
           <div class="flex-1 text-center">
             <h1 class="text-xl font-bold text-gray-800" id="palestraTitulo">-</h1>
-            <p class="text-sm text-gray-600" id="palestraInfo">-</p>
+            <p class="text-sm text-gray-600">
+              🎤 <span id="palestrante">-</span>
+            </p>
           </div>
           
-          <div>
-            <span id="statusPalestra" class="px-4 py-2 rounded-full text-sm font-semibold">-</span>
+          <div class="flex gap-2">
+            <span id="statusPerguntas" class="px-4 py-2 rounded-full text-sm font-semibold">-</span>
+            <span id="statusSilencio" class="px-4 py-2 rounded-full text-sm font-semibold hidden">🔇</span>
           </div>
         </div>
         
-        <div class="flex flex-wrap gap-2 justify-center">
-          <button id="btnAbrir" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">✓ Abrir</button>
-          <button id="btnFechar" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">✗ Fechar</button>
-          <button id="btnSilencio" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">🔇 Silêncio 60s</button>
-          <button id="btnExportar" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">📥 CSV</button>
-          <button id="btnEncerrar" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">⏹ Encerrar</button>
+        <!-- Controles Principais -->
+        <div class="flex flex-wrap gap-2 justify-center mb-4">
+          <button id="btnTogglePerguntas" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+            ✓ Abrir Perguntas
+          </button>
+          <button id="btnToggleSilencio" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+            🔇 Ativar Silêncio
+          </button>
+          <button id="btnConfigLimites" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+            ⚙️ Configurar Limites
+          </button>
+          <button id="btnExportar" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+            📥 Exportar CSV
+          </button>
+          <button id="btnEncerrar" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
+            ⏹ Encerrar Palestra
+          </button>
+        </div>
+        
+        <!-- Info Rápida -->
+        <div class="flex gap-4 text-sm text-gray-600 justify-center">
+          <span>Max: <strong id="infoMaxPerguntas">3</strong> perguntas</span>
+          <span>Intervalo: <strong id="infoIntervalo">60</strong>s</span>
         </div>
       </div>
     </div>
   </header>
   
+  <!-- Modal de Configuração -->
+  <div id="modalConfig" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <h3 class="text-xl font-bold mb-4">⚙️ Configurar Limites</h3>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-2">
+            Máximo de perguntas por dispositivo
+          </label>
+          <input type="number" id="inputMaxPerguntas" min="1" max="10" value="3" 
+                 class="w-full px-4 py-2 border rounded-lg">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold mb-2">
+            Intervalo entre envios (segundos)
+          </label>
+          <input type="number" id="inputIntervalo" min="10" max="300" value="60"
+                 class="w-full px-4 py-2 border rounded-lg">
+        </div>
+        
+        <div class="flex gap-2">
+          <button id="btnSalvarConfig" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+            Salvar
+          </button>
+          <button id="btnCancelarConfig" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <main id="mainConteudo" class="container mx-auto px-4 py-6 hidden">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
+      <!-- Coluna 1: Fila de Pendentes -->
       <div class="bg-white rounded-lg shadow-lg p-4">
         <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
           <span>📋 Fila</span>
           <span id="contadorPendentes" class="bg-yellow-500 text-white text-sm px-3 py-1 rounded-full">0</span>
         </h2>
         <div id="filaPendentes" class="space-y-3 max-h-[70vh] overflow-y-auto">
-          <p class="text-gray-500 text-center py-8">Nenhuma pergunta pendente</p>
+          <p class="text-gray-500 text-center py-8">Nenhuma pendente</p>
         </div>
       </div>
       
+      <!-- Coluna 2: Telão -->
       <div class="bg-white rounded-lg shadow-lg p-4">
         <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
           <span>📺 Telão</span>
@@ -71,7 +127,7 @@
         <div class="mb-4">
           <h3 class="text-sm font-semibold text-gray-600 mb-2">ATUAL:</h3>
           <div id="atualCard" class="p-4 bg-green-50 rounded-lg text-center text-gray-500">
-            Nenhuma pergunta exibida
+            Nenhuma exibida
           </div>
         </div>
         
@@ -88,6 +144,7 @@
         </div>
       </div>
       
+      <!-- Coluna 3: Respondidas -->
       <div class="bg-white rounded-lg shadow-lg p-4">
         <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
           <span>✓ Respondidas</span>
@@ -100,6 +157,7 @@
       
     </div>
     
+    <!-- Logs -->
     <div class="mt-6 bg-white rounded-lg shadow-lg p-4">
       <h2 class="text-lg font-bold mb-4">📜 Logs</h2>
       <div id="listaLogs" class="space-y-1 max-h-40 overflow-y-auto text-sm text-gray-600">
@@ -108,317 +166,8 @@
     </div>
   </main>
   
-  <script src="js/supabase-config.js"></script>
-  
-  <script>
-    // MODERADOR COMPLETO - INLINE
-    let palestraId = null;
-    let palestra = null;
-    let perguntas = { pendentes: [], aprovadas: [], exibida: null, respondidas: [] };
-    let canalRealtime = null;
-    const logs = [];
-    
-    // Inicializar
-    async function inicializar() {
-      console.log('🎛️ Moderador inicializando...');
-      await carregarListaPalestras();
-      document.getElementById('palestraSelect').addEventListener('change', async function() {
-        if (this.value) await selecionarPalestra(this.value);
-      });
-    }
-    
-    // Carregar lista de palestras
-    async function carregarListaPalestras() {
-      const select = document.getElementById('palestraSelect');
-      console.log('📋 Carregando palestras...');
-      
-      try {
-        const { data, error } = await supabase
-          .from('cnv25_palestras')
-          .select('*')
-          .order('inicio', { ascending: true });
-        
-        if (error) {
-          console.error('❌ Erro ao carregar:', error);
-          throw error;
-        }
-        
-        console.log('✅ Palestras carregadas:', data);
-        
-        select.innerHTML = '<option value="">Selecione uma palestra...</option>';
-        
-        if (data && data.length > 0) {
-          data.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p.id;
-            option.textContent = `${p.titulo} - Sala ${p.sala} [${p.status.toUpperCase()}]`;
-            select.appendChild(option);
-          });
-        } else {
-          select.innerHTML = '<option value="">Nenhuma palestra encontrada</option>';
-        }
-        
-        // Verificar palestra ativa
-        const { data: ativaData } = await supabase
-          .from('cnv25_palestra_ativa')
-          .select('palestra_id')
-          .eq('id', 1)
-          .single();
-        
-        if (ativaData?.palestra_id) {
-          select.value = ativaData.palestra_id;
-          await selecionarPalestra(ativaData.palestra_id);
-        }
-        
-      } catch (error) {
-        console.error('❌ Erro completo:', error);
-        select.innerHTML = '<option value="">Erro ao carregar - Verifique console (F12)</option>';
-      }
-    }
-    
-    // Selecionar palestra e ativar
-    async function selecionarPalestra(id) {
-      console.log('🎯 Selecionando palestra:', id);
-      palestraId = id;
-      
-      try {
-        // Gravar como ativa
-        const { error } = await supabase
-          .from('cnv25_palestra_ativa')
-          .update({ palestra_id: id })
-          .eq('id', 1);
-        
-        if (error) throw error;
-        
-        adicionarLog('🎯 Palestra ativada - Participantes sincronizados!');
-        
-        // Carregar dados
-        await carregarPalestra();
-        await carregarPerguntas();
-        conectarRealtime();
-        configurarBotoes();
-        
-        document.getElementById('headerConteudo').classList.remove('hidden');
-        document.getElementById('mainConteudo').classList.remove('hidden');
-        
-      } catch (error) {
-        console.error('❌ Erro ao selecionar:', error);
-        alert('Erro: ' + error.message);
-      }
-    }
-    
-    // Carregar palestra
-    async function carregarPalestra() {
-      const { data } = await window.supabase.from('cnv25_palestras').select('*').eq('id', palestraId).single();
-      palestra = data;
-      document.getElementById('palestraTitulo').textContent = palestra.titulo;
-      document.getElementById('palestraInfo').textContent = `Sala ${palestra.sala}`;
-      atualizarStatusPalestra();
-    }
-    
-    // Atualizar status
-    function atualizarStatusPalestra() {
-      const el = document.getElementById('statusPalestra');
-      const map = {
-        'aberta': { text: 'ABERTA', class: 'bg-green-500 text-white' },
-        'fechada': { text: 'FECHADA', class: 'bg-red-500 text-white' },
-        'planejada': { text: 'Planejada', class: 'bg-gray-200 text-gray-700' },
-        'encerrada': { text: 'ENCERRADA', class: 'bg-gray-700 text-white' }
-      };
-      const s = map[palestra.status] || map.planejada;
-      el.textContent = s.text;
-      el.className = `px-4 py-2 rounded-full text-sm font-semibold ${s.class}`;
-    }
-    
-    // Carregar perguntas
-    async function carregarPerguntas() {
-      const { data } = await window.supabase.from('cnv25_perguntas').select('*').eq('palestra_id', palestraId).order('created_at');
-      perguntas.pendentes = data.filter(p => p.status === 'pendente');
-      perguntas.aprovadas = data.filter(p => p.status === 'aprovada');
-      perguntas.exibida = data.find(p => p.status === 'exibida') || null;
-      perguntas.respondidas = data.filter(p => p.status === 'respondida');
-      renderizarTudo();
-    }
-    
-    // Conectar Realtime
-    function conectarRealtime() {
-      if (canalRealtime) window.supabase.removeChannel(canalRealtime);
-      
-      canalRealtime = window.supabase.channel(`mod:${palestraId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cnv25_perguntas', filter: `palestra_id=eq.${palestraId}` }, 
-          p => { perguntas.pendentes.push(p.new); renderizarTudo(); adicionarLog('Nova pergunta'); })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cnv25_perguntas', filter: `palestra_id=eq.${palestraId}` }, 
-          p => { atualizarPergunta(p.new); })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cnv25_palestras', filter: `id=eq.${palestraId}` }, 
-          p => { palestra = p.new; atualizarStatusPalestra(); })
-        .subscribe();
-    }
-    
-    // Atualizar pergunta
-    function atualizarPergunta(p) {
-      perguntas.pendentes = perguntas.pendentes.filter(x => x.id !== p.id);
-      perguntas.aprovadas = perguntas.aprovadas.filter(x => x.id !== p.id);
-      perguntas.respondidas = perguntas.respondidas.filter(x => x.id !== p.id);
-      
-      if (p.status === 'pendente') perguntas.pendentes.push(p);
-      else if (p.status === 'aprovada') perguntas.aprovadas.push(p);
-      else if (p.status === 'exibida') { perguntas.exibida = p; }
-      else if (p.status === 'respondida') { perguntas.respondidas.push(p); if(perguntas.exibida?.id === p.id) perguntas.exibida = null; }
-      
-      renderizarTudo();
-    }
-    
-    // Renderizar tudo
-    function renderizarTudo() {
-      renderizarPendentes();
-      renderizarAprovadas();
-      renderizarAtual();
-      renderizarRespondidas();
-      document.getElementById('contadorPendentes').textContent = perguntas.pendentes.length;
-      document.getElementById('contadorExibida').textContent = perguntas.exibida ? '1' : '0';
-      document.getElementById('contadorRespondidas').textContent = perguntas.respondidas.length;
-    }
-    
-    function renderizarPendentes() {
-      const c = document.getElementById('filaPendentes');
-      if (!perguntas.pendentes.length) { c.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma pendente</p>'; return; }
-      c.innerHTML = perguntas.pendentes.map(p => `
-        <div class="border rounded-lg p-3">
-          <p class="text-sm mb-2">${esc(p.texto)}</p>
-          <div class="text-xs text-gray-500 mb-2">${p.anonimo ? '👤 Anônimo' : '👤 '+esc(p.nome_opt)}</div>
-          <div class="flex gap-2">
-            <button onclick="aprovar('${p.id}')" class="flex-1 bg-green-500 text-white text-xs px-2 py-1 rounded">✓</button>
-            <button onclick="recusar('${p.id}')" class="flex-1 bg-red-500 text-white text-xs px-2 py-1 rounded">✗</button>
-          </div>
-        </div>
-      `).join('');
-    }
-    
-    function renderizarAprovadas() {
-      const c = document.getElementById('listaAprovadas');
-      if (!perguntas.aprovadas.length) { c.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Nenhuma</p>'; return; }
-      c.innerHTML = perguntas.aprovadas.map(p => `
-        <div class="border border-green-200 bg-green-50 rounded p-2">
-          <p class="text-xs mb-1">${esc(p.texto)}</p>
-          <button onclick="exibir('${p.id}')" class="w-full bg-green-500 text-white text-xs px-2 py-1 rounded">📺 Exibir</button>
-        </div>
-      `).join('');
-    }
-    
-    function renderizarAtual() {
-      const c = document.getElementById('atualCard');
-      const prox = document.getElementById('proximaCard');
-      
-      if (!perguntas.exibida) {
-        c.className = 'p-4 bg-green-50 rounded-lg text-center text-gray-500';
-        c.innerHTML = 'Nenhuma exibida';
-        prox.innerHTML = perguntas.aprovadas[0] ? esc(perguntas.aprovadas[0].texto) : '—';
-        return;
-      }
-      
-      c.className = 'p-4 bg-green-100 border-2 border-green-500 rounded-lg';
-      c.innerHTML = `
-        <p class="font-medium mb-2">${esc(perguntas.exibida.texto)}</p>
-        <button onclick="responder('${perguntas.exibida.id}')" class="w-full bg-blue-500 text-white text-sm px-3 py-2 rounded">✓ Respondida</button>
-      `;
-      prox.innerHTML = perguntas.aprovadas[0] ? esc(perguntas.aprovadas[0].texto) : '—';
-    }
-    
-    function renderizarRespondidas() {
-      const c = document.getElementById('listaRespondidas');
-      if (!perguntas.respondidas.length) { c.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma</p>'; return; }
-      c.innerHTML = perguntas.respondidas.slice().reverse().map(p => `
-        <div class="border rounded-lg p-3 bg-gray-50">
-          <p class="text-sm mb-1">${esc(p.texto)}</p>
-          <div class="text-xs text-gray-500">${p.anonimo ? '👤 Anônimo' : '👤 '+esc(p.nome_opt)}</div>
-        </div>
-      `).join('');
-    }
-    
-    // Ações
-    async function aprovar(id) {
-      await window.supabase.from('cnv25_perguntas').update({status:'aprovada'}).eq('id',id);
-      adicionarLog('Aprovada');
-    }
-    
-    async function recusar(id) {
-      await window.supabase.from('cnv25_perguntas').update({status:'recusada'}).eq('id',id);
-      adicionarLog('Recusada');
-    }
-    
-    async function exibir(id) {
-      if(perguntas.exibida && !confirm('Substituir atual?')) return;
-      if(perguntas.exibida) await window.supabase.from('cnv25_perguntas').update({status:'respondida',respondida_em:new Date().toISOString()}).eq('id',perguntas.exibida.id);
-      await window.supabase.from('cnv25_perguntas').update({status:'exibida',exibida_em:new Date().toISOString()}).eq('id',id);
-      adicionarLog('Exibida');
-    }
-    
-    async function responder(id) {
-      await window.supabase.from('cnv25_perguntas').update({status:'respondida',respondida_em:new Date().toISOString()}).eq('id',id);
-      adicionarLog('Respondida');
-    }
-    
-    // Configurar botões
-    function configurarBotoes() {
-      document.getElementById('btnAbrir').onclick = async () => {
-        await window.supabase.from('cnv25_palestras').update({status:'aberta'}).eq('id',palestraId);
-        await window.supabase.from('cnv25_palestras_flags').upsert({palestra_id:palestraId,silencio_ate:null});
-        adicionarLog('✅ ABERTAS');
-      };
-      
-      document.getElementById('btnFechar').onclick = async () => {
-        if(!confirm('Fechar?')) return;
-        await window.supabase.from('cnv25_palestras').update({status:'fechada'}).eq('id',palestraId);
-        adicionarLog('❌ FECHADAS');
-      };
-      
-      document.getElementById('btnSilencio').onclick = async () => {
-        const ate = new Date(Date.now() + 60000).toISOString();
-        await window.supabase.from('cnv25_palestras_flags').upsert({palestra_id:palestraId,silencio_ate:ate});
-        adicionarLog('🔇 Silêncio 60s');
-        alert('Silêncio ativado por 60s');
-      };
-      
-      document.getElementById('btnEncerrar').onclick = async () => {
-        if(!confirm('ENCERRAR?')) return;
-        await window.supabase.from('cnv25_palestras').update({status:'encerrada'}).eq('id',palestraId);
-        adicionarLog('⏹ ENCERRADA');
-      };
-      
-      document.getElementById('btnExportar').onclick = async () => {
-        const {data} = await window.supabase.from('cnv25_perguntas').select('*').eq('palestra_id',palestraId).order('created_at');
-        if(!data?.length) { alert('Nenhuma pergunta'); return; }
-        const csv = [
-          ['Data','Pergunta','Nome','Status'].join(','),
-          ...data.map(p => [p.created_at,p.texto,p.anonimo?'Anônimo':p.nome_opt,p.status].map(c=>`"${c}"`).join(','))
-        ].join('\n');
-        const blob = new Blob([csv],{type:'text/csv'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `perguntas_${Date.now()}.csv`;
-        a.click();
-        adicionarLog('📥 CSV exportado');
-      };
-    }
-    
-    // Logs
-    function adicionarLog(msg) {
-      const t = new Date().toLocaleTimeString('pt-BR');
-      logs.unshift(`[${t}] ${msg}`);
-      if(logs.length>20) logs.pop();
-      document.getElementById('listaLogs').innerHTML = logs.map(l => `<div class="text-xs">${esc(l)}</div>`).join('');
-    }
-    
-    function esc(t) {
-      const d = document.createElement('div');
-      d.textContent = t;
-      return d.innerHTML;
-    }
-    
-    // Iniciar
-    window.addEventListener('DOMContentLoaded', inicializar);
-    window.addEventListener('beforeunload', () => { if(canalRealtime) window.supabase.removeChannel(canalRealtime); });
-  </script>
+  <script src="js/supabase-config-v2.js"></script>
+  <script src="js/moderador-v2.js"></script>
   
 </body>
 </html>
