@@ -4,7 +4,7 @@
 
 const SUPABASE_CONFIG = {
   url: 'https://vwqfalhfeajwavkuewpp.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3cWZhbGhmZWFqd2F2a3Vld3BwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA2NDM5OTgsImV4cCI6MjAzNjIxOTk5OH0.4JsrInoo7vxhuE52BgnWVpgbJQfowo03HQjBS5OhTvMI',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3cWZhbGhmZWFqd2F2a3Vld3BwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA2NDM5OTgsImV4cCI6MjAzNjIxOTk5OH0.4JsrInoo7vxhuE52BgnWVpgbJQfowo03HQjBS5OhTvM',
 };
 
 // Validação básica (avisa se não configurou)
