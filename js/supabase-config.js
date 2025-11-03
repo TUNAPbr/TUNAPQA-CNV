@@ -7,11 +7,11 @@
 
 const SUPABASE_CONFIG = {
   // Substitua pela sua URL do Supabase (formato: https://xxxxx.supabase.co)
-  url: 'SUA_URL_SUPABASE_AQUI',
+  url: 'https://vwqfalhfeajwavkuewpp.supabase.co',
   
   // Substitua pela sua chave pública (anon key)
   // ATENÇÃO: Use apenas a ANON KEY (pública), nunca a service_role key
-  anonKey: 'SUA_ANON_KEY_AQUI',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3cWZhbGhmZWFqd2F2a3Vld3BwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA2NDM5OTgsImV4cCI6MjAzNjIxOTk5OH0.4JsrInoo7vxhuE52BgnWVpgbJQfowo03HQjBS5OhTvMI',
 };
 
 // Validação básica (avisa se não configurou)
