@@ -1,18 +1,11 @@
 // =====================================================
-// CONFIGURAÇÃO DO SUPABASE - VERSÃO CORRIGIDA
-// =====================================================
-// IMPORTANTE: Substitua os valores abaixo pelas suas credenciais do Supabase
-// Encontre em: Supabase → Project Settings → API
+// CONFIGURAÇÃO DO SUPABASE - VERSÃO FINAL CORRIGIDA
 // =====================================================
 
 const SUPABASE_CONFIG = {
-  // Substitua pela sua URL do Supabase (formato: https://xxxxx.supabase.co)
   url: 'https://vwqfalhfeajwavkuewpp.supabase.co',
-  
-  // Substitua pela sua chave pública (anon key)
-  // ATENÇÃO: Use apenas a ANON KEY (pública), nunca a service_role key
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3cWZhbGhmZWFqd2F2a3Vld3BwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA2NDM5OTgsImV4cCI6MjAzNjIxOTk5OH0.4JsrInoo7vxhuE52BgnWVpgbJQfowo03HQjBS5OhTvMI',
-}
+};
 
 // Validação básica (avisa se não configurou)
 if (SUPABASE_CONFIG.url.includes('SUA_URL') || SUPABASE_CONFIG.anonKey.includes('SUA_ANON')) {
@@ -20,8 +13,7 @@ if (SUPABASE_CONFIG.url.includes('SUA_URL') || SUPABASE_CONFIG.anonKey.includes(
   alert('⚠️ Configure o Supabase primeiro!\n\nEdite o arquivo js/supabase-config.js e cole suas credenciais.');
 }
 
-// ⚠️ CORREÇÃO: Usar window.supabase ao invés de const supabase
-// Isso evita o erro "Cannot access before initialization"
+// Inicializar cliente Supabase
 window.supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
 
 console.log('✅ Supabase configurado');
@@ -30,7 +22,7 @@ console.log('✅ Supabase configurado');
 // FUNÇÕES AUXILIARES
 // =====================================================
 
-// Gerar ou recuperar Device ID (identifica o dispositivo do participante)
+// Gerar ou recuperar Device ID
 function getDeviceId() {
   let deviceId = localStorage.getItem('cnv_device_id');
   if (!deviceId) {
@@ -40,7 +32,7 @@ function getDeviceId() {
   return deviceId;
 }
 
-// Hash simples do device ID (SHA-256)
+// Hash do device ID (SHA-256)
 async function hashDeviceId(deviceId) {
   const encoder = new TextEncoder();
   const data = encoder.encode(deviceId + 'salt-secreto-cnv2025');
@@ -49,7 +41,7 @@ async function hashDeviceId(deviceId) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Validar texto da pergunta
+// Validar pergunta
 function validarPergunta(texto) {
   const erros = [];
   
@@ -61,13 +53,11 @@ function validarPergunta(texto) {
     erros.push('A pergunta deve ter no máximo 140 caracteres');
   }
   
-  // Bloquear links
   const temLink = /https?:\/\/|www\./i.test(texto);
   if (temLink) {
     erros.push('Links não são permitidos');
   }
   
-  // Bloquear palavras proibidas (adicione mais se necessário)
   const palavrasProibidas = ['spam', 'teste-proibido'];
   const temPalavraProibida = palavrasProibidas.some(palavra => 
     texto.toLowerCase().includes(palavra)
@@ -90,12 +80,12 @@ function formatarDataHora(timestamp) {
   });
 }
 
-// Verificar rate limit local (1 envio por 60s)
+// Verificar rate limit (1 envio por 60s)
 function verificarRateLimit() {
   const ultimoEnvio = localStorage.getItem('cnv_ultimo_envio');
   if (ultimoEnvio) {
     const tempoDecorrido = Date.now() - parseInt(ultimoEnvio);
-    const tempoRestante = 60000 - tempoDecorrido; // 60 segundos em ms
+    const tempoRestante = 60000 - tempoDecorrido;
     
     if (tempoRestante > 0) {
       return {
@@ -108,12 +98,12 @@ function verificarRateLimit() {
   return { permitido: true };
 }
 
-// Registrar envio (para rate limit)
+// Registrar envio
 function registrarEnvio() {
   localStorage.setItem('cnv_ultimo_envio', Date.now().toString());
 }
 
-// Contar perguntas do device nesta palestra
+// Contar perguntas do device
 async function contarPerguntasDevice(palestraId, deviceIdHash) {
   const { count, error } = await window.supabase
     .from('cnv25_perguntas')
