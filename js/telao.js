@@ -179,8 +179,7 @@ function renderizarPergunta() {
   const comPergunta = document.getElementById('comPergunta');
   const textoPergunta = document.getElementById('textoPergunta');
   const nomePergunta = document.getElementById('nomePergunta');
-  const containerProxima = document.getElementById('containerProxima');
-  const textoProxima = document.getElementById('textoProxima');
+
   
   // Se não tem pergunta atual
   if (!perguntaAtual) {
@@ -202,13 +201,6 @@ function renderizarPergunta() {
     nomePergunta.innerHTML = `👤 ${escapeHtml(perguntaAtual.nome_opt)}`;
   }
   
-  // Exibir próxima (preview)
-  if (proximaPergunta) {
-    containerProxima.classList.remove('hidden');
-    textoProxima.textContent = proximaPergunta.texto;
-  } else {
-    containerProxima.classList.add('hidden');
-  }
 }
 
 // Escape HTML
