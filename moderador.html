@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <link rel="stylesheet" href="css/cnv-colors.css">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Moderador - CNV 2025 v2</title>
@@ -43,13 +44,13 @@
         
         <!-- Controles Principais -->
         <div class="flex flex-wrap gap-2 justify-center mb-4">
-          <button id="btnTogglePerguntas" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+          <button id="btnTogglePerguntas" class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600">
             ✓ Abrir Perguntas
           </button>
-          <button id="btnToggleSilencio" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+          <button id="btnToggleSilencio" class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600">
             🔇 Ativar Silêncio
           </button>
-          <button id="btnConfigLimites" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+          <button id="btnConfigLimites" class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600">
             ⚙️ Configurar Limites
           </button>
           <button id="btnExportar" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
@@ -110,7 +111,7 @@
       <div class="bg-white rounded-lg shadow-lg p-4">
         <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
           <span>📋 Fila</span>
-          <span id="contadorPendentes" class="bg-yellow-500 text-white text-sm px-3 py-1 rounded-full">0</span>
+          <span id="contadorPendentes" class="bg-cnv-warning text-white text-sm px-3 py-1 rounded-full">0</span>
         </h2>
         <div id="filaPendentes" class="space-y-3 max-h-[70vh] overflow-y-auto">
           <p class="text-gray-500 text-center py-8">Nenhuma pendente</p>
@@ -121,7 +122,7 @@
       <div class="bg-white rounded-lg shadow-lg p-4">
         <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
           <span>📺 Telão</span>
-          <span id="contadorExibida" class="bg-green-500 text-white text-sm px-3 py-1 rounded-full">0</span>
+          <span id="contadorExibida" class="bg-cnv-success text-white text-sm px-3 py-1 rounded-full">0</span>
         </h2>
         
         <div class="mb-4">
