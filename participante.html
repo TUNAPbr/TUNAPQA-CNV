@@ -28,7 +28,7 @@
       </div>
       
       <div id="loading" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cnv-primary"></div>
         <p class="mt-4 text-gray-600">Carregando palestra ativa...</p>
       </div>
       
@@ -38,7 +38,7 @@
         </svg>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Nenhuma palestra ativa</h3>
         <p class="text-gray-600">Aguarde o moderador abrir uma palestra.</p>
-        <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+        <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-cnv-primary text-white rounded-lg hover:bg-cnv-primary">
           🔄 Recarregar
         </button>
       </div>
@@ -46,7 +46,7 @@
       <div id="conteudo" class="hidden">
         
         <!-- INFO COMPACTA: Tema + Palestrante + Status (1 LINHA) -->
-        <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-l-4 border-purple-500">
+        <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-cnv-primary rounded-lg border-l-4 border-cnv-primary">
           <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div class="flex-1">
               <span class="font-bold text-gray-800" id="infoTitulo">-</span>
@@ -71,7 +71,7 @@
               rows="4"
               maxlength="140"
               placeholder="Escreva sua pergunta aqui..."
-              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary resize-none"
             ></textarea>
             
             <div class="flex justify-between items-center mt-2">
@@ -90,7 +90,7 @@
                 id="nomeParticipante"
                 maxlength="80"
                 placeholder="Anônimo"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary"
               />
             </div>
             
@@ -103,7 +103,7 @@
                 id="emailParticipante"
                 maxlength="100"
                 placeholder="contato@email.com"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary"
               />
             </div>
           </div>
@@ -111,7 +111,7 @@
           <button 
             type="submit"
             id="btnEnviar"
-            class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg transform hover:scale-[1.02] transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full bg-gradient-to-r from-cnv-primary to-cnv-primary text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg transform hover:scale-[1.02] transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Enviar Pergunta
           </button>
