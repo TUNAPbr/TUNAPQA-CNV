@@ -19,58 +19,52 @@
   
   <div class="max-w-2xl mx-auto">
     
-    <!-- Voltar -->
     <a href="index.html" class="inline-block mb-4 text-white hover:underline">
       ← Voltar
     </a>
     
-    <!-- Card Principal -->
     <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
       
-      <!-- Header -->
       <div class="text-center mb-6">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Enviar Pergunta</h1>
         <p id="palestraTitulo" class="text-gray-600">Carregando...</p>
       </div>
       
-      <!-- Loading -->
       <div id="loading" class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
         <p class="mt-4 text-gray-600">Carregando palestra ativa...</p>
       </div>
       
-      <!-- Sem Palestra Ativa -->
       <div id="semPalestra" class="hidden text-center py-8">
         <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <h3 class="text-xl font-semibold text-gray-700 mb-2">Nenhuma palestra ativa no momento</h3>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">Nenhuma palestra ativa</h3>
         <p class="text-gray-600">Aguarde o moderador abrir uma palestra.</p>
         <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
           🔄 Recarregar
         </button>
       </div>
       
-      <!-- Conteúdo Principal -->
       <div id="conteudo" class="hidden">
         
-        <!-- Info da Palestra -->
-        <div class="mb-6 p-4 bg-purple-50 rounded-lg">
-          <p class="text-sm text-purple-900">
-            <strong id="infoTitulo"></strong><br>
-            <span class="text-purple-700">Sala <span id="infoSala"></span> • <span id="infoHorario"></span></span>
-          </p>
+        <!-- INFO COMPACTA: Tema + Palestrante + Status (1 LINHA) -->
+        <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-l-4 border-purple-500">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div class="flex-1">
+              <span class="font-bold text-gray-800" id="infoTitulo">-</span>
+              <span class="text-gray-600">• 🎤 <span id="infoPalestrante">-</span></span>
+            </div>
+            <div>
+              <span id="statusBadge" class="px-3 py-1 rounded-full text-xs font-bold">
+                <!-- Status -->
+              </span>
+            </div>
+          </div>
         </div>
         
-        <!-- Status da Palestra -->
-        <div id="statusBanner" class="mb-6 p-4 rounded-lg text-center font-semibold text-lg">
-          <!-- Será preenchido dinamicamente -->
-        </div>
-        
-        <!-- Formulário -->
         <form id="formPergunta" class="space-y-4">
           
-          <!-- Campo de Pergunta -->
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Sua pergunta *
@@ -80,59 +74,67 @@
               rows="4"
               maxlength="140"
               placeholder="Escreva sua pergunta aqui..."
-              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
             ></textarea>
             
-            <!-- Contador de Caracteres -->
             <div class="flex justify-between items-center mt-2">
               <span id="contador" class="text-sm text-gray-500">0 / 140</span>
               <span id="avisoLimite" class="text-xs text-red-500 hidden">Limite atingido!</span>
             </div>
           </div>
           
-          <!-- Campo de Nome (Opcional) -->
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              Seu nome (opcional)
-            </label>
-            <input 
-              type="text"
-              id="nomeParticipante"
-              maxlength="80"
-              placeholder="Deixe em branco para perguntar anonimamente"
-              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Seu nome (opcional)
+              </label>
+              <input 
+                type="text"
+                id="nomeParticipante"
+                maxlength="80"
+                placeholder="Anônimo"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Seu email (opcional)
+              </label>
+              <input 
+                type="email"
+                id="emailParticipante"
+                maxlength="100"
+                placeholder="contato@email.com"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
           </div>
           
-          <!-- Botão Enviar -->
           <button 
             type="submit"
             id="btnEnviar"
-            class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg transform hover:scale-[1.02] transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg transform hover:scale-[1.02] transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Enviar Pergunta
           </button>
           
         </form>
         
-        <!-- Mensagem de Feedback -->
         <div id="feedback" class="mt-4 p-4 rounded-lg hidden"></div>
         
-        <!-- Informações -->
         <div class="mt-6 p-4 bg-gray-50 rounded-lg">
           <p class="text-xs text-gray-600 leading-relaxed">
             <strong>📝 Regras:</strong><br>
-            • Máximo 140 caracteres por pergunta<br>
-            • Limite de 3 perguntas por dispositivo<br>
-            • 1 envio a cada 60 segundos<br>
-            • Links não são permitidos<br>
-            • Perguntas aprovadas podem aparecer no telão
+            • Máximo 140 caracteres<br>
+            • Limite de <strong id="maxPerguntas">3</strong> perguntas<br>
+            • 1 envio a cada <strong id="intervaloSegundos">60</strong> segundos<br>
+            • Links não são permitidos
           </p>
         </div>
         
-        <!-- Contador de Perguntas Enviadas -->
         <div class="mt-4 text-center text-sm text-gray-600">
-          Você enviou <strong id="contadorEnviadas">0</strong> de 3 perguntas nesta palestra
+          Você enviou <strong id="contadorEnviadas">0</strong> de <strong id="limiteDinamico">3</strong> perguntas
         </div>
         
       </div>
@@ -141,89 +143,66 @@
     
   </div>
   
-  <!-- Scripts -->
-  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-config-v2.js"></script>
   <script>
-    // =====================================================
-    // PARTICIPANTE - SINCRONIZADO COM MODERADOR
-    // =====================================================
-    
     let palestraId = null;
     let palestra = null;
     let deviceId = null;
     let deviceIdHash = null;
     let canalPalestraAtiva = null;
     let canalPalestra = null;
+    let canalControle = null;
     
-    // Inicializar
     async function inicializar() {
       deviceId = getDeviceId();
       deviceIdHash = await hashDeviceId(deviceId);
       
-      // Conectar ao Realtime da palestra ativa
       await conectarRealtimePalestraAtiva();
-      
-      // Carregar palestra ativa inicial
       await carregarPalestraAtiva();
-      
-      // Configurar listeners do formulário
       configurarListeners();
     }
     
-    // Conectar ao Realtime da tabela palestra_ativa
     function conectarRealtimePalestraAtiva() {
       canalPalestraAtiva = supabase
         .channel('palestra_ativa_participante')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'cnv25_palestra_ativa',
-            filter: 'id=eq.1'
-          },
-          async (payload) => {
-            console.log('🔄 Palestra ativa mudou:', payload);
-            const novaPalestraId = payload.new.palestra_id;
-            
-            if (novaPalestraId !== palestraId) {
-              // Palestra mudou! Recarregar
-              await carregarPalestraAtiva();
-            }
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cnv25_palestra_ativa',
+          filter: 'id=eq.1'
+        }, async (payload) => {
+          console.log('🔄 Palestra mudou:', payload);
+          if (payload.new.palestra_id !== palestraId) {
+            await carregarPalestraAtiva();
           }
-        )
+        })
         .subscribe();
     }
     
-    // Carregar palestra ativa
     async function carregarPalestraAtiva() {
       try {
-        // Buscar palestra ativa
-        const { data: palestraAtiva, error: errorAtiva } = await supabase
+        const { data: palestraAtiva } = await supabase
           .from('cnv25_palestra_ativa')
           .select('palestra_id')
           .eq('id', 1)
           .single();
         
-        if (errorAtiva) throw errorAtiva;
-        
         const novaPalestraId = palestraAtiva?.palestra_id;
         
-        // Se não tem palestra ativa
         if (!novaPalestraId) {
           mostrarSemPalestra();
           return;
         }
         
-        // Se mudou de palestra, desconectar canal anterior
         if (canalPalestra && palestraId !== novaPalestraId) {
-          window.window.supabase.removeChannel(canalPalestra);
+          window.supabase.removeChannel(canalPalestra);
+          window.supabase.removeChannel(canalControle);
           canalPalestra = null;
+          canalControle = null;
         }
         
         palestraId = novaPalestraId;
         
-        // Buscar dados da palestra
         palestra = await obterPalestra(palestraId);
         
         if (!palestra) {
@@ -231,109 +210,131 @@
           return;
         }
         
-        // Mostrar conteúdo
         mostrarConteudo();
-        
-        // Atualizar UI
         atualizarUI();
-        
-        // Conectar ao Realtime da palestra específica
         conectarRealtimePalestra();
-        
-        // Atualizar contador
         await atualizarContadorEnviadas();
         
       } catch (error) {
-        console.error('Erro ao carregar palestra ativa:', error);
+        console.error('Erro:', error);
         mostrarSemPalestra();
       }
     }
     
-    // Conectar ao Realtime da palestra específica
     function conectarRealtimePalestra() {
-      if (canalPalestra) return; // Já conectado
+      if (canalPalestra) return;
       
       canalPalestra = supabase
         .channel(`palestra:${palestraId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'cnv25_palestras',
-            filter: `id=eq.${palestraId}`
-          },
-          (payload) => {
-            console.log('📢 Palestra atualizada:', payload);
-            palestra = payload.new;
-            atualizarUI();
-          }
-        )
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cnv25_palestras',
+          filter: `id=eq.${palestraId}`
+        }, (payload) => {
+          palestra = payload.new;
+          atualizarUI();
+        })
+        .subscribe();
+      
+      canalControle = supabase
+        .channel(`controle:${palestraId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'cnv25_palestra_controle',
+          filter: `palestra_id=eq.${palestraId}`
+        }, (payload) => {
+          console.log('Controle atualizado:', payload);
+          atualizarStatusBadge(payload.new);
+        })
         .subscribe();
     }
     
-    // Mostrar loading
     function mostrarLoading() {
       document.getElementById('loading').classList.remove('hidden');
       document.getElementById('semPalestra').classList.add('hidden');
       document.getElementById('conteudo').classList.add('hidden');
     }
     
-    // Mostrar sem palestra
     function mostrarSemPalestra() {
       document.getElementById('loading').classList.add('hidden');
       document.getElementById('semPalestra').classList.remove('hidden');
       document.getElementById('conteudo').classList.add('hidden');
     }
     
-    // Mostrar conteúdo
     function mostrarConteudo() {
       document.getElementById('loading').classList.add('hidden');
       document.getElementById('semPalestra').classList.add('hidden');
       document.getElementById('conteudo').classList.remove('hidden');
     }
     
-    // Atualizar UI
-    function atualizarUI() {
+    async function atualizarUI() {
       if (!palestra) return;
       
-      // Header
       document.getElementById('palestraTitulo').textContent = palestra.titulo;
-      
-      // Info
       document.getElementById('infoTitulo').textContent = palestra.titulo;
-      document.getElementById('infoSala').textContent = palestra.sala;
-      document.getElementById('infoHorario').textContent = formatarDataHora(palestra.inicio);
+      document.getElementById('infoPalestrante').textContent = palestra.palestrante || 'A definir';
       
-      // Status
-      const banner = document.getElementById('statusBanner');
+      // Atualizar limites dinâmicos
+      document.getElementById('maxPerguntas').textContent = palestra.max_perguntas || 3;
+      document.getElementById('intervaloSegundos').textContent = palestra.intervalo_perguntas || 60;
+      document.getElementById('limiteDinamico').textContent = palestra.max_perguntas || 3;
+      
+      // Buscar controle
+      const { data: controle } = await supabase
+        .from('cnv25_palestra_controle')
+        .select('*')
+        .eq('palestra_id', palestraId)
+        .single();
+      
+      atualizarStatusBadge(controle);
+    }
+    
+    function atualizarStatusBadge(controle) {
+      const badge = document.getElementById('statusBadge');
       const btnEnviar = document.getElementById('btnEnviar');
       const textarea = document.getElementById('textoPergunta');
-      const input = document.getElementById('nomeParticipante');
+      const inputNome = document.getElementById('nomeParticipante');
+      const inputEmail = document.getElementById('emailParticipante');
       
-      if (palestra.status === 'aberta') {
-        banner.className = 'mb-6 p-4 rounded-lg text-center font-semibold text-lg bg-green-100 text-green-800';
-        banner.textContent = '✅ Perguntas ABERTAS';
-        btnEnviar.disabled = false;
-        textarea.disabled = false;
-        input.disabled = false;
-      } else {
-        banner.className = 'mb-6 p-4 rounded-lg text-center font-semibold text-lg bg-red-100 text-red-800';
-        banner.textContent = '❌ Perguntas FECHADAS';
+      if (!controle) {
+        badge.textContent = '❓ Sem controle';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-700';
+        btnEnviar.disabled = true;
+        return;
+      }
+      
+      if (controle.silencio_ativo) {
+        badge.textContent = '🔇 SILÊNCIO';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white';
         btnEnviar.disabled = true;
         textarea.disabled = true;
-        input.disabled = true;
+        inputNome.disabled = true;
+        inputEmail.disabled = true;
+      } else if (controle.perguntas_abertas) {
+        badge.textContent = '✅ ABERTAS';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-green-500 text-white';
+        btnEnviar.disabled = false;
+        textarea.disabled = false;
+        inputNome.disabled = false;
+        inputEmail.disabled = false;
+      } else {
+        badge.textContent = '❌ FECHADAS';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white';
+        btnEnviar.disabled = true;
+        textarea.disabled = true;
+        inputNome.disabled = true;
+        inputEmail.disabled = true;
       }
     }
     
-    // Configurar listeners
     function configurarListeners() {
       const textarea = document.getElementById('textoPergunta');
       const contador = document.getElementById('contador');
       const avisoLimite = document.getElementById('avisoLimite');
       const form = document.getElementById('formPergunta');
       
-      // Contador de caracteres
       textarea.addEventListener('input', function() {
         const length = this.value.length;
         contador.textContent = `${length} / 140`;
@@ -347,14 +348,12 @@
         }
       });
       
-      // Envio
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         await enviarPergunta();
       });
     }
     
-    // Enviar pergunta
     async function enviarPergunta() {
       if (!palestraId) {
         mostrarErro('Nenhuma palestra ativa');
@@ -364,6 +363,7 @@
       const btnEnviar = document.getElementById('btnEnviar');
       const texto = document.getElementById('textoPergunta').value.trim();
       const nome = document.getElementById('nomeParticipante').value.trim();
+      const email = document.getElementById('emailParticipante').value.trim();
       
       btnEnviar.disabled = true;
       btnEnviar.textContent = 'Enviando...';
@@ -375,26 +375,27 @@
           return;
         }
         
-        if (palestra.status !== 'aberta') {
-          mostrarErro('As perguntas estão fechadas no momento');
+        if (email && !validarEmail(email)) {
+          mostrarErro('Email inválido');
           return;
         }
         
-        const rateLimit = verificarRateLimit();
+        const aberta = await verificarPerguntasAbertas(palestraId);
+        if (!aberta) {
+          mostrarErro('Perguntas fechadas ou em silêncio');
+          return;
+        }
+        
+        const rateLimit = verificarRateLimitDinamico(palestra.intervalo_perguntas || 60);
         if (!rateLimit.permitido) {
-          mostrarErro(`Aguarde ${rateLimit.segundosRestantes} segundos`);
+          mostrarErro(`Aguarde ${rateLimit.segundosRestantes}s`);
           return;
         }
         
         const totalPerguntas = await contarPerguntasDevice(palestraId, deviceIdHash);
-        if (totalPerguntas >= 3) {
-          mostrarErro('Limite de 3 perguntas atingido');
-          return;
-        }
-        
-        const silencioAtivo = await verificarSilencio(palestraId);
-        if (silencioAtivo) {
-          mostrarErro('Modo silêncio ativo. Aguarde...');
+        const maxPerguntas = palestra.max_perguntas || 3;
+        if (totalPerguntas >= maxPerguntas) {
+          mostrarErro(`Limite de ${maxPerguntas} perguntas atingido`);
           return;
         }
         
@@ -403,6 +404,7 @@
           palestra_id: palestraId,
           texto: texto,
           nome_opt: nome || null,
+          email_opt: email || null,
           anonimo: !nome,
           device_id_hash: deviceIdHash,
           nonce: nonce,
@@ -429,12 +431,13 @@
         
         document.getElementById('textoPergunta').value = '';
         document.getElementById('nomeParticipante').value = '';
+        document.getElementById('emailParticipante').value = '';
         document.getElementById('contador').textContent = '0 / 140';
         
         await atualizarContadorEnviadas();
         
       } catch (error) {
-        console.error('Erro ao enviar:', error);
+        console.error('Erro:', error);
         mostrarErro('Erro ao enviar pergunta');
       } finally {
         btnEnviar.disabled = false;
@@ -442,7 +445,6 @@
       }
     }
     
-    // Atualizar contador de enviadas
     async function atualizarContadorEnviadas() {
       if (!palestraId) return;
       
@@ -450,8 +452,9 @@
         const total = await contarPerguntasDevice(palestraId, deviceIdHash);
         document.getElementById('contadorEnviadas').textContent = total;
         
-        if (total >= 3) {
-          mostrarAviso('Limite de 3 perguntas atingido');
+        const maxPerguntas = palestra.max_perguntas || 3;
+        if (total >= maxPerguntas) {
+          mostrarAviso(`Limite de ${maxPerguntas} perguntas atingido`);
           document.getElementById('btnEnviar').disabled = true;
         }
       } catch (error) {
@@ -459,7 +462,6 @@
       }
     }
     
-    // Funções de feedback
     function mostrarSucesso(mensagem) {
       const feedback = document.getElementById('feedback');
       feedback.className = 'mt-4 p-4 rounded-lg bg-green-100 border-l-4 border-green-500 text-green-800';
@@ -483,13 +485,12 @@
       feedback.classList.remove('hidden');
     }
     
-    // Iniciar
     window.addEventListener('DOMContentLoaded', inicializar);
     
-    // Cleanup
     window.addEventListener('beforeunload', () => {
-      if (canalPalestraAtiva) window.window.supabase.removeChannel(canalPalestraAtiva);
-      if (canalPalestra) window.window.supabase.removeChannel(canalPalestra);
+      if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
+      if (canalPalestra) window.supabase.removeChannel(canalPalestra);
+      if (canalControle) window.supabase.removeChannel(canalControle);
     });
   </script>
   
