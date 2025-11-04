@@ -4,36 +4,42 @@
   <link rel="stylesheet" href="css/cnv-colors.css">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moderador - CNV 2025 v2</title>
+  <title>Moderador v2 - CNV 2025</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <style>
+    .tab-button { @apply px-6 py-3 font-semibold rounded-t-lg transition; }
+    .tab-button.active { @apply bg-white text-cnv-primary border-b-4 border-cnv-primary; }
+    .tab-button:not(.active) { @apply bg-gray-200 text-gray-600 hover:bg-gray-300; }
+    .tab-content { @apply hidden; }
+    .tab-content.active { @apply block; }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
   
-  <!-- Header -->
+  <!-- HEADER -->
   <header class="bg-white shadow-md sticky top-0 z-50">
     <div class="container mx-auto px-4 py-4">
-      
       <!-- Seletor de Palestra -->
       <div class="mb-4">
         <label class="block text-sm font-semibold text-gray-700 mb-2">
           🎯 Selecione a palestra para moderar:
         </label>
-        <select id="palestraSelect" class="w-full px-4 py-3 border-2 border-bg-cnv-success rounded-lg text-lg font-semibold">
-          <option value="">Carregando palestras...</option>
+        <select id="palestraSelect" class="w-full px-4 py-3 border-2 border-cnv-primary rounded-lg text-lg font-semibold">
+          <option value="">Carregando...</option>
         </select>
       </div>
       
       <div id="headerConteudo" class="hidden">
-        <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
-          <div class="text-bg-cnv-success font-semibold">🎛️ Painel do Moderador</div>
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div class="text-cnv-primary font-semibold">🎛️ Painel do Moderador v2</div>
           
           <div class="flex-1 text-center">
             <h1 class="text-xl font-bold text-gray-800" id="palestraTitulo">-</h1>
-            <p class="text-sm text-gray-600">
-              🎤 <span id="palestrante">-</span>
-            </p>
+            <p class="text-sm text-gray-600">🎤 <span id="palestrante">-</span></p>
           </div>
           
           <div class="flex gap-2">
@@ -41,62 +47,185 @@
             <span id="statusSilencio" class="px-4 py-2 rounded-full text-sm font-semibold hidden">🔇</span>
           </div>
         </div>
-        
-        <!-- Controles Principais -->
-        <div class="flex flex-wrap gap-2 justify-center mb-4">
+      </div>
+    </div>
+  </header>
+  
+  <!-- TABS -->
+  <div id="mainConteudo" class="container mx-auto px-4 py-6 hidden">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+      <!-- Tab Headers -->
+      <div class="flex border-b">
+        <button class="tab-button active" onclick="trocarAba('perguntas')">
+          📝 Perguntas
+        </button>
+        <button class="tab-button" onclick="trocarAba('enquetes')">
+          📊 Enquetes
+        </button>
+        <button class="tab-button" onclick="trocarAba('quiz')">
+          🎮 Quiz
+        </button>
+      </div>
+      
+      <!-- TAB 1: PERGUNTAS -->
+      <div id="tabPerguntas" class="tab-content active p-6">
+        <div class="flex gap-2 mb-6 flex-wrap">
           <button id="btnTogglePerguntas" class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600">
             ✓ Abrir Perguntas
           </button>
           <button id="btnToggleSilencio" class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600">
             🔇 Ativar Silêncio
           </button>
-          <button id="btnConfigLimites" class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600">
-            ⚙️ Configurar Limites
-          </button>
-          <button id="btnExportar" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+          <button id="btnExportarPerguntas" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
             📥 Exportar CSV
-          </button>
-          <button id="btnEncerrar" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
-            ⏹ Encerrar Palestra
           </button>
         </div>
         
-        <!-- Info Rápida -->
-        <div class="flex gap-4 text-sm text-gray-600 justify-center">
-          <span>Max: <strong id="infoMaxPerguntas">3</strong> perguntas</span>
-          <span>Intervalo: <strong id="infoIntervalo">60</strong>s</span>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Pendentes -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">📋 Pendentes (<span id="contPend">0</span>)</h3>
+            <div id="listaPendentes" class="space-y-3 max-h-96 overflow-y-auto">
+              <p class="text-gray-500 text-center py-8">Nenhuma pendente</p>
+            </div>
+          </div>
+          
+          <!-- Aprovadas + Exibida -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">✓ Aprovadas (<span id="contAprov">0</span>)</h3>
+            <div class="mb-4 p-4 bg-green-100 rounded-lg" id="cardExibida">
+              <p class="text-sm text-gray-600 mb-2">No telão:</p>
+              <p class="text-gray-500 text-center">Nenhuma</p>
+            </div>
+            <div id="listaAprovadas" class="space-y-2 max-h-60 overflow-y-auto">
+              <p class="text-gray-400 text-sm text-center">Nenhuma</p>
+            </div>
+          </div>
+          
+          <!-- Respondidas -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">✓ Respondidas (<span id="contResp">0</span>)</h3>
+            <div id="listaRespondidas" class="space-y-3 max-h-96 overflow-y-auto">
+              <p class="text-gray-500 text-center py-8">Nenhuma</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- TAB 2: ENQUETES -->
+      <div id="tabEnquetes" class="tab-content p-6">
+        <div class="flex gap-2 mb-6 flex-wrap">
+          <button id="btnCriarEnquete" class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600">
+            ➕ Criar Enquete
+          </button>
+          <button id="btnExportarEnquete" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+            📥 Exportar CSV
+          </button>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Lista de Enquetes -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">📊 Enquetes da Palestra</h3>
+            <div id="listaEnquetes" class="space-y-3 max-h-96 overflow-y-auto">
+              <p class="text-gray-500 text-center py-8">Nenhuma enquete</p>
+            </div>
+          </div>
+          
+          <!-- Resultados da Enquete Ativa -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">📈 Resultados</h3>
+            <div id="resultadosEnquete">
+              <p class="text-gray-500 text-center py-8">Nenhuma enquete ativa</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- TAB 3: QUIZ -->
+      <div id="tabQuiz" class="tab-content p-6">
+        <div class="flex gap-2 mb-6 flex-wrap">
+          <select id="quizSelect" class="px-4 py-2 border-2 border-gray-300 rounded-lg">
+            <option value="">Selecione um quiz...</option>
+          </select>
+          <button id="btnIniciarQuiz" class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600">
+            ▶️ Iniciar
+          </button>
+          <button id="btnAvancarQuiz" class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600">
+            ⏭️ Avançar
+          </button>
+          <button id="btnRevelarQuiz" class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600">
+            👁️ Revelar
+          </button>
+          <button id="btnFinalizarQuiz" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
+            🏁 Finalizar
+          </button>
+          <button id="btnExportarQuiz" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+            📥 Exportar
+          </button>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Pergunta Atual + Stats -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">🎮 Pergunta Atual</h3>
+            <div id="quizPerguntaAtual">
+              <p class="text-gray-500 text-center py-8">Nenhum quiz selecionado</p>
+            </div>
+            
+            <div id="quizStats" class="mt-6 hidden">
+              <h4 class="font-semibold mb-3">📊 Estatísticas</h4>
+              <canvas id="chartQuiz" height="200"></canvas>
+              <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                <div class="bg-white p-3 rounded">
+                  <p class="text-gray-600">Respostas:</p>
+                  <p class="text-2xl font-bold text-cnv-primary" id="totalRespostas">0</p>
+                </div>
+                <div class="bg-white p-3 rounded">
+                  <p class="text-gray-600">% Acerto:</p>
+                  <p class="text-2xl font-bold text-cnv-success" id="percAcerto">0%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Ranking -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="font-bold text-lg mb-4">🏆 Ranking</h3>
+            <div id="quizRanking" class="max-h-96 overflow-y-auto">
+              <p class="text-gray-500 text-center py-8">Aguardando finalização</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </header>
+  </div>
   
-  <!-- Modal de Configuração -->
-  <div id="modalConfig" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-      <h3 class="text-xl font-bold mb-4">⚙️ Configurar Limites</h3>
+  <!-- MODAL CRIAR ENQUETE -->
+  <div id="modalEnquete" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+      <h3 class="text-xl font-bold mb-4">➕ Criar Enquete</h3>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-semibold mb-2">
-            Máximo de perguntas por dispositivo
-          </label>
-          <input type="number" id="inputMaxPerguntas" min="1" max="10" value="3" 
-                 class="w-full px-4 py-2 border rounded-lg">
+          <label class="block text-sm font-semibold mb-2">Título da Enquete</label>
+          <input type="text" id="inputTituloEnquete" maxlength="200" 
+                 class="w-full px-4 py-2 border rounded-lg" 
+                 placeholder="Ex: Qual sua linguagem favorita?">
         </div>
         
         <div>
-          <label class="block text-sm font-semibold mb-2">
-            Intervalo entre envios (segundos)
-          </label>
-          <input type="number" id="inputIntervalo" min="10" max="300" value="60"
-                 class="w-full px-4 py-2 border rounded-lg">
+          <label class="block text-sm font-semibold mb-2">Opções (uma por linha)</label>
+          <textarea id="inputOpcoesEnquete" rows="6" 
+                    class="w-full px-4 py-2 border rounded-lg" 
+                    placeholder="Python&#10;JavaScript&#10;Go&#10;Rust"></textarea>
         </div>
         
         <div class="flex gap-2">
-          <button id="btnSalvarConfig" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-            Salvar
+          <button id="btnSalvarEnquete" class="flex-1 bg-cnv-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+            Criar e Ativar
           </button>
-          <button id="btnCancelarConfig" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+          <button id="btnCancelarEnquete" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
             Cancelar
           </button>
         </div>
@@ -104,71 +233,9 @@
     </div>
   </div>
   
-  <main id="mainConteudo" class="container mx-auto px-4 py-6 hidden">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Coluna 1: Fila de Pendentes -->
-      <div class="bg-white rounded-lg shadow-lg p-4">
-        <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
-          <span>📋 Fila</span>
-          <span id="contadorPendentes" class="bg-cnv-warning text-white text-sm px-3 py-1 rounded-full">0</span>
-        </h2>
-        <div id="filaPendentes" class="space-y-3 max-h-[70vh] overflow-y-auto">
-          <p class="text-gray-500 text-center py-8">Nenhuma pendente</p>
-        </div>
-      </div>
-      
-      <!-- Coluna 2: Telão -->
-      <div class="bg-white rounded-lg shadow-lg p-4">
-        <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
-          <span>📺 Telão</span>
-          <span id="contadorExibida" class="bg-cnv-success text-white text-sm px-3 py-1 rounded-full">0</span>
-        </h2>
-        
-        <div class="mb-4">
-          <h3 class="text-sm font-semibold text-gray-600 mb-2">ATUAL:</h3>
-          <div id="atualCard" class="p-4 bg-green-50 rounded-lg text-center text-gray-500">
-            Nenhuma exibida
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <h3 class="text-sm font-semibold text-gray-600 mb-2">PRÓXIMA:</h3>
-          <div id="proximaCard" class="p-3 bg-gray-50 rounded-lg text-center text-gray-400 text-sm">—</div>
-        </div>
-        
-        <div>
-          <h3 class="text-sm font-semibold text-gray-600 mb-2">APROVADAS:</h3>
-          <div id="listaAprovadas" class="space-y-2 max-h-60 overflow-y-auto">
-            <p class="text-gray-400 text-sm text-center py-4">Nenhuma aprovada</p>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Coluna 3: Respondidas -->
-      <div class="bg-white rounded-lg shadow-lg p-4">
-        <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
-          <span>✓ Respondidas</span>
-          <span id="contadorRespondidas" class="bg-blue-500 text-white text-sm px-3 py-1 rounded-full">0</span>
-        </h2>
-        <div id="listaRespondidas" class="space-y-3 max-h-[70vh] overflow-y-auto">
-          <p class="text-gray-500 text-center py-8">Nenhuma respondida</p>
-        </div>
-      </div>
-      
-    </div>
-    
-    <!-- Logs -->
-    <div class="mt-6 bg-white rounded-lg shadow-lg p-4">
-      <h2 class="text-lg font-bold mb-4">📜 Logs</h2>
-      <div id="listaLogs" class="space-y-1 max-h-40 overflow-y-auto text-sm text-gray-600">
-        <p class="text-gray-400">Aguardando ações...</p>
-      </div>
-    </div>
-  </main>
-  
   <script src="js/supabase-config.js"></script>
-  <script src="js/moderador.js"></script>
+  <script src="js/enquetes-quiz-utils.js"></script>
+  <script src="js/moderador-v2.js"></script>
   
 </body>
 </html>
