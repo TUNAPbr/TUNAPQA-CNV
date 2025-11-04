@@ -115,7 +115,9 @@
       <!-- TAB 2: ENQUETES -->
       <div id="tabEnquetes" class="tab-content p-6">
         <div class="flex gap-2 mb-6 flex-wrap">
-          <button id="btnCriarEnquete" class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600">
+          <button 
+            onclick="abrirModalEnqueteNova()"
+            class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:opacity-90">
             ➕ Criar Enquete
           </button>
           <button id="btnExportarEnquete" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
@@ -232,14 +234,262 @@
       </div>
     </div>
   </div>
+  <!-- ========================================== -->
+<!-- MODAL: CRIAR/EDITAR ENQUETE -->
+<!-- ========================================== -->
+<div id="modalEnqueteCRUD" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold" id="tituloModalEnquete">Criar Enquete</h3>
+      <button onclick="fecharModalEnqueteCRUD()" class="text-gray-500 hover:text-gray-700">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <form id="formEnqueteCRUD" class="space-y-4">
+      <input type="hidden" id="enqueteIdEdit" value="">
+      
+      <div>
+        <label class="block text-sm font-semibold mb-2">Título da Enquete *</label>
+        <input 
+          type="text" 
+          id="inputTituloEnqueteCRUD" 
+          maxlength="200" 
+          required
+          class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary" 
+          placeholder="Ex: Qual sua linguagem favorita?">
+      </div>
+      
+      <div>
+        <label class="block text-sm font-semibold mb-2">Opções (uma por linha) *</label>
+        <textarea 
+          id="inputOpcoesEnqueteCRUD" 
+          rows="6" 
+          required
+          class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary" 
+          placeholder="Python&#10;JavaScript&#10;Go&#10;Rust"></textarea>
+        <p class="text-xs text-gray-500 mt-1">Mínimo 2 opções, máximo 10</p>
+      </div>
+      
+      <div class="flex gap-2">
+        <button 
+          type="submit"
+          class="flex-1 bg-cnv-primary text-white px-4 py-2 rounded-lg hover:opacity-90">
+          <span id="btnTextEnquete">Criar Enquete</span>
+        </button>
+        <button 
+          type="button"
+          onclick="fecharModalEnqueteCRUD()" 
+          class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: CRIAR/EDITAR QUIZ -->
+<!-- ========================================== -->
+<div id="modalQuizCRUD" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold" id="tituloModalQuiz">Criar Quiz</h3>
+      <button onclick="fecharModalQuizCRUD()" class="text-gray-500 hover:text-gray-700">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Etapa 1: Info do Quiz -->
+    <div id="etapa1Quiz">
+      <form id="formQuizInfo" class="space-y-4">
+        <input type="hidden" id="quizIdEdit" value="">
+        
+        <div>
+          <label class="block text-sm font-semibold mb-2">Título do Quiz *</label>
+          <input 
+            type="text" 
+            id="inputTituloQuiz" 
+            maxlength="200" 
+            required
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary" 
+            placeholder="Ex: Quiz de Tecnologia">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold mb-2">Descrição</label>
+          <textarea 
+            id="inputDescricaoQuiz" 
+            rows="3"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary" 
+            placeholder="Breve descrição do quiz (opcional)"></textarea>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold mb-2">Número de Perguntas *</label>
+          <input 
+            type="number" 
+            id="inputNumPerguntas" 
+            min="1" 
+            max="20" 
+            value="5"
+            required
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+          <p class="text-xs text-gray-500 mt-1">Entre 1 e 20 perguntas</p>
+        </div>
+        
+        <div class="flex gap-2">
+          <button 
+            type="submit"
+            class="flex-1 bg-cnv-primary text-white px-4 py-2 rounded-lg hover:opacity-90">
+            Próximo: Adicionar Perguntas
+          </button>
+          <button 
+            type="button"
+            onclick="fecharModalQuizCRUD()" 
+            class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Etapa 2: Perguntas do Quiz -->
+    <div id="etapa2Quiz" class="hidden">
+      <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+        <p class="text-sm text-blue-800">
+          <strong>Quiz:</strong> <span id="infoTituloQuiz"></span> • 
+          <strong>Pergunta:</strong> <span id="infoPerguntaAtual">1</span> de <span id="infoTotalPerguntas">5</span>
+        </p>
+      </div>
+      
+      <form id="formPerguntaQuiz" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-2">Pergunta *</label>
+          <textarea 
+            id="inputPerguntaQuiz" 
+            rows="3"
+            required
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary" 
+            placeholder="Digite a pergunta aqui"></textarea>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Opção A *</label>
+            <input 
+              type="text" 
+              id="inputOpcaoA" 
+              required
+              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-2">Opção B *</label>
+            <input 
+              type="text" 
+              id="inputOpcaoB" 
+              required
+              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-2">Opção C *</label>
+            <input 
+              type="text" 
+              id="inputOpcaoC" 
+              required
+              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-2">Opção D *</label>
+            <input 
+              type="text" 
+              id="inputOpcaoD" 
+              required
+              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Resposta Correta *</label>
+            <select 
+              id="inputRespostaCorreta" 
+              required
+              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+              <option value="">Selecione...</option>
+              <option value="0">A</option>
+              <option value="1">B</option>
+              <option value="2">C</option>
+              <option value="3">D</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold mb-2">Tempo Limite (segundos) *</label>
+            <input 
+              type="number" 
+              id="inputTempoLimite" 
+              min="10" 
+              max="120" 
+              value="30"
+              required
+              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-cnv-primary">
+          </div>
+        </div>
+        
+        <div class="flex gap-2">
+          <button 
+            type="submit"
+            class="flex-1 bg-cnv-primary text-white px-4 py-2 rounded-lg hover:opacity-90">
+            <span id="btnTextPergunta">Próxima Pergunta</span>
+          </button>
+          <button 
+            type="button"
+            onclick="voltarEtapa1Quiz()" 
+            class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+            ← Voltar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: CONFIRMAR EXCLUSÃO -->
+<!-- ========================================== -->
+<div id="modalConfirmarExclusao" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+    <h3 class="text-xl font-bold mb-4">Confirmar Exclusão</h3>
+    <p class="text-gray-700 mb-6" id="mensagemExclusao">Tem certeza que deseja excluir?</p>
+    
+    <div class="flex gap-2">
+      <button 
+        id="btnConfirmarExclusao"
+        class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+        Sim, Excluir
+      </button>
+      <button 
+        onclick="fecharModalConfirmarExclusao()" 
+        class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+        Cancelar
+      </button>
+    </div>
+  </div>
+</div>
   
-  <script src="js/supabase-config.js"></script>
+<script src="js/supabase-config.js"></script>
 <script src="js/enquetes-quiz-utils.js"></script>
 
 <!-- NOVOS MÓDULOS -->
 <script src="js/moderador-core.js"></script>
 <script src="js/moderador-perguntas.js"></script>
 <script src="js/moderador-enquetes.js"></script>
+<script src="js/crud-modais.js"></script>
 <script src="js/moderador-quiz.js"></script>
 
 <!-- INICIALIZAÇÃO -->
