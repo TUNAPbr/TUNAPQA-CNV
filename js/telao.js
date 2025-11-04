@@ -1,223 +1,451 @@
 // =====================================================
-// TELÃO - EXIBIÇÃO PÚBLICA DE PERGUNTAS
+// TELÃO V2 - EXIBIÇÃO DINÂMICA
 // =====================================================
 
 let palestraId = null;
 let palestra = null;
-let perguntaAtual = null;
-let proximaPergunta = null;
-let canalRealtime = null;
+let controle = null;
 
-// Obter ID da palestra da URL
-function obterPalestraIdDaUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('palestra');
-}
+// Conteúdo
+let perguntaExibida = null;
+let enqueteAtiva = null;
+let quizAtivo = null;
+let perguntaQuizAtual = null;
 
-// Inicializar telão
+// Charts
+let chartQuiz = null;
+
+// Canais Realtime
+let canalPalestraAtiva = null;
+let canalPalestra = null;
+let canalControle = null;
+let canalPerguntas = null;
+let canalEnquete = null;
+let canalQuiz = null;
+let canalQuizPerguntas = null;
+
+// =====================================================
+// INICIALIZAÇÃO
+// =====================================================
+
 async function inicializar() {
-  palestraId = obterPalestraIdDaUrl();
-  
-  if (!palestraId) {
-    alert('Nenhuma palestra selecionada');
-    window.location.href = 'index.html';
-    return;
-  }
-  
-  // Carregar palestra
-  await carregarPalestra();
-  
-  // Carregar pergunta atual
-  await carregarPerguntaAtual();
-  
-  // Conectar Realtime
-  conectarRealtime();
-  
-  console.log('✅ Telão carregado');
+  console.log('🖥️ Telão v2 inicializando...');
+  await conectarRealtimePalestraAtiva();
+  await carregarPalestraAtiva();
 }
 
-// Carregar dados da palestra
-async function carregarPalestra() {
-  try {
-    palestra = await obterPalestra(palestraId);
-    
-    if (!palestra) {
-      alert('Palestra não encontrada');
-      window.location.href = 'index.html';
-      return;
-    }
-    
-    // Atualizar header
-    document.getElementById('palestraTitulo').textContent = palestra.titulo;
-    document.getElementById('palestraSala').textContent = `Sala ${palestra.sala}`;
-    
-  } catch (error) {
-    console.error('Erro ao carregar palestra:', error);
-  }
-}
+// =====================================================
+// PALESTRA ATIVA
+// =====================================================
 
-// Carregar pergunta atual
-async function carregarPerguntaAtual() {
-  try {
-    // Buscar pergunta com status 'exibida'
-    const { data: exibida, error: errorExibida } = await supabase
-      .from('cnv25_perguntas')
-      .select('*')
-      .eq('palestra_id', palestraId)
-      .eq('status', 'exibida')
-      .single();
-    
-    if (errorExibida && errorExibida.code !== 'PGRST116') { // PGRST116 = não encontrado
-      throw errorExibida;
-    }
-    
-    perguntaAtual = exibida || null;
-    
-    // Buscar próxima (primeira aprovada)
-    const { data: aprovadas, error: errorAprovadas } = await supabase
-      .from('cnv25_perguntas')
-      .select('*')
-      .eq('palestra_id', palestraId)
-      .eq('status', 'aprovada')
-      .order('created_at', { ascending: true })
-      .limit(1);
-    
-    if (errorAprovadas) throw errorAprovadas;
-    
-    proximaPergunta = (aprovadas && aprovadas.length > 0) ? aprovadas[0] : null;
-    
-    // Renderizar
-    renderizarPergunta();
-    
-  } catch (error) {
-    console.error('Erro ao carregar pergunta:', error);
-  }
-}
-
-// Conectar ao Realtime
-function conectarRealtime() {
-  canalRealtime = supabase
-    .channel(`telao:${palestraId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'cnv25_perguntas',
-        filter: `palestra_id=eq.${palestraId}`
-      },
-      async (payload) => {
-        console.log('Pergunta atualizada:', payload);
-        
-        const pergunta = payload.new;
-        
-        // Se mudou para 'exibida', é a nova pergunta atual
-        if (pergunta.status === 'exibida') {
-          perguntaAtual = pergunta;
-          await atualizarProxima();
-          renderizarPergunta();
-        }
-        
-        // Se a atual foi respondida, limpar
-        if (perguntaAtual && pergunta.id === perguntaAtual.id && pergunta.status === 'respondida') {
-          perguntaAtual = null;
-          await atualizarProxima();
-          renderizarPergunta();
-        }
-        
-        // Se uma aprovada foi adicionada, atualizar próxima
-        if (pergunta.status === 'aprovada') {
-          await atualizarProxima();
-          renderizarPergunta();
-        }
+function conectarRealtimePalestraAtiva() {
+  canalPalestraAtiva = supabase
+    .channel('palestra_ativa_telao_v2')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'cnv25_palestra_ativa',
+      filter: 'id=eq.1'
+    }, async (payload) => {
+      console.log('🔄 Palestra mudou:', payload);
+      if (payload.new.palestra_id !== palestraId) {
+        await carregarPalestraAtiva();
       }
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'cnv25_perguntas',
-        filter: `palestra_id=eq.${palestraId}`
-      },
-      async (payload) => {
-        console.log('Nova pergunta:', payload);
-        
-        // Se foi inserida como aprovada, pode ser a próxima
-        if (payload.new.status === 'aprovada' && !proximaPergunta) {
-          await atualizarProxima();
-          renderizarPergunta();
-        }
-      }
-    )
+    })
     .subscribe();
 }
 
-// Atualizar próxima pergunta
-async function atualizarProxima() {
+async function carregarPalestraAtiva() {
   try {
-    const { data, error } = await supabase
-      .from('cnv25_perguntas')
-      .select('*')
-      .eq('palestra_id', palestraId)
-      .eq('status', 'aprovada')
-      .order('created_at', { ascending: true })
-      .limit(1);
+    const { data: palestraAtiva } = await supabase
+      .from('cnv25_palestra_ativa')
+      .select('palestra_id')
+      .eq('id', 1)
+      .single();
     
-    if (error) throw error;
+    const novaPalestraId = palestraAtiva?.palestra_id;
     
-    proximaPergunta = (data && data.length > 0) ? data[0] : null;
+    if (!novaPalestraId) {
+      mostrarLoading();
+      return;
+    }
+    
+    // Desconectar canais anteriores
+    if (palestraId && palestraId !== novaPalestraId) {
+      desconectarCanais();
+    }
+    
+    palestraId = novaPalestraId;
+    
+    // Carregar dados
+    await carregarPalestra();
+    await carregarControle();
+    await carregarConteudo();
+    
+    conectarRealtimePalestra();
+    
+    mostrarConteudo();
+    decidirOQueExibir();
     
   } catch (error) {
-    console.error('Erro ao buscar próxima:', error);
+    console.error('Erro:', error);
+    mostrarLoading();
   }
 }
 
-// Renderizar pergunta na tela
-function renderizarPergunta() {
-  const semPergunta = document.getElementById('semPergunta');
-  const comPergunta = document.getElementById('comPergunta');
-  const textoPergunta = document.getElementById('textoPergunta');
-  const nomePergunta = document.getElementById('nomePergunta');
+async function carregarPalestra() {
+  const { data } = await supabase
+    .from('cnv25_palestras')
+    .select('*')
+    .eq('id', palestraId)
+    .single();
+  
+  palestra = data;
+  
+  document.getElementById('palestraTitulo').textContent = palestra.titulo;
+  document.getElementById('palestrante').textContent = palestra.palestrante || 'Palestrante não definido';
+}
 
+async function carregarControle() {
+  const { data } = await supabase
+    .from('cnv25_palestra_controle')
+    .select('*')
+    .eq('palestra_id', palestraId)
+    .single();
   
-  // Se não tem pergunta atual
-  if (!perguntaAtual) {
-    semPergunta.classList.remove('hidden');
-    comPergunta.classList.add('hidden');
-    return;
-  }
+  controle = data || {};
+}
+
+async function carregarConteudo() {
+  // Pergunta exibida
+  const { data: pergunta } = await supabase
+    .from('cnv25_perguntas')
+    .select('*')
+    .eq('palestra_id', palestraId)
+    .eq('status', 'exibida')
+    .single();
   
-  // Exibir pergunta atual
-  semPergunta.classList.add('hidden');
-  comPergunta.classList.remove('hidden');
-  comPergunta.classList.add('fade-in');
+  perguntaExibida = pergunta || null;
   
-  textoPergunta.textContent = perguntaAtual.texto;
-  
-  if (perguntaAtual.anonimo) {
-    nomePergunta.innerHTML = '👤 <em>Anônimo</em>';
+  // Enquete ativa
+  if (controle?.enquete_ativa) {
+    const { data: enquete } = await supabase
+      .from('cnv25_enquetes')
+      .select('*')
+      .eq('id', controle.enquete_ativa)
+      .single();
+    
+    enqueteAtiva = enquete;
   } else {
-    nomePergunta.innerHTML = `👤 ${escapeHtml(perguntaAtual.nome_opt)}`;
+    enqueteAtiva = null;
   }
   
+  // Quiz ativo
+  quizAtivo = await obterQuizAtivo(palestraId);
+  
+  if (quizAtivo && quizAtivo.pergunta_atual > 0) {
+    perguntaQuizAtual = await obterPerguntaAtualQuiz(quizAtivo.id, quizAtivo.pergunta_atual);
+  } else {
+    perguntaQuizAtual = null;
+  }
 }
 
-// Escape HTML
-function escapeHtml(text) {
+// =====================================================
+// REALTIME - PALESTRA
+// =====================================================
+
+function conectarRealtimePalestra() {
+  desconectarCanais();
+  
+  canalPalestra = supabase
+    .channel(`telao_palestra:${palestraId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'cnv25_palestras',
+      filter: `id=eq.${palestraId}`
+    }, (payload) => {
+      palestra = payload.new;
+      atualizarHeader();
+    })
+    .subscribe();
+  
+  canalControle = supabase
+    .channel(`telao_controle:${palestraId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'cnv25_palestra_controle',
+      filter: `palestra_id=eq.${palestraId}`
+    }, async (payload) => {
+      controle = payload.new;
+      
+      // Verificar mudança em enquete_ativa
+      if (payload.new.enquete_ativa !== enqueteAtiva?.id) {
+        await carregarConteudo();
+        decidirOQueExibir();
+      }
+    })
+    .subscribe();
+  
+  canalPerguntas = supabase
+    .channel(`telao_perguntas:${palestraId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'cnv25_perguntas',
+      filter: `palestra_id=eq.${palestraId}`
+    }, async (payload) => {
+      const p = payload.new;
+      
+      if (p.status === 'exibida') {
+        perguntaExibida = p;
+        decidirOQueExibir();
+      } else if (perguntaExibida && p.id === perguntaExibida.id && p.status === 'respondida') {
+        perguntaExibida = null;
+        decidirOQueExibir();
+      }
+    })
+    .subscribe();
+  
+  // Quiz Realtime
+  if (quizAtivo) {
+    canalQuiz = supabase
+      .channel(`telao_quiz:${quizAtivo.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'cnv25_quiz',
+        filter: `id=eq.${quizAtivo.id}`
+      }, async (payload) => {
+        quizAtivo = payload.new;
+        
+        if (quizAtivo.pergunta_atual > 0) {
+          perguntaQuizAtual = await obterPerguntaAtualQuiz(quizAtivo.id, quizAtivo.pergunta_atual);
+        } else {
+          perguntaQuizAtual = null;
+        }
+        
+        decidirOQueExibir();
+      })
+      .subscribe();
+    
+    canalQuizPerguntas = supabase
+      .channel(`telao_quiz_perguntas:${quizAtivo.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'cnv25_quiz_perguntas'
+      }, async (payload) => {
+        if (perguntaQuizAtual && payload.new.id === perguntaQuizAtual.id && payload.new.revelada) {
+          perguntaQuizAtual = payload.new;
+          await exibirResultadoQuiz();
+        }
+      })
+      .subscribe();
+  }
+}
+
+function desconectarCanais() {
+  if (canalPalestra) window.supabase.removeChannel(canalPalestra);
+  if (canalControle) window.supabase.removeChannel(canalControle);
+  if (canalPerguntas) window.supabase.removeChannel(canalPerguntas);
+  if (canalEnquete) window.supabase.removeChannel(canalEnquete);
+  if (canalQuiz) window.supabase.removeChannel(canalQuiz);
+  if (canalQuizPerguntas) window.supabase.removeChannel(canalQuizPerguntas);
+}
+
+// =====================================================
+// DECIDIR O QUE EXIBIR
+// =====================================================
+
+function decidirOQueExibir() {
+  // Prioridade: Quiz > Enquete > Pergunta > Vazio
+  
+  esconderTudo();
+  
+  if (quizAtivo && perguntaQuizAtual) {
+    exibirQuiz();
+  } else if (enqueteAtiva) {
+    exibirEnquete();
+  } else if (perguntaExibida) {
+    exibirPergunta();
+  } else {
+    exibirVazio();
+  }
+}
+
+function esconderTudo() {
+  document.getElementById('modoVazio').classList.add('hidden');
+  document.getElementById('modoPergunta').classList.add('hidden');
+  document.getElementById('modoEnquete').classList.add('hidden');
+  document.getElementById('modoQuiz').classList.add('hidden');
+}
+
+// =====================================================
+// EXIBIR: VAZIO
+// =====================================================
+
+function exibirVazio() {
+  document.getElementById('modoVazio').classList.remove('hidden');
+}
+
+// =====================================================
+// EXIBIR: PERGUNTA
+// =====================================================
+
+function exibirPergunta() {
+  document.getElementById('modoPergunta').classList.remove('hidden');
+  
+  document.getElementById('textoPergunta').textContent = perguntaExibida.texto;
+  
+  const nomeEl = document.getElementById('nomePergunta');
+  if (perguntaExibida.anonimo) {
+    nomeEl.innerHTML = '👤 <em>Anônimo</em>';
+  } else {
+    nomeEl.innerHTML = `👤 ${esc(perguntaExibida.nome_opt)}`;
+  }
+}
+
+// =====================================================
+// EXIBIR: ENQUETE
+// =====================================================
+
+function exibirEnquete() {
+  document.getElementById('modoEnquete').classList.remove('hidden');
+  document.getElementById('tituloEnquete').textContent = enqueteAtiva.titulo;
+}
+
+// =====================================================
+// EXIBIR: QUIZ
+// =====================================================
+
+function exibirQuiz() {
+  document.getElementById('modoQuiz').classList.remove('hidden');
+  document.getElementById('progressoQuiz').textContent = 
+    `🎮 QUIZ - Pergunta ${quizAtivo.pergunta_atual}/${quizAtivo.total_perguntas}`;
+  
+  if (perguntaQuizAtual.revelada) {
+    // Mostrar resultado
+    document.getElementById('quizPergunta').classList.add('hidden');
+    document.getElementById('quizResultado').classList.remove('hidden');
+  } else {
+    // Mostrar pergunta
+    document.getElementById('quizPergunta').classList.remove('hidden');
+    document.getElementById('quizResultado').classList.add('hidden');
+    document.getElementById('textoQuizPergunta').textContent = perguntaQuizAtual.pergunta;
+  }
+}
+
+async function exibirResultadoQuiz() {
+  document.getElementById('quizPergunta').classList.add('hidden');
+  document.getElementById('quizResultado').classList.remove('hidden');
+  
+  const labels = ['A', 'B', 'C', 'D'];
+  const respostaCorreta = labels[perguntaQuizAtual.resposta_correta];
+  
+  document.getElementById('respostaCorreta').textContent = respostaCorreta;
+  
+  // Buscar stats
+  const stats = await obterStatsQuizPergunta(perguntaQuizAtual.id);
+  
+  if (stats) {
+    document.getElementById('percentualAcerto').textContent = 
+      `${Math.round(stats.percentual_acerto || 0)}% acertaram!`;
+    
+    // Gráfico
+    const data = [0, 0, 0, 0];
+    
+    if (stats.distribuicao_respostas) {
+      stats.distribuicao_respostas.forEach(d => {
+        data[d.opcao] = d.total_votos;
+      });
+    }
+    
+    const ctx = document.getElementById('chartQuizTelao');
+    if (chartQuiz) chartQuiz.destroy();
+    
+    const backgroundColors = labels.map((_, idx) => 
+      idx === perguntaQuizAtual.resposta_correta ? '#27ae52' : '#94a3b8'
+    );
+    
+    chartQuiz = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Respostas',
+          data: data,
+          backgroundColor: backgroundColors,
+          borderColor: '#1e293b',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { 
+              stepSize: 1,
+              font: { size: 16 }
+            }
+          },
+          x: {
+            ticks: {
+              font: { size: 20, weight: 'bold' }
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+// =====================================================
+// UI - TELAS
+// =====================================================
+
+function mostrarLoading() {
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('mainContent').classList.add('hidden');
+  document.getElementById('palestraTitulo').textContent = 'Aguardando palestra ativa...';
+  document.getElementById('palestrante').textContent = '';
+}
+
+function mostrarConteudo() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('mainContent').classList.remove('hidden');
+}
+
+function atualizarHeader() {
+  document.getElementById('palestraTitulo').textContent = palestra.titulo;
+  document.getElementById('palestrante').textContent = palestra.palestrante || 'Palestrante não definido';
+}
+
+// =====================================================
+// UTILS
+// =====================================================
+
+function esc(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-// Iniciar quando carregar
+// =====================================================
+// INICIAR
+// =====================================================
+
 window.addEventListener('DOMContentLoaded', inicializar);
 
-// Desconectar ao sair
 window.addEventListener('beforeunload', () => {
-  if (canalRealtime) {
-    supabase.removeChannel(canalRealtime);
-  }
+  if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
+  desconectarCanais();
 });
 
-console.log('✅ Telão inicializado');
+console.log('✅ Telão v2 carregado');
