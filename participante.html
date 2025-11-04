@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="css/cnv-colors.css">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Participante - CNV 2025</title>
+  <title>Participante - CNV 2025 v2</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,126 +14,171 @@
       background: linear-gradient(135deg, #2797ff 0%, #0b67bc 100%);
       min-height: 100vh;
     }
+    .card-section {
+      transition: all 0.3s ease;
+    }
+    .card-section.inactive {
+      opacity: 0.5;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body class="p-4">
   
-  <div class="max-w-2xl mx-auto">
+  <div class="max-w-4xl mx-auto">
     
-    <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
+    <!-- LOADING -->
+    <div id="loading" class="bg-white rounded-2xl shadow-2xl p-8 text-center">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cnv-primary mb-4"></div>
+      <p class="text-gray-600">Carregando palestra ativa...</p>
+    </div>
+    
+    <!-- SEM PALESTRA -->
+    <div id="semPalestra" class="hidden bg-white rounded-2xl shadow-2xl p-8 text-center">
+      <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">Nenhuma palestra ativa</h3>
+      <p class="text-gray-600">Aguarde o moderador abrir uma palestra.</p>
+      <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-cnv-primary text-white rounded-lg hover:bg-cnv-secondary">
+        🔄 Recarregar
+      </button>
+    </div>
+    
+    <!-- CONTEÚDO PRINCIPAL -->
+    <div id="conteudo" class="hidden space-y-6">
       
-      <div class="text-center mb-6">
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Enviar Pergunta</h1>
-        <p id="palestraTitulo" class="text-gray-600">Carregando...</p>
+      <!-- HEADER - INFO DA PALESTRA -->
+      <div class="bg-white rounded-2xl shadow-2xl p-6">
+        <div class="text-center mb-4">
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2" id="palestraTitulo">-</h1>
+          <p class="text-gray-600">🎤 <span id="palestrante">-</span></p>
+        </div>
+        <div class="flex justify-center">
+          <span id="statusGeral" class="px-4 py-2 rounded-full text-sm font-bold">-</span>
+        </div>
       </div>
       
-      <div id="loading" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cnv-primary"></div>
-        <p class="mt-4 text-gray-600">Carregando palestra ativa...</p>
-      </div>
-      
-      <div id="semPalestra" class="hidden text-center py-8">
-        <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <h3 class="text-xl font-semibold text-gray-700 mb-2">Nenhuma palestra ativa</h3>
-        <p class="text-gray-600">Aguarde o moderador abrir uma palestra.</p>
-        <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-cnv-primary text-white rounded-lg hover:bg-cnv-primary">
-          🔄 Recarregar
-        </button>
-      </div>
-      
-      <div id="conteudo" class="hidden">
-        
-        <!-- INFO COMPACTA: Tema + Palestrante + Status (1 LINHA) -->
-        <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-cnv-primary rounded-lg border-l-4 border-cnv-primary">
-          <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <div class="flex-1">
-              <span class="font-bold text-gray-800" id="infoTitulo">-</span>
-              <span class="text-gray-600">• 🎤 <span id="infoPalestrante">-</span></span>
-            </div>
-            <div>
-              <span id="statusBadge" class="px-3 py-1 rounded-full text-xs font-bold">
-                <!-- Status -->
-              </span>
-            </div>
-          </div>
+      <!-- SEÇÃO 1: PERGUNTAS -->
+      <div id="secaoPerguntas" class="card-section bg-white rounded-2xl shadow-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <svg class="w-6 h-6 text-cnv-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+          </svg>
+          <h2 class="text-xl font-bold text-gray-800">Perguntas</h2>
+          <span id="statusPerguntas" class="ml-auto px-3 py-1 rounded-full text-xs font-bold">-</span>
         </div>
         
-        <form id="formPergunta" class="space-y-4">
-          
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              Sua pergunta *
-            </label>
-            <textarea 
-              id="textoPergunta"
-              rows="4"
-              maxlength="140"
-              placeholder="Escreva sua pergunta aqui..."
-              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary resize-none"
-            ></textarea>
-            
-            <div class="flex justify-between items-center mt-2">
-              <span id="contador" class="text-sm text-gray-500">0 / 140</span>
-              <span id="avisoLimite" class="text-xs text-red-500 hidden">Limite atingido!</span>
-            </div>
-          </div>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div id="formPerguntas">
+          <form id="formPergunta" class="space-y-4">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                Seu nome (opcional)
-              </label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Sua pergunta *</label>
+              <textarea 
+                id="textoPergunta"
+                rows="4"
+                maxlength="140"
+                placeholder="Escreva sua pergunta aqui..."
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary resize-none"
+              ></textarea>
+              <div class="flex justify-between items-center mt-2">
+                <span id="contador" class="text-sm text-gray-500">0 / 140</span>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input 
                 type="text"
                 id="nomeParticipante"
                 maxlength="80"
-                placeholder="Anônimo"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary"
+                placeholder="Nome (opcional)"
+                class="px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary"
               />
-            </div>
-            
-            <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                Seu email (opcional)
-              </label>
               <input 
                 type="email"
                 id="emailParticipante"
                 maxlength="100"
-                placeholder="contato@email.com"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary"
+                placeholder="Email (opcional)"
+                class="px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cnv-primary"
               />
             </div>
+            
+            <button 
+              type="submit"
+              id="btnEnviar"
+              class="w-full bg-cnv-primary text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg transition"
+            >
+              Enviar Pergunta
+            </button>
+          </form>
+          
+          <div id="feedbackPergunta" class="mt-4 hidden"></div>
+          
+          <div class="mt-4 text-center text-sm text-gray-600">
+            Enviadas: <strong id="contadorEnviadas">0</strong> de <strong id="limiteDinamico">3</strong>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SEÇÃO 2: ENQUETE -->
+      <div id="secaoEnquete" class="card-section hidden bg-white rounded-2xl shadow-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <svg class="w-6 h-6 text-cnv-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          <h2 class="text-xl font-bold text-gray-800">Enquete Ativa</h2>
+        </div>
+        
+        <div id="conteudoEnquete">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4" id="tituloEnquete">-</h3>
+          
+          <div id="opcoesEnquete" class="space-y-3">
+            <!-- Opções serão inseridas aqui -->
           </div>
           
-          <button 
-            type="submit"
-            id="btnEnviar"
-            class="w-full bg-gradient-to-r from-cnv-success to-cnv-primary text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg transform hover:scale-[1.02] transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Enviar Pergunta
-          </button>
+          <div id="feedbackEnquete" class="mt-4 hidden"></div>
+        </div>
+      </div>
+      
+      <!-- SEÇÃO 3: QUIZ -->
+      <div id="secaoQuiz" class="card-section hidden bg-white rounded-2xl shadow-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <svg class="w-6 h-6 text-cnv-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+          </svg>
+          <h2 class="text-xl font-bold text-gray-800">Quiz Interativo</h2>
+          <span id="progressoQuiz" class="ml-auto px-3 py-1 bg-cnv-warning text-white rounded-full text-xs font-bold">-</span>
+        </div>
+        
+        <div id="conteudoQuiz">
+          <!-- Quiz Status -->
+          <div id="quizAguardando" class="text-center py-8">
+            <p class="text-gray-600">Aguarde a próxima pergunta...</p>
+          </div>
           
-        </form>
-        
-        <div id="feedback" class="mt-4 p-4 rounded-lg hidden"></div>
-        
-        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p class="text-xs text-gray-600 leading-relaxed">
-            <strong>📝 Regras:</strong><br>
-            • Máximo 140 caracteres<br>
-            • Limite de <strong id="maxPerguntas">3</strong> perguntas<br>
-            • 1 envio a cada <strong id="intervaloSegundos">60</strong> segundos<br>
-            • Links não são permitidos
-          </p>
+          <!-- Quiz Pergunta -->
+          <div id="quizPergunta" class="hidden">
+            <div class="bg-cnv-alternate p-4 rounded-lg mb-4">
+              <p class="text-sm text-gray-600 mb-2">Pergunta <span id="numPergunta">-</span></p>
+              <p class="text-lg font-semibold text-gray-800" id="textoPerguntaQuiz">-</p>
+            </div>
+            
+            <div id="opcoesQuiz" class="space-y-3">
+              <!-- Opções serão inseridas aqui -->
+            </div>
+            
+            <div id="feedbackQuiz" class="mt-4 hidden"></div>
+          </div>
+          
+          <!-- Quiz Resultado Final -->
+          <div id="quizFinalizado" class="hidden text-center py-8">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">🎉 Quiz Finalizado!</h3>
+            <div class="bg-cnv-alternate p-6 rounded-lg">
+              <p class="text-lg mb-2">Sua pontuação:</p>
+              <p class="text-4xl font-bold text-cnv-primary" id="pontuacaoFinal">0</p>
+              <p class="text-sm text-gray-600 mt-2">Acertos: <strong id="acertosFinal">0</strong></p>
+            </div>
+          </div>
         </div>
-        
-        <div class="mt-4 text-center text-sm text-gray-600">
-          Você enviou <strong id="contadorEnviadas">0</strong> de <strong id="limiteDinamico">3</strong> perguntas
-        </div>
-        
       </div>
       
     </div>
@@ -141,355 +186,8 @@
   </div>
   
   <script src="js/supabase-config.js"></script>
-  <script>
-    let palestraId = null;
-    let palestra = null;
-    let deviceId = null;
-    let deviceIdHash = null;
-    let canalPalestraAtiva = null;
-    let canalPalestra = null;
-    let canalControle = null;
-    
-    async function inicializar() {
-      deviceId = getDeviceId();
-      deviceIdHash = await hashDeviceId(deviceId);
-      
-      await conectarRealtimePalestraAtiva();
-      await carregarPalestraAtiva();
-      configurarListeners();
-    }
-    
-    function conectarRealtimePalestraAtiva() {
-      canalPalestraAtiva = supabase
-        .channel('palestra_ativa_participante')
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'cnv25_palestra_ativa',
-          filter: 'id=eq.1'
-        }, async (payload) => {
-          console.log('🔄 Palestra mudou:', payload);
-          if (payload.new.palestra_id !== palestraId) {
-            await carregarPalestraAtiva();
-          }
-        })
-        .subscribe();
-    }
-    
-    async function carregarPalestraAtiva() {
-      try {
-        const { data: palestraAtiva } = await supabase
-          .from('cnv25_palestra_ativa')
-          .select('palestra_id')
-          .eq('id', 1)
-          .single();
-        
-        const novaPalestraId = palestraAtiva?.palestra_id;
-        
-        if (!novaPalestraId) {
-          mostrarSemPalestra();
-          return;
-        }
-        
-        if (canalPalestra && palestraId !== novaPalestraId) {
-          window.supabase.removeChannel(canalPalestra);
-          window.supabase.removeChannel(canalControle);
-          canalPalestra = null;
-          canalControle = null;
-        }
-        
-        palestraId = novaPalestraId;
-        
-        palestra = await obterPalestra(palestraId);
-        
-        if (!palestra) {
-          mostrarSemPalestra();
-          return;
-        }
-        
-        mostrarConteudo();
-        atualizarUI();
-        conectarRealtimePalestra();
-        await atualizarContadorEnviadas();
-        
-      } catch (error) {
-        console.error('Erro:', error);
-        mostrarSemPalestra();
-      }
-    }
-    
-    function conectarRealtimePalestra() {
-      if (canalPalestra) return;
-      
-      canalPalestra = supabase
-        .channel(`palestra:${palestraId}`)
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'cnv25_palestras',
-          filter: `id=eq.${palestraId}`
-        }, (payload) => {
-          palestra = payload.new;
-          atualizarUI();
-        })
-        .subscribe();
-      
-      canalControle = supabase
-        .channel(`controle:${palestraId}`)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'cnv25_palestra_controle',
-          filter: `palestra_id=eq.${palestraId}`
-        }, (payload) => {
-          console.log('Controle atualizado:', payload);
-          atualizarStatusBadge(payload.new);
-        })
-        .subscribe();
-    }
-    
-    function mostrarLoading() {
-      document.getElementById('loading').classList.remove('hidden');
-      document.getElementById('semPalestra').classList.add('hidden');
-      document.getElementById('conteudo').classList.add('hidden');
-    }
-    
-    function mostrarSemPalestra() {
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('semPalestra').classList.remove('hidden');
-      document.getElementById('conteudo').classList.add('hidden');
-    }
-    
-    function mostrarConteudo() {
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('semPalestra').classList.add('hidden');
-      document.getElementById('conteudo').classList.remove('hidden');
-    }
-    
-    async function atualizarUI() {
-      if (!palestra) return;
-      
-      document.getElementById('palestraTitulo').textContent = palestra.titulo;
-      document.getElementById('infoTitulo').textContent = palestra.titulo;
-      document.getElementById('infoPalestrante').textContent = palestra.palestrante || 'A definir';
-      
-      // Atualizar limites dinâmicos
-      document.getElementById('maxPerguntas').textContent = palestra.max_perguntas || 3;
-      document.getElementById('intervaloSegundos').textContent = palestra.intervalo_perguntas || 60;
-      document.getElementById('limiteDinamico').textContent = palestra.max_perguntas || 3;
-      
-      // Buscar controle
-      const { data: controle } = await supabase
-        .from('cnv25_palestra_controle')
-        .select('*')
-        .eq('palestra_id', palestraId)
-        .single();
-      
-      atualizarStatusBadge(controle);
-    }
-    
-    function atualizarStatusBadge(controle) {
-      const badge = document.getElementById('statusBadge');
-      const btnEnviar = document.getElementById('btnEnviar');
-      const textarea = document.getElementById('textoPergunta');
-      const inputNome = document.getElementById('nomeParticipante');
-      const inputEmail = document.getElementById('emailParticipante');
-      
-      if (!controle) {
-        badge.textContent = '❓ Sem controle';
-        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-700';
-        btnEnviar.disabled = true;
-        return;
-      }
-      
-      if (controle.silencio_ativo) {
-        badge.textContent = '🔇 SILÊNCIO';
-        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white';
-        btnEnviar.disabled = true;
-        textarea.disabled = true;
-        inputNome.disabled = true;
-        inputEmail.disabled = true;
-      } else if (controle.perguntas_abertas) {
-        badge.textContent = '✅ ABERTAS';
-        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-green-500 text-white';
-        btnEnviar.disabled = false;
-        textarea.disabled = false;
-        inputNome.disabled = false;
-        inputEmail.disabled = false;
-      } else {
-        badge.textContent = '❌ FECHADAS';
-        badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white';
-        btnEnviar.disabled = true;
-        textarea.disabled = true;
-        inputNome.disabled = true;
-        inputEmail.disabled = true;
-      }
-    }
-    
-    function configurarListeners() {
-      const textarea = document.getElementById('textoPergunta');
-      const contador = document.getElementById('contador');
-      const avisoLimite = document.getElementById('avisoLimite');
-      const form = document.getElementById('formPergunta');
-      
-      textarea.addEventListener('input', function() {
-        const length = this.value.length;
-        contador.textContent = `${length} / 140`;
-        
-        if (length >= 140) {
-          contador.classList.add('text-red-500', 'font-bold');
-          avisoLimite.classList.remove('hidden');
-        } else {
-          contador.classList.remove('text-red-500', 'font-bold');
-          avisoLimite.classList.add('hidden');
-        }
-      });
-      
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await enviarPergunta();
-      });
-    }
-    
-    async function enviarPergunta() {
-      if (!palestraId) {
-        mostrarErro('Nenhuma palestra ativa');
-        return;
-      }
-      
-      const btnEnviar = document.getElementById('btnEnviar');
-      const texto = document.getElementById('textoPergunta').value.trim();
-      const nome = document.getElementById('nomeParticipante').value.trim();
-      const email = document.getElementById('emailParticipante').value.trim();
-      
-      btnEnviar.disabled = true;
-      btnEnviar.textContent = 'Enviando...';
-      
-      try {
-        const erros = validarPergunta(texto);
-        if (erros.length > 0) {
-          mostrarErro(erros.join('. '));
-          return;
-        }
-        
-        if (email && !validarEmail(email)) {
-          mostrarErro('Email inválido');
-          return;
-        }
-        
-        const aberta = await verificarPerguntasAbertas(palestraId);
-        if (!aberta) {
-          mostrarErro('Perguntas fechadas ou em silêncio');
-          return;
-        }
-        
-        const rateLimit = verificarRateLimitDinamico(palestra.intervalo_perguntas || 60);
-        if (!rateLimit.permitido) {
-          mostrarErro(`Aguarde ${rateLimit.segundosRestantes}s`);
-          return;
-        }
-        
-        const totalPerguntas = await contarPerguntasDevice(palestraId, deviceIdHash);
-        const maxPerguntas = palestra.max_perguntas || 3;
-        if (totalPerguntas >= maxPerguntas) {
-          mostrarErro(`Limite de ${maxPerguntas} perguntas atingido`);
-          return;
-        }
-        
-        const nonce = crypto.randomUUID();
-        const perguntaData = {
-          palestra_id: palestraId,
-          texto: texto,
-          nome_opt: nome || null,
-          email_opt: email || null,
-          anonimo: !nome,
-          device_id_hash: deviceIdHash,
-          nonce: nonce,
-          status: 'pendente'
-        };
-        
-        const { data, error } = await supabase
-          .from('cnv25_perguntas')
-          .insert([perguntaData])
-          .select()
-          .single();
-        
-        if (error) {
-          if (error.code === '23505') {
-            mostrarErro('Pergunta já enviada');
-          } else {
-            throw error;
-          }
-          return;
-        }
-        
-        registrarEnvio();
-        mostrarSucesso('Pergunta enviada! Aguarde aprovação.');
-        
-        document.getElementById('textoPergunta').value = '';
-        document.getElementById('nomeParticipante').value = '';
-        document.getElementById('emailParticipante').value = '';
-        document.getElementById('contador').textContent = '0 / 140';
-        
-        await atualizarContadorEnviadas();
-        
-      } catch (error) {
-        console.error('Erro:', error);
-        mostrarErro('Erro ao enviar pergunta');
-      } finally {
-        btnEnviar.disabled = false;
-        btnEnviar.textContent = 'Enviar Pergunta';
-      }
-    }
-    
-    async function atualizarContadorEnviadas() {
-      if (!palestraId) return;
-      
-      try {
-        const total = await contarPerguntasDevice(palestraId, deviceIdHash);
-        document.getElementById('contadorEnviadas').textContent = total;
-        
-        const maxPerguntas = palestra.max_perguntas || 3;
-        if (total >= maxPerguntas) {
-          mostrarAviso(`Limite de ${maxPerguntas} perguntas atingido`);
-          document.getElementById('btnEnviar').disabled = true;
-        }
-      } catch (error) {
-        console.error('Erro ao contar:', error);
-      }
-    }
-    
-    function mostrarSucesso(mensagem) {
-      const feedback = document.getElementById('feedback');
-      feedback.className = 'mt-4 p-4 rounded-lg bg-green-100 border-l-4 border-green-500 text-green-800';
-      feedback.innerHTML = `<strong>✓</strong> ${mensagem}`;
-      feedback.classList.remove('hidden');
-      setTimeout(() => feedback.classList.add('hidden'), 5000);
-    }
-    
-    function mostrarErro(mensagem) {
-      const feedback = document.getElementById('feedback');
-      feedback.className = 'mt-4 p-4 rounded-lg bg-red-100 border-l-4 border-red-500 text-red-800';
-      feedback.innerHTML = `<strong>✗</strong> ${mensagem}`;
-      feedback.classList.remove('hidden');
-      setTimeout(() => feedback.classList.add('hidden'), 5000);
-    }
-    
-    function mostrarAviso(mensagem) {
-      const feedback = document.getElementById('feedback');
-      feedback.className = 'mt-4 p-4 rounded-lg bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800';
-      feedback.innerHTML = `<strong>⚠</strong> ${mensagem}`;
-      feedback.classList.remove('hidden');
-    }
-    
-    window.addEventListener('DOMContentLoaded', inicializar);
-    
-    window.addEventListener('beforeunload', () => {
-      if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
-      if (canalPalestra) window.supabase.removeChannel(canalPalestra);
-      if (canalControle) window.supabase.removeChannel(canalControle);
-    });
-  </script>
+  <script src="js/enquetes-quiz-utils.js"></script>
+  <script src="js/participante-v2.js"></script>
   
 </body>
 </html>
