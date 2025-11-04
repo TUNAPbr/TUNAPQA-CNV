@@ -1,7 +1,41 @@
 // =====================================================
 // PARTICIPANTE V2 - INTERFACE UNIFICADA
 // =====================================================
+function validarElementosHTML() {
+  const elementosObrigatorios = [
+    'loading',
+    'semPalestra',
+    'conteudo',
+    'secaoPerguntas',
+    'secaoEnquete',
+    'secaoQuiz',
+    'tituloEnquete',
+    'opcoesEnquete',
+    'progressoQuiz',
+    'quizAguardando',
+    'quizPergunta',
+    'quizFinalizado'
+  ];
+  
+  const faltando = elementosObrigatorios.filter(id => !document.getElementById(id));
+  
+  if (faltando.length > 0) {
+    console.error('❌ Elementos HTML faltando:', faltando);
+    alert('Erro na página: elementos HTML faltando. Verifique o console.');
+    return false;
+  }
+  
+  console.log('✅ Todos os elementos HTML encontrados');
+  return true;
+}
 
+// No inicializar:
+async function inicializar() {
+  if (!validarElementosHTML()) {
+    return;
+  }
+  
+}
 let palestraId = null;
 let palestra = null;
 let controle = null;
