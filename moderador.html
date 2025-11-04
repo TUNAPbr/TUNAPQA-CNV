@@ -17,6 +17,43 @@
     .tab-content { @apply hidden; }
     .tab-content.active { @apply block; }
   </style>
+  <style>
+    /* Tabs funcionais */
+    .tab-button {
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+    }
+
+    .tab-button.active {
+      background-color: white;
+      color: #2797ff;
+      border-bottom: 4px solid #2797ff;
+    }
+
+    .tab-button:not(.active) {
+      background-color: #e5e7eb;
+      color: #6b7280;
+    }
+
+    .tab-button:not(.active):hover {
+      background-color: #d1d5db;
+    }
+
+    /* Conteúdo das tabs */
+    .tab-content {
+      display: none !important;
+    }
+
+    .tab-content.active {
+      display: block !important;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
   
