@@ -375,8 +375,8 @@ function renderizarEnquetes() {
         </div>
         <p class="text-xs text-gray-600 mb-2">${e.opcoes.opcoes.length} opções</p>
         <div class="flex gap-2">
-          ${!isAtiva ? `<button onclick="ativarEnquete('${e.id}')" class="flex-1 bg-green-500 text-white text-xs px-2 py-1 rounded hover:bg-green-600">Ativar</button>` : ''}
-          ${isAtiva ? `<button onclick="desativarEnquete()" class="flex-1 bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600">Desativar</button>` : ''}
+          ${!isAtiva ? `<button onclick="ativarEnqueteLocal('${e.id}')" class="flex-1 bg-green-500 text-white text-xs px-2 py-1 rounded hover:bg-green-600">Ativar</button>` : ''}
+          ${isAtiva ? `<button onclick="desativarEnqueteLocal()" class="flex-1 bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600">Desativar</button>` : ''}
         </div>
       </div>
     `;
