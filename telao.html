@@ -23,6 +23,17 @@
     }
     .texto-grande { font-size: clamp(2rem, 5vw, 4rem); line-height: 1.3; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
     .texto-medio { font-size: clamp(1.5rem, 3vw, 2.5rem); }
+
+    /* Animação para countdown urgente */
+    @keyframes pulse-urgent {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .animate-pulse-urgent {
+      animation: pulse-urgent 0.5s ease-in-out infinite;
+    }
+    
   </style>
 </head>
 <body class="flex flex-col p-6">
