@@ -383,18 +383,26 @@ function renderizarEnquetes() {
   }).join('');
 }
 
-async function ativarEnquete(enqueteId) {
-  await window.ativarEnquete(palestraId, enqueteId);
-  await carregarControle();
-  await carregarEnquetes();
+async function ativarEnqueteLocal(enqueteId) {
+  // Chama a função global do enquetes-quiz-utils.js
+  const resultado = await window.ativarEnquete(palestraId, enqueteId);
+  
+  if (resultado) {
+    await carregarControle();
+    await carregarEnquetes();
+  }
 }
 
-async function desativarEnquete() {
-  await window.desativarEnquete(palestraId);
-  enqueteAtiva = null;
-  await carregarControle();
-  await carregarEnquetes();
-  document.getElementById('resultadosEnquete').innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma enquete ativa</p>';
+async function desativarEnqueteLocal() {
+  // Chama a função global do enquetes-quiz-utils.js
+  const resultado = await window.desativarEnquete(palestraId);
+  
+  if (resultado) {
+    enqueteAtiva = null;
+    await carregarControle();
+    await carregarEnquetes();
+    document.getElementById('resultadosEnquete').innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma enquete ativa</p>';
+  }
 }
 
 async function carregarResultadosEnquete() {
@@ -841,7 +849,5 @@ window.aprovarPergunta = aprovarPergunta;
 window.recusarPergunta = recusarPergunta;
 window.exibirPergunta = exibirPergunta;
 window.responderPergunta = responderPergunta;
-window.ativarEnquete = ativarEnquete;
-window.desativarEnquete = desativarEnquete;
 
 console.log('✅ Moderador v2 carregado');
