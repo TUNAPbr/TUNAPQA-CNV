@@ -234,8 +234,20 @@
   </div>
   
   <script src="js/supabase-config.js"></script>
-  <script src="js/enquetes-quiz-utils.js"></script>
-  <script src="js/moderador.js"></script>
+<script src="js/enquetes-quiz-utils.js"></script>
+
+<!-- NOVOS MÓDULOS -->
+<script src="js/moderador-core.js"></script>
+<script src="js/moderador-perguntas.js"></script>
+<script src="js/moderador-enquetes.js"></script>
+<script src="js/moderador-quiz.js"></script>
+
+<!-- INICIALIZAÇÃO -->
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    window.ModeradorCore.inicializar();
+  });
+</script>
   
 </body>
 </html>
