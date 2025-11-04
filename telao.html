@@ -4,10 +4,11 @@
   <link rel="stylesheet" href="css/cnv-colors.css">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telão - CNV 2025</title>
+  <title>Telão - CNV 2025 v2</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   
   <style>
     body {
@@ -16,14 +17,8 @@
       overflow: hidden;
     }
     
-    .pergunta-atual {
-      font-size: clamp(2rem, 5vw, 4rem);
-      line-height: 1.3;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    .proxima-preview {
-      font-size: clamp(1rem, 2.5vw, 1.5rem);
+    .fade-in {
+      animation: fadeIn 0.5s ease-out;
     }
     
     @keyframes fadeIn {
@@ -31,36 +26,33 @@
       to { opacity: 1; transform: translateY(0); }
     }
     
-    .fade-in {
-      animation: fadeIn 0.5s ease-out;
+    .texto-grande {
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1.3;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
     }
     
-    .palestrante-badge {
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(255,255,255,0.3);
+    .texto-medio {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
     }
   </style>
 </head>
 <body class="flex flex-col p-6">
   
-  <!-- Header -->
+  <!-- HEADER -->
   <header class="text-center mb-8">
     <h1 id="palestraTitulo" class="text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-3">
-      Carregando...
+      Aguardando palestra...
     </h1>
-    <!-- Badge do Palestrante -->
-    <div class="inline-flex items-center gap-2 palestrante-badge px-6 py-3 rounded-full">
+    <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full">
       <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
         <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"></path>
       </svg>
-      <span id="palestrante" class="text-xl text-white font-semibold">
-        <!-- Nome do palestrante -->
-      </span>
+      <span id="palestrante" class="text-xl text-white font-semibold">-</span>
     </div>
   </header>
   
-  <!-- Loading -->
+  <!-- LOADING -->
   <div id="loading" class="flex-1 flex items-center justify-center">
     <div class="text-center">
       <div class="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-white mb-4"></div>
@@ -68,46 +60,99 @@
     </div>
   </div>
   
-  <!-- Pergunta Principal -->
-  <main id="containerPergunta" class="flex-1 flex items-center justify-center px-4 hidden">
-    <div class="w-full max-w-6xl">
-      
-      <!-- Sem Pergunta -->
-      <div id="semPergunta">
-        <div class="bg-white/10 backdrop-blur-sm rounded-3xl p-16 border-2 border-white/20">
-          <svg class="w-32 h-32 mx-auto mb-6 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-          </svg>
-          <p class="text-3xl text-white/70 font-semibold text-center">
-            Aguardando perguntas...
-          </p>
-        </div>
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main id="mainContent" class="flex-1 flex items-center justify-center px-4 hidden">
+    
+    <!-- MODO: SEM CONTEÚDO -->
+    <div id="modoVazio" class="w-full max-w-6xl">
+      <div class="bg-white/10 backdrop-blur-sm rounded-3xl p-16 border-2 border-white/20">
+        <svg class="w-32 h-32 mx-auto mb-6 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+        </svg>
+        <p class="text-3xl text-white/70 font-semibold text-center">
+          Aguardando conteúdo...
+        </p>
+      </div>
+    </div>
+    
+    <!-- MODO: PERGUNTA -->
+    <div id="modoPergunta" class="w-full max-w-6xl hidden">
+      <div class="mb-4">
+        <span class="inline-block bg-white/20 text-white px-6 py-2 rounded-full text-lg font-semibold backdrop-blur-sm">
+          📌 PERGUNTA
+        </span>
       </div>
       
-      <!-- Com Pergunta -->
-      <div id="comPergunta" class="hidden">
-        <!-- Label -->
-        <div class="mb-4">
-          <span class="inline-block bg-white/20 text-white px-6 py-2 rounded-full text-lg font-semibold backdrop-blur-sm">
-            📌 PERGUNTA
-          </span>
+      <div class="bg-white rounded-3xl shadow-2xl p-12 mb-8 fade-in">
+        <p id="textoPergunta" class="texto-grande text-gray-800 font-bold text-center mb-6">
+          <!-- Texto da pergunta -->
+        </p>
+        <div id="nomePergunta" class="text-center text-gray-600 text-2xl">
+          <!-- Nome ou Anônimo -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- MODO: ENQUETE -->
+    <div id="modoEnquete" class="w-full max-w-6xl hidden">
+      <div class="mb-4">
+        <span class="inline-block bg-green-500 text-white px-6 py-2 rounded-full text-lg font-semibold backdrop-blur-sm">
+          📊 ENQUETE ATIVA
+        </span>
+      </div>
+      
+      <div class="bg-white rounded-3xl shadow-2xl p-12 fade-in text-center">
+        <h2 id="tituloEnquete" class="texto-medio text-gray-800 font-bold mb-6">
+          <!-- Título da enquete -->
+        </h2>
+        <p class="text-2xl text-gray-600">
+          📱 Vote no seu dispositivo!
+        </p>
+      </div>
+    </div>
+    
+    <!-- MODO: QUIZ -->
+    <div id="modoQuiz" class="w-full max-w-6xl hidden">
+      <div class="mb-4">
+        <span class="inline-block bg-yellow-500 text-white px-6 py-2 rounded-full text-lg font-semibold backdrop-blur-sm" id="progressoQuiz">
+          🎮 QUIZ
+        </span>
+      </div>
+      
+      <!-- Pergunta do Quiz -->
+      <div id="quizPergunta" class="bg-white rounded-3xl shadow-2xl p-12 fade-in">
+        <p id="textoQuizPergunta" class="texto-medio text-gray-800 font-bold text-center mb-8">
+          <!-- Pergunta do quiz -->
+        </p>
+        <p class="text-xl text-gray-600 text-center">
+          📱 Responda no seu dispositivo!
+        </p>
+      </div>
+      
+      <!-- Resultado do Quiz (após revelação) -->
+      <div id="quizResultado" class="hidden bg-white rounded-3xl shadow-2xl p-12 fade-in">
+        <div class="text-center mb-6">
+          <p class="text-2xl text-gray-600 mb-2">Resposta Correta:</p>
+          <p id="respostaCorreta" class="text-5xl font-bold text-green-600 mb-6">
+            <!-- A, B, C ou D -->
+          </p>
         </div>
         
-        <!-- Card da Pergunta -->
-        <div class="bg-white rounded-3xl shadow-2xl p-12 mb-8 fade-in">
-          <p id="textoPergunta" class="pergunta-atual text-gray-800 font-bold text-center mb-6">
-            <!-- Será preenchido -->
+        <div class="mb-6">
+          <canvas id="chartQuizTelao" height="200"></canvas>
+        </div>
+        
+        <div class="text-center">
+          <p class="text-3xl font-bold text-blue-600" id="percentualAcerto">
+            <!-- 45% acertaram! -->
           </p>
-          <div id="nomePergunta" class="text-center text-gray-600 text-2xl">
-            <!-- Nome ou Anônimo -->
-          </div>
         </div>
       </div>
-      
     </div>
+    
   </main>
   
-  <!-- Footer -->
+  <!-- FOOTER -->
   <footer class="text-center">
     <div class="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
       <p class="text-white text-lg">
@@ -116,222 +161,9 @@
     </div>
   </footer>
   
-  <!-- Scripts -->
   <script src="js/supabase-config.js"></script>
-  <script>
-    let palestraId = null;
-    let palestra = null;
-    let perguntaAtual = null;
-    let proximaPergunta = null;
-    let canalPalestraAtiva = null;
-    let canalPalestra = null;
-    
-    async function inicializar() {
-      console.log('🖥️ Telão inicializando...');
-      await conectarRealtimePalestraAtiva();
-      await carregarPalestraAtiva();
-    }
-    
-    function conectarRealtimePalestraAtiva() {
-      canalPalestraAtiva = supabase
-        .channel('palestra_ativa_telao')
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'cnv25_palestra_ativa',
-          filter: 'id=eq.1'
-        }, async (payload) => {
-          console.log('🔄 Palestra mudou:', payload);
-          if (payload.new.palestra_id !== palestraId) {
-            await carregarPalestraAtiva();
-          }
-        })
-        .subscribe();
-    }
-    
-    async function carregarPalestraAtiva() {
-      try {
-        const { data: palestraAtiva } = await supabase
-          .from('cnv25_palestra_ativa')
-          .select('palestra_id')
-          .eq('id', 1)
-          .single();
-        
-        const novaPalestraId = palestraAtiva?.palestra_id;
-        
-        if (!novaPalestraId) {
-          mostrarLoading();
-          return;
-        }
-        
-        if (canalPalestra && palestraId !== novaPalestraId) {
-          window.supabase.removeChannel(canalPalestra);
-          canalPalestra = null;
-        }
-        
-        palestraId = novaPalestraId;
-        
-        const { data: palestraData } = await supabase
-          .from('cnv25_palestras')
-          .select('*')
-          .eq('id', palestraId)
-          .single();
-        
-        palestra = palestraData;
-        
-        // Atualizar header COM PALESTRANTE
-        document.getElementById('palestraTitulo').textContent = palestra.titulo;
-        document.getElementById('palestrante').textContent = palestra.palestrante || 'Palestrante não definido';
-        
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('containerPergunta').classList.remove('hidden');
-        
-        await carregarPerguntaAtual();
-        conectarRealtimePalestra();
-        
-      } catch (error) {
-        console.error('Erro:', error);
-        mostrarLoading();
-      }
-    }
-    
-    function conectarRealtimePalestra() {
-      if (canalPalestra) return;
-      
-      canalPalestra = supabase
-        .channel(`telao:${palestraId}`)
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'cnv25_perguntas',
-          filter: `palestra_id=eq.${palestraId}`
-        }, async (payload) => {
-          console.log('📢 Pergunta atualizada:', payload);
-          
-          const pergunta = payload.new;
-          
-          if (pergunta.status === 'exibida') {
-            perguntaAtual = pergunta;
-            await atualizarProxima();
-            renderizarPergunta();
-          }
-          
-          if (perguntaAtual && pergunta.id === perguntaAtual.id && pergunta.status === 'respondida') {
-            perguntaAtual = null;
-            await atualizarProxima();
-            renderizarPergunta();
-          }
-          
-          if (pergunta.status === 'aprovada') {
-            await atualizarProxima();
-            renderizarPergunta();
-          }
-        })
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'cnv25_perguntas',
-          filter: `palestra_id=eq.${palestraId}`
-        }, async (payload) => {
-          if (payload.new.status === 'aprovada' && !proximaPergunta) {
-            await atualizarProxima();
-            renderizarPergunta();
-          }
-        })
-        .subscribe();
-    }
-    
-    async function carregarPerguntaAtual() {
-      try {
-        const { data: exibida } = await supabase
-          .from('cnv25_perguntas')
-          .select('*')
-          .eq('palestra_id', palestraId)
-          .eq('status', 'exibida')
-          .single();
-        
-        perguntaAtual = exibida || null;
-        await atualizarProxima();
-        renderizarPergunta();
-        
-      } catch (error) {
-        console.error('Erro:', error);
-      }
-    }
-    
-    async function atualizarProxima() {
-      try {
-        const { data } = await supabase
-          .from('cnv25_perguntas')
-          .select('*')
-          .eq('palestra_id', palestraId)
-          .eq('status', 'aprovada')
-          .order('created_at', { ascending: true })
-          .limit(1);
-        
-        proximaPergunta = (data && data.length > 0) ? data[0] : null;
-        
-      } catch (error) {
-        console.error('Erro:', error);
-      }
-    }
-    
-    function renderizarPergunta() {
-      const semPergunta = document.getElementById('semPergunta');
-      const comPergunta = document.getElementById('comPergunta');
-      const textoPergunta = document.getElementById('textoPergunta');
-      const nomePergunta = document.getElementById('nomePergunta');
-      const containerProxima = document.getElementById('containerProxima');
-      const textoProxima = document.getElementById('textoProxima');
-      
-      if (!perguntaAtual) {
-        semPergunta.classList.remove('hidden');
-        comPergunta.classList.add('hidden');
-        return;
-      }
-      
-      semPergunta.classList.add('hidden');
-      comPergunta.classList.remove('hidden');
-      comPergunta.classList.add('fade-in');
-      
-      textoPergunta.textContent = perguntaAtual.texto;
-      
-      if (perguntaAtual.anonimo) {
-        nomePergunta.innerHTML = '👤 <em>Anônimo</em>';
-      } else {
-        nomePergunta.innerHTML = `👤 ${escapeHtml(perguntaAtual.nome_opt)}`;
-      }
-      
-      if (proximaPergunta) {
-        containerProxima.classList.remove('hidden');
-        textoProxima.textContent = proximaPergunta.texto;
-      } else {
-        containerProxima.classList.add('hidden');
-      }
-    }
-    
-    function mostrarLoading() {
-      document.getElementById('loading').classList.remove('hidden');
-      document.getElementById('containerPergunta').classList.add('hidden');
-      document.getElementById('palestraTitulo').textContent = 'Aguardando palestra ativa...';
-      document.getElementById('palestrante').textContent = '';
-    }
-    
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
-    window.addEventListener('DOMContentLoaded', inicializar);
-    
-    window.addEventListener('beforeunload', () => {
-      if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
-      if (canalPalestra) window.supabase.removeChannel(canalPalestra);
-    });
-    
-    console.log('✅ Telão carregado');
-  </script>
+  <script src="js/enquetes-quiz-utils.js"></script>
+  <script src="js/telao-v2.js"></script>
   
 </body>
 </html>
