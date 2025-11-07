@@ -134,34 +134,47 @@ async function selecionarPalestra(id) {
   try {
     mostrarLoading(true);
 
-    ModeradorState.palestraId = id;
+    // 1) fechar perguntas da palestra atualmente ativa (se houver)
+    try {
+      const { data: pa } = await supabase
+        .from('cnv25_palestra_ativa')
+        .select('palestra_id')
+        .eq('id', 1)
+        .single();
 
-    // Ativar palestra globalmente
+      const antigaId = pa?.palestra_id || null;
+      if (antigaId && antigaId !== id) {
+        await supabase
+          .from('cnv25_palestra_controle')
+          .update({ perguntas_abertas: false, updated_at: new Date().toISOString() })
+          .eq('palestra_id', antigaId);
+      }
+    } catch (e) {
+      console.warn('⚠️ Não foi possível fechar perguntas da palestra anterior:', e?.message || e);
+    }
+
+    // 2) definir nova ativa
+    ModeradorState.palestraId = id;
     await supabase.from('cnv25_palestra_ativa').update({ palestra_id: id }).eq('id', 1);
 
-    // Carregar dados
+    // 3) carregar dados e realtime como já fazia
     await carregarPalestra();
     await carregarControle();
-
-    // Conectar realtime
     conectarRealtimeCore();
 
-    // Notificar módulos
     if (window.ModuloPerguntas) await window.ModuloPerguntas.inicializar();
     if (window.ModuloEnquetes) await window.ModuloEnquetes.inicializar();
     if (window.ModuloQuiz) await window.ModuloQuiz.inicializar();
 
-    // Mostrar interface
     const hdr = getEl('headerConteudo');
     const main = getEl('mainConteudo');
     if (hdr) hdr.classList.remove('hidden');
     if (main) main.classList.remove('hidden');
 
     atualizarUICore();
-
     mostrarLoading(false);
+    mostrarNotificacao('Palestra selecionada!', 'success');
 
-    window.ModeradorCore.mostrarNotificacao('Palestra selecionada!', 'success');
   } catch (error) {
     console.error('Erro ao selecionar palestra:', error);
     mostrarErro('Erro ao selecionar palestra');
