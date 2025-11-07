@@ -14,10 +14,16 @@ function validarElemento(id) {
 function validarElementosHTML() {
   const ids = [
     'loading','semPalestra','conteudo',
-    'palestraTitulo','palestrante','statusGeral',
-    'secaoPerguntas','statusPerguntas','btnEnviar','textoPergunta','nomeParticipante','emailParticipante','contador','contadorEnviadas','limiteDinamico','feedbackPergunta',
+    // head dinâmico
+    'cardHeader','cardHeadTitle','cardHeadSubtitle',
+    // perguntas
+    'secaoPerguntas','statusPerguntas','btnEnviar','textoPergunta',
+    'nomeParticipante','emailParticipante','contador','contadorEnviadas','limiteDinamico','feedbackPergunta',
+    // enquete
     'secaoEnquete','tituloEnquete','opcoesEnquete','feedbackEnquete',
-    'secaoQuiz','progressoQuiz','quizAguardando','quizPergunta','quizFinalizado','numPergunta','textoPerguntaQuiz','opcoesQuiz','feedbackQuiz','pontuacaoFinal','acertosFinal'
+    // quiz
+    'secaoQuiz','progressoQuiz','quizAguardando','quizPergunta','quizFinalizado',
+    'numPergunta','textoPerguntaQuiz','opcoesQuiz','feedbackQuiz','pontuacaoFinal','acertosFinal'
   ];
   const faltando = ids.filter(id => !document.getElementById(id));
   if (faltando.length) {
@@ -175,6 +181,50 @@ function esc(text) {
   div.textContent = text ?? '';
   return div.innerHTML;
 }
+
+function renderCardHeader() {
+  const header = document.getElementById('cardHeader');
+  const t = document.getElementById('cardHeadTitle');
+  const s = document.getElementById('cardHeadSubtitle');
+  if (!header || !t || !s) return;
+
+  if (modoAtual === 'aguardando') {
+    header.classList.add('hidden');
+    return;
+  }
+
+  header.classList.remove('hidden');
+
+  if (modoAtual === 'enquete') {
+    t.textContent = 'Enquete';
+    s.textContent = enqueteAtiva?.titulo || '—';
+    return;
+  }
+
+  if (modoAtual === 'perguntas') {
+    t.textContent = 'Perguntas';
+    const tema = palestra?.titulo || '—';
+    const palestr = palestra?.palestrante || '—';
+    s.textContent = `${tema} — ${palestr}`;
+    return;
+  }
+
+  // quiz (coerente com o restante)
+  if (modoAtual === 'quiz') {
+    t.textContent = 'Quiz';
+    const atual = quizAtivo?.pergunta_atual || 0;
+    const total = quizAtivo?.total_perguntas || 0;
+    s.textContent = total ? `Pergunta ${atual}/${total}` : '—';
+  }
+}
+
+// Garanta que sempre que o modo mudar, o head acompanhe
+const _aplicarModoOriginal = aplicarModo;
+aplicarModo = function(novoModo) {
+  _aplicarModoOriginal(novoModo);
+  renderCardHeader();
+};
+
 
 // -------------------------
 //  INICIALIZAÇÃO
@@ -354,24 +404,6 @@ function desconectarCanais() {
 // -------------------------
 function atualizarUI() {
   if (!palestra || !controle) return;
-
-  // Header
-  const titulo = validarElemento('palestraTitulo');
-  const palestrante = validarElemento('palestrante');
-  const statusGeral = validarElemento('statusGeral');
-
-  if (titulo) titulo.textContent = palestra.titulo || '—';
-  if (palestrante) palestrante.textContent = palestra.palestrante || 'A definir';
-
-  if (statusGeral) {
-    if (controle.perguntas_abertas && !controle.silencio_ativo) {
-      statusGeral.textContent = '✅ Ativo';
-      statusGeral.className = 'px-4 py-2 rounded-full text-sm font-bold bg-green-500 text-white';
-    } else {
-      statusGeral.textContent = '⏸️ Pausado';
-      statusGeral.className = 'px-4 py-2 rounded-full text-sm font-bold bg-gray-400 text-white';
-    }
-  }
 
   // Seções
   atualizarSecaoPerguntas();
@@ -608,17 +640,19 @@ function atualizarSecaoEnquete() {
   const feedback = validarElemento('feedbackEnquete');
 
   if (!enqueteAtiva) {
-    // Sem enquete
     if (titulo) titulo.textContent = 'Enquete';
     if (opcoesEl) opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Nenhuma enquete ativa.</p>';
     if (feedback) feedback.classList.add('hidden');
     return;
   }
 
+  // Head do card será tratado por renderCardHeader(); aqui só o corpo
   if (titulo) titulo.textContent = enqueteAtiva.titulo || 'Enquete';
 
-  const opcoes = (enqueteAtiva.opcoes?.opcoes || []).slice(0, 4); // máximo 4 botões
-  const labels = ['A', 'B', 'C', 'D'];
+  const labels = 'ABCDEFGHIJ'.split(''); // até J = 10
+  const opcoesRaw = (enqueteAtiva.opcoes?.opcoes || []);
+  const total = Math.min(opcoesRaw.length, 10);
+  const opcoes = opcoesRaw.slice(0, total);
 
   if (opcoesEl) {
     if (jaVotou) {
@@ -626,7 +660,7 @@ function atualizarSecaoEnquete() {
     } else {
       opcoesEl.innerHTML = opcoes.map((opcao, idx) => `
         <button
-          class="w-full px-4 py-3 bg-cnv-alternate hover:bg-cnv-warning hover:text-white rounded-lg text-left transition font-medium"
+          class="w-full px-4 py-3 bg-gray-200 hover:bg-cnv-warning hover:text-white rounded-lg text-left transition font-medium"
           onclick="votarEnqueteParticipante(${idx})"
         >
           <strong>${labels[idx]}.</strong> ${esc(opcao)}
