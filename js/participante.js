@@ -55,9 +55,9 @@ let canalControle = null;
 let canalEnquete = null;
 let canalQuiz = null;
 
-// Countdown (fallback seguro: só cria se não existir)
-if (!window.CountdownTimer) {
-  window.CountdownTimer = class {
+// Countdown (fallback seguro): só registra se NÃO existir no global
+if (!('CountdownTimer' in window)) {
+  class SimpleCountdownTimer {
     constructor({ duration, onTick, onComplete }) {
       this.duration = duration || 30;
       this.left = this.duration;
@@ -67,23 +67,22 @@ if (!window.CountdownTimer) {
     }
     start() {
       this.stop();
-      this.onTick && this.onTick(this.left);
+      if (this.onTick) this.onTick(this.left);
       this.t = setInterval(() => {
         this.left--;
-        this.onTick && this.onTick(this.left);
+        if (this.onTick) this.onTick(this.left);
         if (this.left <= 0) {
           this.stop();
-          this.onComplete && this.onComplete();
+          if (this.onComplete) this.onComplete();
         }
       }, 1000);
     }
     stop() {
       if (this.t) { clearInterval(this.t); this.t = null; }
     }
-  };
+  }
+  window.CountdownTimer = SimpleCountdownTimer;
 }
-
-window.CountdownTimer = window.CountdownTimer || CountdownTimer;
 
 // -------------------------
 //  UI GENÉRICA
