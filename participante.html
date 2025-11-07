@@ -5,16 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Participante - CNV 2025 v2</title>
 
-  <!-- Tailwind e cores -->
+  <!-- Estilos -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/cnv-colors.css" />
+
+  <!-- Supabase (o cliente real é criado no supabase-config.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     body {
       background: linear-gradient(135deg, #2797ff 0%, #0b67bc 100%);
       min-height: 100vh;
     }
-    .card-section { transition: all .3s ease; }
+    .card-section { transition: all 0.3s ease; }
     .card-section.inactive { opacity: .5; pointer-events: none; }
   </style>
 </head>
@@ -87,7 +90,7 @@
             <div class="text-sm text-gray-500">Pergunta <span id="numPergunta">0/0</span></div>
             <div id="textoPerguntaQuiz" class="font-medium mt-1">—</div>
 
-            <!-- Countdown + opções serão injetados aqui -->
+            <!-- Countdown + opções são injetados via participante.js -->
             <div id="opcoesQuiz" class="mt-3 space-y-2"></div>
 
             <div id="feedbackQuiz" class="hidden mt-4"></div>
@@ -105,7 +108,7 @@
   <!-- Scripts (ordem importa!) -->
   <script src="js/supabase-config.js"></script>
   <script src="js/enquetes-quiz-utils.js"></script>
-  <script src="js/countdown-component.js"></script> <!-- opcional; o JS tem fallback -->
+  <script src="js/countdown-component.js"></script> <!-- opcional; há fallback no participante.js -->
   <script src="js/participante.js"></script>
 </body>
 </html>
