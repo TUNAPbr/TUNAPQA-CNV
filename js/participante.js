@@ -214,7 +214,7 @@ function conectarRealtimePalestraAtiva() {
       // se mudou o id, recarrega tudo
       const novoId = payload?.new?.palestra_id || null;
       if (novoId !== palestraId) {
-        await aplicarModo(derivarModo());
+        await carregarPalestraAtiva(); // recarrega dados + canais + UI
       }
     })
     .subscribe();
@@ -593,6 +593,7 @@ function conectarRealtimeEnquete() {
       filter: `id=eq.${enqueteAtiva.id}`
     }, (payload) => {
       enqueteAtiva = payload.new;
+      atualizarSecaoEnquete();
       aplicarModo(derivarModo());
     })
     .subscribe();
