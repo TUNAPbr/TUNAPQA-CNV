@@ -26,7 +26,16 @@ async function inicializarModerador() {
   await carregarListaPalestras();
   configurarEventosCore();
   
+  // Mostrar interface sem exigir palestra
+  document.getElementById('headerConteudo').classList.remove('hidden');
+  document.getElementById('mainConteudo').classList.remove('hidden');
+  
+  // Inicializar módulos sem palestra (modo livre)
+  if (window.ModuloEnquetes) await window.ModuloEnquetes.inicializar();
+  if (window.ModuloQuiz) await window.ModuloQuiz.inicializar();
+  
   console.log('✅ Moderador Core pronto');
+  console.log('💡 Dica: Selecione uma palestra para usar Perguntas');
 }
 
 // =====================================================
@@ -44,7 +53,7 @@ async function carregarListaPalestras() {
     
     if (error) throw error;
     
-    select.innerHTML = '<option value="">Selecione uma palestra...</option>';
+    select.innerHTML = '<option value="">📌 Selecione para usar Perguntas...</option>';
     
     if (data && data.length > 0) {
       data.forEach(p => {
@@ -63,17 +72,7 @@ async function carregarListaPalestras() {
       });
     }
     
-    // Verificar palestra ativa
-    const { data: ativaData } = await supabase
-      .from('cnv25_palestra_ativa')
-      .select('palestra_id')
-      .eq('id', 1)
-      .single();
-    
-    if (ativaData?.palestra_id) {
-      select.value = ativaData.palestra_id;
-      await selecionarPalestra(ativaData.palestra_id);
-    }
+    // NÃO selecionar automaticamente - deixar usuário escolher
     
   } catch (error) {
     console.error('❌ Erro ao carregar palestras:', error);
@@ -82,6 +81,11 @@ async function carregarListaPalestras() {
 }
 
 async function selecionarPalestra(id) {
+  if (!id) {
+    console.log('ℹ️ Nenhuma palestra selecionada - modo livre');
+    return;
+  }
+  
   try {
     mostrarLoading(true);
     
@@ -112,6 +116,8 @@ async function selecionarPalestra(id) {
     atualizarUICore();
     
     mostrarLoading(false);
+    
+    window.ModeradorCore.mostrarNotificacao('Palestra selecionada!', 'success');
     
   } catch (error) {
     console.error('Erro ao selecionar palestra:', error);
