@@ -31,6 +31,7 @@ function validarElementosHTML() {
 // -------------------------
 //  ESTADO GLOBAL
 // -------------------------
+let modoAtual = 'aguardando';
 let palestraId = null;
 let palestra = null;
 let controle = null;
@@ -133,6 +134,42 @@ function mostrarFeedback(elementId, tipo, mensagem) {
   }
 }
 
+function derivarModo() {
+  // Prioridade: enquete > quiz > perguntas > aguardando
+  if (controle?.enquete_ativa && enqueteAtiva) return 'enquete';
+  if (quizAtivo && quizAtivo.status !== 'finalizado' && (quizAtivo.pergunta_atual || 0) > 0) return 'quiz';
+  if (controle?.perguntas_abertas && !controle?.silencio_ativo) return 'perguntas';
+  return 'aguardando';
+}
+
+function aplicarModo(novoModo) {
+  if (novoModo === modoAtual) return; // evita piscar
+
+  // Se estava em quiz e vamos sair, para o countdown
+  if (modoAtual === 'quiz' && typeof _countdownInstance !== 'undefined' && _countdownInstance) {
+    try { _countdownInstance.stop(); } catch {}
+  }
+
+  modoAtual = novoModo;
+
+  const cardAguardando = document.getElementById('cardAguardando');
+  const sPerg = document.getElementById('secaoPerguntas');
+  const sEnq  = document.getElementById('secaoEnquete');
+  const sQuiz = document.getElementById('secaoQuiz');
+
+  // Esconde tudo
+  if (cardAguardando) cardAguardando.classList.add('hidden');
+  if (sPerg) sPerg.classList.add('hidden');
+  if (sEnq)  sEnq.classList.add('hidden');
+  if (sQuiz) sQuiz.classList.add('hidden');
+
+  // Mostra só o modo atual
+  if (novoModo === 'aguardando' && cardAguardando) cardAguardando.classList.remove('hidden');
+  if (novoModo === 'perguntas' && sPerg) sPerg.classList.remove('hidden');
+  if (novoModo === 'enquete' && sEnq) sEnq.classList.remove('hidden');
+  if (novoModo === 'quiz' && sQuiz) sQuiz.classList.remove('hidden');
+}
+
 function esc(text) {
   const div = document.createElement('div');
   div.textContent = text ?? '';
@@ -177,7 +214,7 @@ function conectarRealtimePalestraAtiva() {
       // se mudou o id, recarrega tudo
       const novoId = payload?.new?.palestra_id || null;
       if (novoId !== palestraId) {
-        await carregarPalestraAtiva();
+        await aplicarModo(derivarModo());
       }
     })
     .subscribe();
@@ -227,6 +264,8 @@ async function carregarPalestraAtiva() {
     mostrarConteudo();
     atualizarUI();
     await atualizarContadorEnviadas();
+    
+    aplicarModo(derivarModo());
 
   } catch (err) {
     console.error('Erro em carregarPalestraAtiva:', err);
@@ -338,6 +377,9 @@ function atualizarUI() {
   atualizarSecaoPerguntas();
   atualizarSecaoEnquete();
   atualizarSecaoQuiz();
+
+  const novoModo = derivarModo();
+  aplicarModo(novoModo);
 }
 
 // -------------------------
@@ -532,6 +574,7 @@ async function carregarEnqueteAtiva() {
     jaVotou = false;
     atualizarSecaoEnquete();
   }
+  aplicarModo(derivarModo());
 }
 
 function conectarRealtimeEnquete() {
@@ -550,7 +593,7 @@ function conectarRealtimeEnquete() {
       filter: `id=eq.${enqueteAtiva.id}`
     }, (payload) => {
       enqueteAtiva = payload.new;
-      atualizarSecaoEnquete();
+      aplicarModo(derivarModo());
     })
     .subscribe();
 }
@@ -622,6 +665,7 @@ async function carregarQuizAtivo() {
     perguntaAtual = null;
   }
   atualizarSecaoQuiz();
+  aplicarModo(derivarModo());
 }
 
 async function carregarPerguntaAtualQuiz() {
@@ -662,7 +706,7 @@ function conectarRealtimeQuiz() {
       if (quizAtivo.status === 'finalizado') {
         await exibirResultadoFinal();
       } else {
-        await carregarPerguntaAtualQuiz();
+        await aplicarModo(derivarModo());
       }
       atualizarSecaoQuiz();
     })
