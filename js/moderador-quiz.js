@@ -631,15 +631,28 @@ const ModuloQuiz = (() => {
   // =====================================================
   
   function configurarEventos() {
-    document.getElementById('quizSelect').addEventListener('change', function() {
-      selecionarQuiz(this.value);
-    });
+    const quizSelect = document.getElementById('quizSelect');
+    const btnIniciar = document.getElementById('btnIniciarQuiz');
+    const btnAvancar = document.getElementById('btnAvancarQuiz');
+    const btnRevelar = document.getElementById('btnRevelarQuiz');
+    const btnFinalizar = document.getElementById('btnFinalizarQuiz');
+    const btnExportar = document.getElementById('btnExportarQuiz');
     
-    document.getElementById('btnIniciarQuiz').onclick = iniciar;
-    document.getElementById('btnAvancarQuiz').onclick = avancar;
-    document.getElementById('btnRevelarQuiz').onclick = revelar;
-    document.getElementById('btnFinalizarQuiz').onclick = finalizar;
-    document.getElementById('btnExportarQuiz').onclick = exportarCSV;
+    if (quizSelect) {
+      quizSelect.addEventListener('change', function() {
+        selecionarQuiz(this.value);
+      });
+    }
+    
+    if (btnIniciar) btnIniciar.onclick = iniciar;
+    if (btnAvancar) btnAvancar.onclick = avancar;
+    if (btnRevelar) btnRevelar.onclick = revelar;
+    if (btnFinalizar) btnFinalizar.onclick = finalizar;
+    if (btnExportar) btnExportar.onclick = exportarCSV;
+    
+    if (!quizSelect || !btnIniciar) {
+      console.warn('⚠️ Alguns elementos do quiz não foram encontrados');
+    }
   }
   
   // =====================================================
