@@ -408,7 +408,13 @@ const ModuloPerguntas = (() => {
   // =====================================================
   
   function configurarEventos() {
-    document.getElementById('btnExportarPerguntas').onclick = exportarCSV;
+    const btnExportar = document.getElementById('btnExportarPerguntas');
+    
+    if (btnExportar) {
+      btnExportar.onclick = exportarCSV;
+    } else {
+      console.warn('⚠️ Botão de exportar perguntas não encontrado');
+    }
   }
   
   // =====================================================
