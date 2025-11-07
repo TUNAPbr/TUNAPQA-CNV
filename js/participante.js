@@ -1,4 +1,50 @@
 // =====================================================
+// VALIDAÇÃO DE ELEMENTOS
+// =====================================================
+
+function validarElemento(id) {
+  const elemento = document.getElementById(id);
+  if (!elemento) {
+    console.warn(`⚠️ Elemento não encontrado: ${id}`);
+  }
+  return elemento;
+}
+
+// =====================================================
+// FUNÇÕES DE EXIBIÇÃO CORRIGIDAS
+// =====================================================
+
+function mostrarLoading() {
+  const loading = validarElemento('loading');
+  const semPalestra = validarElemento('semPalestra');
+  const conteudo = validarElemento('conteudo');
+  
+  if (loading) loading.classList.remove('hidden');
+  if (semPalestra) semPalestra.classList.add('hidden');
+  if (conteudo) conteudo.classList.add('hidden');
+}
+
+function mostrarSemPalestra() {
+  const loading = validarElemento('loading');
+  const semPalestra = validarElemento('semPalestra');
+  const conteudo = validarElemento('conteudo');
+  
+  if (loading) loading.classList.add('hidden');
+  if (semPalestra) semPalestra.classList.remove('hidden');
+  if (conteudo) conteudo.classList.add('hidden');
+}
+
+function mostrarConteudo() {
+  const loading = validarElemento('loading');
+  const semPalestra = validarElemento('semPalestra');
+  const conteudo = validarElemento('conteudo');
+  
+  if (loading) loading.classList.add('hidden');
+  if (semPalestra) semPalestra.classList.add('hidden');
+  if (conteudo) conteudo.classList.remove('hidden');
+}
+
+// =====================================================
 // PARTICIPANTE V2 - INTERFACE UNIFICADA
 // =====================================================
 function validarElementosHTML() {
@@ -224,54 +270,67 @@ function mostrarConteudo() {
   document.getElementById('conteudo').classList.remove('hidden');
 }
 
-function atualizarUI() {
+function atualizarUISeguro() {
   if (!palestra || !controle) return;
   
   // Header
-  document.getElementById('palestraTitulo').textContent = palestra.titulo;
-  document.getElementById('palestrante').textContent = palestra.palestrante || 'A definir';
+  const titulo = validarElemento('palestraTitulo');
+  const palestrante = validarElemento('palestrante');
+  const statusGeral = validarElemento('statusGeral');
   
-  // Status geral
-  const statusEl = document.getElementById('statusGeral');
-  if (controle.perguntas_abertas && !controle.silencio_ativo) {
-    statusEl.textContent = '✅ Ativo';
-    statusEl.className = 'px-4 py-2 rounded-full text-sm font-bold bg-green-500 text-white';
-  } else {
-    statusEl.textContent = '⏸️ Pausado';
-    statusEl.className = 'px-4 py-2 rounded-full text-sm font-bold bg-gray-400 text-white';
+  if (titulo) titulo.textContent = palestra.titulo;
+  if (palestrante) palestrante.textContent = palestra.palestrante || 'A definir';
+  
+  if (statusGeral) {
+    if (controle.perguntas_abertas && !controle.silencio_ativo) {
+      statusGeral.textContent = '✅ Ativo';
+      statusGeral.className = 'px-4 py-2 rounded-full text-sm font-bold bg-green-500 text-white';
+    } else {
+      statusGeral.textContent = '⏸️ Pausado';
+      statusGeral.className = 'px-4 py-2 rounded-full text-sm font-bold bg-gray-400 text-white';
+    }
   }
   
   // Seções
-  atualizarSecaoPerguntas();
-  atualizarSecaoEnquete();
-  atualizarSecaoQuiz();
+  atualizarSecaoPerguntasSeguro();
+  atualizarSecaoEnqueteSeguro();
+  atualizarSecaoQuizSeguro();
 }
 
 // =====================================================
 // SEÇÃO 1: PERGUNTAS
 // =====================================================
 
-function atualizarSecaoPerguntas() {
-  const secao = document.getElementById('secaoPerguntas');
-  const statusEl = document.getElementById('statusPerguntas');
-  const form = document.getElementById('formPerguntas');
+function atualizarSecaoPerguntasSeguro() {
+  const secao = validarElemento('secaoPerguntas');
+  if (!secao) return;
+  
+  const statusEl = validarElemento('statusPerguntas');
+  const btnEnviar = validarElemento('btnEnviar');
   
   const aberta = controle.perguntas_abertas && !controle.silencio_ativo;
   
   if (aberta) {
     secao.classList.remove('inactive');
-    statusEl.textContent = '✅ ABERTAS';
-    statusEl.className = 'ml-auto px-3 py-1 rounded-full text-xs font-bold bg-green-500 text-white';
-    document.getElementById('btnEnviar').disabled = false;
+    if (statusEl) {
+      statusEl.textContent = '✅ ABERTAS';
+      statusEl.className = 'ml-auto px-3 py-1 rounded-full text-xs font-bold bg-green-500 text-white';
+    }
+    if (btnEnviar) btnEnviar.disabled = false;
   } else {
     secao.classList.add('inactive');
-    statusEl.textContent = controle.silencio_ativo ? '🔇 SILÊNCIO' : '❌ FECHADAS';
-    statusEl.className = 'ml-auto px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white';
-    document.getElementById('btnEnviar').disabled = true;
+    if (statusEl) {
+      statusEl.textContent = controle.silencio_ativo ? '🔇 SILÊNCIO' : '❌ FECHADAS';
+      statusEl.className = 'ml-auto px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white';
+    }
+    if (btnEnviar) btnEnviar.disabled = true;
   }
   
   // Atualizar limites
-  document.getElementById('limiteDinamico').textContent = palestra.max_perguntas || 3;
+  const limiteDinamico = validarElemento('limiteDinamico');
+  if (limiteDinamico && palestra) {
+    limiteDinamico.textContent = palestra.max_perguntas || 3;
+  }
 }
 
 function configurarListeners() {
@@ -436,32 +495,47 @@ function conectarRealtimeEnquete() {
     .subscribe();
 }
 
-function atualizarSecaoEnquete() {
-  const secao = document.getElementById('secaoEnquete');
+function atualizarSecaoQuizSeguro() {
+  const secao = validarElemento('secaoQuiz');
+  if (!secao) return;
   
-  if (!enqueteAtiva) {
+  if (!quizAtivo) {
     secao.classList.add('hidden');
     return;
   }
   
   secao.classList.remove('hidden');
   
-  document.getElementById('tituloEnquete').textContent = enqueteAtiva.titulo;
+  // Progresso
+  const progressoEl = validarElemento('progressoQuiz');
+  if (progressoEl) {
+    progressoEl.textContent = `${quizAtivo.pergunta_atual || 0}/${quizAtivo.total_perguntas}`;
+  }
   
-  const opcoesContainer = document.getElementById('opcoesEnquete');
-  const opcoes = enqueteAtiva.opcoes.opcoes;
+  // Estados
+  const aguardando = validarElemento('quizAguardando');
+  const perguntaDiv = validarElemento('quizPergunta');
+  const finalizado = validarElemento('quizFinalizado');
   
-  if (jaVotou) {
-    opcoesContainer.innerHTML = '<p class="text-center text-gray-600">✓ Você já votou nesta enquete</p>';
+  if (!aguardando || !perguntaDiv || !finalizado) {
+    console.warn('⚠️ Elementos do quiz não encontrados no HTML');
+    return;
+  }
+  
+  if (quizAtivo.status === 'finalizado') {
+    aguardando.classList.add('hidden');
+    perguntaDiv.classList.add('hidden');
+    finalizado.classList.remove('hidden');
+  } else if (!perguntaAtual || perguntaAtual.jaRespondeu) {
+    aguardando.classList.remove('hidden');
+    perguntaDiv.classList.add('hidden');
+    finalizado.classList.add('hidden');
   } else {
-    opcoesContainer.innerHTML = opcoes.map((opcao, idx) => `
-      <button 
-        onclick="votarEnqueteParticipante(${idx})"
-        class="w-full px-4 py-3 bg-cnv-alternate hover:bg-cnv-primary hover:text-white rounded-lg text-left transition font-medium"
-      >
-        ${esc(opcao)}
-      </button>
-    `).join('');
+    aguardando.classList.add('hidden');
+    perguntaDiv.classList.remove('hidden');
+    finalizado.classList.add('hidden');
+    
+    renderizarPerguntaQuiz();
   }
 }
 
@@ -553,8 +627,9 @@ function conectarRealtimeQuiz() {
     .subscribe();
 }
 
-function atualizarSecaoQuiz() {
-  const secao = document.getElementById('secaoQuiz');
+function atualizarSecaoQuizSeguro() {
+  const secao = validarElemento('secaoQuiz');
+  if (!secao) return;
   
   if (!quizAtivo) {
     secao.classList.add('hidden');
@@ -564,13 +639,20 @@ function atualizarSecaoQuiz() {
   secao.classList.remove('hidden');
   
   // Progresso
-  document.getElementById('progressoQuiz').textContent = 
-    `${quizAtivo.pergunta_atual || 0}/${quizAtivo.total_perguntas}`;
+  const progressoEl = validarElemento('progressoQuiz');
+  if (progressoEl) {
+    progressoEl.textContent = `${quizAtivo.pergunta_atual || 0}/${quizAtivo.total_perguntas}`;
+  }
   
   // Estados
-  const aguardando = document.getElementById('quizAguardando');
-  const perguntaDiv = document.getElementById('quizPergunta');
-  const finalizado = document.getElementById('quizFinalizado');
+  const aguardando = validarElemento('quizAguardando');
+  const perguntaDiv = validarElemento('quizPergunta');
+  const finalizado = validarElemento('quizFinalizado');
+  
+  if (!aguardando || !perguntaDiv || !finalizado) {
+    console.warn('⚠️ Elementos do quiz não encontrados no HTML');
+    return;
+  }
   
   if (quizAtivo.status === 'finalizado') {
     aguardando.classList.add('hidden');
