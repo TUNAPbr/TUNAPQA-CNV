@@ -1,3 +1,108 @@
+// ===== CRUD Palestra (UI da aba Perguntas) =====
+let _modoPalestra = 'novo';
+let _editPalestraId = null;
+
+function abrirModalPalestra(modo) {
+  _modoPalestra = modo;
+  _editPalestraId = (modo === 'editar') ? window.ModeradorCore.state.palestraId : null;
+
+  document.getElementById('modalPalestraTitulo').textContent = 
+    (modo === 'novo') ? 'Nova Palestra' : 'Editar Palestra';
+
+  if (modo === 'editar' && window.ModeradorCore.state.palestra) {
+    const p = window.ModeradorCore.state.palestra;
+    document.getElementById('pal_titulo').value = p.titulo || '';
+    document.getElementById('pal_palestrante').value = p.palestrante || '';
+    document.getElementById('pal_inicio').value = p.inicio ? p.inicio.slice(0,16) : '';
+    document.getElementById('pal_fim').value = p.fim ? p.fim.slice(0,16) : '';
+    document.getElementById('pal_status').value = p.status || 'planejada';
+    document.getElementById('pal_max').value = p.max_perguntas ?? 3;
+    document.getElementById('pal_intervalo').value = p.intervalo_perguntas ?? 60;
+  } else {
+    document.getElementById('pal_titulo').value = '';
+    document.getElementById('pal_palestrante').value = '';
+    document.getElementById('pal_inicio').value = '';
+    document.getElementById('pal_fim').value = '';
+    document.getElementById('pal_status').value = 'planejada';
+    document.getElementById('pal_max').value = 3;
+    document.getElementById('pal_intervalo').value = 60;
+  }
+
+  const modal = document.getElementById('modalPalestra');
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+
+function fecharModalPalestra() {
+  const modal = document.getElementById('modalPalestra');
+  modal.classList.add('hidden'); modal.classList.remove('flex');
+}
+
+async function salvarPalestra() {
+  const titulo = document.getElementById('pal_titulo').value.trim();
+  if (!titulo) { 
+    document.getElementById('modalPalestraWarn').classList.remove('hidden'); 
+    return; 
+  }
+  document.getElementById('modalPalestraWarn').classList.add('hidden');
+
+  const payload = {
+    titulo,
+    palestrante: document.getElementById('pal_palestrante').value || null,
+    inicio: document.getElementById('pal_inicio').value ? new Date(document.getElementById('pal_inicio').value).toISOString() : new Date().toISOString(),
+    fim: document.getElementById('pal_fim').value ? new Date(document.getElementById('pal_fim').value).toISOString() : new Date(Date.now()+3600000).toISOString(),
+    status: document.getElementById('pal_status').value || 'planejada',
+    max_perguntas: parseInt(document.getElementById('pal_max').value || '3', 10),
+    intervalo_perguntas: parseInt(document.getElementById('pal_intervalo').value || '60', 10)
+  };
+
+  if (_modoPalestra === 'novo') {
+    const { data, error } = await supabase.from('cnv25_palestras').insert([payload]).select('*').single();
+    if (error) { alert('Erro ao criar'); console.error(error); return; }
+    await recarregarSelectPalestra(data.id);
+  } else {
+    const { error } = await supabase.from('cnv25_palestras').update(payload).eq('id', _editPalestraId);
+    if (error) { alert('Erro ao salvar'); console.error(error); return; }
+    await recarregarSelectPalestra(_editPalestraId);
+  }
+  fecharModalPalestra();
+}
+
+async function excluirPalestra() {
+  const atual = window.ModeradorCore.state.palestraId;
+  if (!atual) return;
+  // Evita excluir a ativa global
+  const { data: pa } = await supabase.from('cnv25_palestra_ativa').select('palestra_id').eq('id',1).single();
+  if (pa?.palestra_id === atual) { alert('Selecione outra palestra ativa antes de excluir.'); return; }
+
+  if (!confirm('Excluir esta palestra?')) return;
+  const { error } = await supabase.from('cnv25_palestras').delete().eq('id', atual);
+  if (error) { alert('Erro ao excluir'); console.error(error); return; }
+  await recarregarSelectPalestra(null);
+}
+
+async function recarregarSelectPalestra(idParaAtivar) {
+  // reaproveita o core
+  await (async function carregarListaPalestrasAgain(){
+    // hack leve: força reexecução da função core
+    // (se preferir, exponho publicamente no Core)
+    const select = document.getElementById('palestraSelect');
+    const { data } = await supabase.from('cnv25_palestras').select('*').order('inicio', { ascending: true });
+    select.innerHTML = '<option value="">📌 Selecione para usar Perguntas...</option>';
+    (data||[]).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = `${p.titulo} - ${p.palestrante || 'TBD'}`;
+      select.appendChild(o);
+    });
+  })();
+
+  if (idParaAtivar) {
+    // define ativa global e dispara fluxo core
+    await supabase.from('cnv25_palestra_ativa').update({ palestra_id: idParaAtivar }).eq('id',1);
+    document.getElementById('palestraSelect').value = idParaAtivar;
+    document.getElementById('palestraSelect').dispatchEvent(new Event('change'));
+  }
+}
+
 // =====================================================
 // MODERADOR - MÓDULO DE PERGUNTAS
 // =====================================================
