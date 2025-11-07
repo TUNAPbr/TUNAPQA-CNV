@@ -32,15 +32,13 @@
     <!-- CARD ÚNICO (header + corpo dinâmico) -->
     <div id="conteudo" class="hidden">
       <div class="bg-white rounded-2xl shadow overflow-hidden"> <!-- CARD ÚNICO -->
-        <!-- Header dentro do card -->
-        <div class="px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-500">
+        <!-- HEADER do CARD (dinâmico) -->
+        <div id="cardHeader" class="px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-500">
           <div class="flex items-center gap-3">
             <div>
-              <h1 id="palestraTitulo" class="text-white text-2xl font-bold">—</h1>
-              <div id="palestrante" class="text-white/90 text-sm">—</div>
+              <h1 id="cardHeadTitle" class="text-white text-2xl font-bold">—</h1>
+              <div id="cardHeadSubtitle" class="text-white/90 text-sm">—</div>
             </div>
-            <span id="statusGeral"
-                  class="ml-auto px-4 py-2 rounded-full text-sm font-bold bg-gray-100 text-gray-800">—</span>
           </div>
         </div>
       
