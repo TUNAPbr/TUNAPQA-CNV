@@ -105,6 +105,21 @@ async function salvarPalestra() {
   }
 }
 
+// Fechar o modal de Palestra com ESC (registra uma única vez)
+(function installEscCloseOnce(){
+  if (window.__palestraEscInstalled) return;
+  window.__palestraEscInstalled = true;
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('modalPalestra');
+      if (modal && !modal.classList.contains('hidden')) {
+        fecharModalPalestra();
+      }
+    }
+  });
+})();
+
 async function excluirPalestra() {
   const atual = window.ModeradorCore.state.palestraId;
   if (!atual) return;
