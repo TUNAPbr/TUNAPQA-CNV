@@ -360,13 +360,25 @@ function atualizarUICore() {
 // =====================================================
 
 async function togglePerguntas() {
-  if (!ModeradorState.palestraId) return;
+  if (!ModeradorState.palestraId || !ModeradorState.controle) return;
 
   const novoStatus = !ModeradorState.controle.perguntas_abertas;
 
-  await atualizarControlePalestra(ModeradorState.palestraId, {
+  // UI otimista
+  ModeradorState.controle.perguntas_abertas = novoStatus;
+  atualizarBadgesStatus();
+
+  const ok = await atualizarControlePalestra(ModeradorState.palestraId, {
     perguntas_abertas: novoStatus
   });
+
+  if (!ok) {
+    // rollback se falhar
+    ModeradorState.controle.perguntas_abertas = !novoStatus;
+    atualizarBadgesStatus();
+    mostrarNotificacao('Falha ao alternar perguntas.', 'error');
+    return;
+  }
 
   mostrarNotificacao(
     novoStatus ? 'Perguntas abertas!' : 'Perguntas fechadas!',
@@ -375,13 +387,25 @@ async function togglePerguntas() {
 }
 
 async function toggleSilencio() {
-  if (!ModeradorState.palestraId) return;
+  if (!ModeradorState.palestraId || !ModeradorState.controle) return;
 
   const novoStatus = !ModeradorState.controle.silencio_ativo;
 
-  await atualizarControlePalestra(ModeradorState.palestraId, {
+  // UI otimista
+  ModeradorState.controle.silencio_ativo = novoStatus;
+  atualizarBadgesStatus();
+
+  const ok = await atualizarControlePalestra(ModeradorState.palestraId, {
     silencio_ativo: novoStatus
   });
+
+  if (!ok) {
+    // rollback se falhar
+    ModeradorState.controle.silencio_ativo = !novoStatus;
+    atualizarBadgesStatus();
+    mostrarNotificacao('Falha ao alternar silêncio.', 'error');
+    return;
+  }
 
   mostrarNotificacao(
     novoStatus ? 'Modo silêncio ativado!' : 'Modo silêncio desativado!',
