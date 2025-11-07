@@ -294,6 +294,13 @@ const ModuloEnquetes = (() => {
       if (resultado) {
         window.ModeradorCore.mostrarNotificacao('Enquete ativada!', 'success');
       }
+
+      const ok = await window.ModeradorCore.atualizarControlePalestra(palestraId, {
+        enquete_ativa: enqueteId,
+        mostrar_resultado_enquete: false
+      });
+    
+      if (ok) window.ModeradorCore.mostrarNotificacao('Enquete ativada!', 'success');
       
     } catch (error) {
       console.error('Erro ao ativar enquete:', error);
@@ -301,6 +308,27 @@ const ModuloEnquetes = (() => {
     }
   }
   
+  async function deletar(enqueteId) {
+    if (window.ModeradorCore.state.controle?.enquete_ativa === enqueteId) {
+      alert('Desative esta enquete antes de deletar.');
+      return;
+    }
+    if (!confirm('Excluir esta enquete?')) return;
+  
+    const { error } = await supabase.from('cnv25_enquetes').delete().eq('id', enqueteId);
+    if (error) { alert('Erro ao excluir'); console.error(error); return; }
+    await carregarEnquetes();
+  }
+
+  async function onToggleResultadoTelao(checked) {
+    const palestraId = window.ModeradorCore.state.palestraId;
+    if (!palestraId) return;
+    const ok = await window.ModeradorCore.atualizarControlePalestra(palestraId, {
+      mostrar_resultado_enquete: !!checked
+    });
+    if (!ok) alert('Falha ao atualizar telão.');
+  }
+
   async function desativar() {
     const palestraId = window.ModeradorCore.state.palestraId;
     if (!palestraId) return;
