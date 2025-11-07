@@ -105,10 +105,12 @@
     </div>
   </div>
 
-  <!-- Scripts (ordem importa!) -->
+  <!-- SDK da Supabase: precisa vir antes do supabase-config.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <script src="js/supabase-config.js"></script>
   <script src="js/enquetes-quiz-utils.js"></script>
-  <script src="js/countdown-component.js"></script> <!-- opcional; há fallback no participante.js -->
+  <script src="js/countdown-component.js"></script> <!-- ok manter -->
   <script src="js/participante.js"></script>
 </body>
 </html>
