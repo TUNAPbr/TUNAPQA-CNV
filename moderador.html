@@ -105,6 +105,74 @@
       </div>
       
       <!-- TAB 1: PERGUNTAS -->
+      <!-- Bloco: Palestra atual (dentro da aba Perguntas) -->
+      <div id="blkPalestraPerguntas" class="mb-4 bg-white rounded-xl p-4 shadow">
+        <div class="flex items-center gap-3">
+          <div class="w-full">
+            <label class="text-sm text-gray-600">Palestra atual</label>
+            <select id="selectPalestra" class="w-full border rounded px-3 py-2"></select>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-2 bg-blue-600 text-white rounded" onclick="abrirModalPalestra('novo')">Nova</button>
+            <button class="px-3 py-2 bg-amber-600 text-white rounded" onclick="abrirModalPalestra('editar')">Editar</button>
+            <button class="px-3 py-2 bg-red-600 text-white rounded" onclick="excluirPalestra()">Excluir</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Modal CRUD de Palestra -->
+      <div id="modalPalestra" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+        <div class="bg-white w-full max-w-xl rounded-2xl shadow-lg overflow-hidden">
+          <div class="px-5 py-4 border-b">
+            <h3 id="modalPalestraTitulo" class="text-lg font-bold">Nova Palestra</h3>
+          </div>
+          <div class="p-5 space-y-3">
+            <div>
+              <label class="text-sm text-gray-600">Título *</label>
+              <input id="pal_titulo" class="w-full border rounded px-3 py-2" />
+            </div>
+            <div>
+              <label class="text-sm text-gray-600">Palestrante</label>
+              <input id="pal_palestrante" class="w-full border rounded px-3 py-2" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm text-gray-600">Início (ISO)</label>
+                <input id="pal_inicio" type="datetime-local" class="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">Fim (ISO)</label>
+                <input id="pal_fim" type="datetime-local" class="w-full border rounded px-3 py-2" />
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-sm text-gray-600">Status</label>
+                <select id="pal_status" class="w-full border rounded px-3 py-2">
+                  <option value="planejada">planejada</option>
+                  <option value="aberta">aberta</option>
+                  <option value="fechada">fechada</option>
+                  <option value="encerrada">encerrada</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">Max perguntas</label>
+                <input id="pal_max" type="number" class="w-full border rounded px-3 py-2" value="3" />
+              </div>
+              <div>
+                <label class="text-sm text-gray-600">Intervalo (s)</label>
+                <input id="pal_intervalo" type="number" class="w-full border rounded px-3 py-2" value="60" />
+              </div>
+            </div>
+            <div id="modalPalestraWarn" class="hidden text-sm text-red-600">Preencha os campos obrigatórios.</div>
+          </div>
+          <div class="px-5 py-4 border-t flex items-center justify-end gap-2">
+            <button class="px-3 py-2 rounded border" onclick="fecharModalPalestra()">Cancelar</button>
+            <button id="btnSalvarPalestra" class="px-3 py-2 bg-blue-600 text-white rounded" onclick="salvarPalestra()">Salvar</button>
+          </div>
+        </div>
+      </div>
+
       <div id="tabPerguntas" class="tab-content active p-6">
         <div class="flex gap-2 mb-6 flex-wrap">
           <button id="btnTogglePerguntas" class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600">
@@ -161,6 +229,22 @@
             📥 Exportar CSV
           </button>
         </div>
+
+        <!-- Barra de ações de Enquete -->
+        <div class="mb-3 flex items-center justify-between">
+          <div class="text-sm text-gray-600">
+            <span class="inline-flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-green-500"></span>
+              <span>Badge “Ativa” indica a enquete ligada na palestra atual</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="inline-flex items-center gap-2 text-sm">
+              <input id="toggleResultadoTelao" type="checkbox" class="h-4 w-4" onchange="onToggleResultadoTelao(this.checked)">
+              <span>Mostrar resultado no telão</span>
+            </label>
+          </div>
+        </div>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Lista de Enquetes -->
@@ -180,6 +264,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Drawer de Resultados de Enquete -->
+      <div id="drawerResultados" class="fixed top-0 right-0 w-full max-w-md h-full bg-white shadow-2xl translate-x-full transition-transform z-50">
+        <div class="px-5 py-4 border-b flex items-center justify-between">
+          <h3 id="drawerTitulo" class="text-lg font-bold">Resultados</h3>
+          <button class="px-3 py-1 rounded border" onclick="fecharResultados()">Fechar</button>
+        </div>
+        <div id="drawerBody" class="p-5 space-y-3">
+          <!-- conteúdo renderizado via JS -->
+        </div>
+      </div>
+      <div id="drawerBackdrop" class="fixed inset-0 bg-black/30 hidden z-40" onclick="fecharResultados()"></div>
       
       <!-- TAB 3: QUIZ -->
       <div id="tabQuiz" class="tab-content p-6">
