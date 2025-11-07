@@ -121,30 +121,79 @@ async function salvarPalestra() {
 })();
 
 async function excluirPalestra() {
-  const atual = window.ModeradorCore.state.palestraId;
-  if (!atual) return;
+  const palestraId = window.ModeradorCore.state.palestraId;
+  if (!palestraId) return;
 
-  // evita excluir a ativa global
-  const { data: pa } = await supabase
-    .from('cnv25_palestra_ativa')
-    .select('palestra_id')
-    .eq('id', 1)
-    .single();
-  if (pa?.palestra_id === atual) {
-    alert('Defina outra palestra como ativa antes de excluir.');
-    return;
-  }
-
-  if (!confirm('Excluir esta palestra?')) return;
+  if (!confirm('Excluir esta palestra? Esta ação não pode ser desfeita.')) return;
 
   try {
-    const { error } = await supabase.from('cnv25_palestras').delete().eq('id', atual);
-    if (error) throw error;
+    // 1) Quem é a ativa global?
+    const { data: pa, error: eAct } = await supabase
+      .from('cnv25_palestra_ativa')
+      .select('palestra_id')
+      .eq('id', 1)
+      .single();
+    if (eAct) throw eAct;
 
-    await recarregarSelectPalestra(null);
-    window.ModeradorCore?.mostrarNotificacao?.('Palestra excluída.', 'success');
-  } catch (e) {
-    console.error(e);
+    const ativaAtual = pa?.palestra_id || null;
+    let novaAtivaId = null;
+
+    if (ativaAtual === palestraId) {
+      // 2) Buscar outra palestra para assumir (se existir)
+      const { data: outras, error: eList } = await supabase
+        .from('cnv25_palestras')
+        .select('id')
+        .neq('id', palestraId)
+        .order('inicio', { ascending: true });
+
+      if (eList) throw eList;
+
+      if (outras && outras.length) {
+        novaAtivaId = outras[0].id;
+        // transfere ativa
+        const { error: eSet } = await supabase
+          .from('cnv25_palestra_ativa')
+          .update({ palestra_id: novaAtivaId })
+          .eq('id', 1);
+        if (eSet) throw eSet;
+      } else {
+        // não há outra — zera ativa
+        const { error: eNull } = await supabase
+          .from('cnv25_palestra_ativa')
+          .update({ palestra_id: null })
+          .eq('id', 1);
+        if (eNull) throw eNull;
+      }
+    }
+
+    // 3) Agora é seguro excluir a selecionada
+    const { error: eDel } = await supabase
+      .from('cnv25_palestras')
+      .delete()
+      .eq('id', palestraId);
+    if (eDel) throw eDel;
+
+    // 4) Recarrega o select e sincroniza o estado
+    await recarregarSelectPalestra(novaAtivaId || null);
+
+    if (novaAtivaId) {
+      // dispara o fluxo para a nova ativa
+      const sel = document.getElementById('selectPalestra');
+      if (sel) {
+        sel.value = novaAtivaId;
+        sel.dispatchEvent(new Event('change'));
+      }
+      window.ModeradorCore?.mostrarNotificacao?.('Palestra excluída. Outra palestra foi definida como ativa.', 'success');
+    } else {
+      // nada ativo — limpa estado
+      window.ModeradorCore.state.palestraId = null;
+      window.ModeradorCore.state.palestra = null;
+      window.ModeradorCore.state.controle = null;
+      window.ModeradorCore?.mostrarNotificacao?.('Palestra excluída. Nenhuma palestra ativa no momento.', 'info');
+    }
+
+  } catch (err) {
+    console.error(err);
     window.ModeradorCore?.mostrarNotificacao?.('Falha ao excluir palestra.', 'error') || alert('Erro ao excluir');
   }
 }
