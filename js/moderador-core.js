@@ -70,7 +70,7 @@ async function inicializarModerador() {
 // =====================================================
 
 async function carregarListaPalestras() {
-  const select = document.getElementById('palestraSelect');
+  const select = document.getElementById('selectPalestra');
   
   try {
     const { data, error } = await supabase
@@ -361,7 +361,7 @@ function trocarAba(aba) {
 
 function configurarEventosCore() {
   // Seleção de palestra
-  document.getElementById('palestraSelect').addEventListener('change', function() {
+  document.getElementById('selectPalestra').addEventListener('change', function() {
     if (this.value) selecionarPalestra(this.value);
   });
   
