@@ -416,7 +416,8 @@ window.ModeradorCore = {
   inicializar: inicializarModerador,
   trocarAba: trocarAba,
   esc: esc,
-  mostrarNotificacao: mostrarNotificacao
+  mostrarNotificacao: mostrarNotificacao,
+  atualizarControlePalestra // <--- novo
 };
 
 console.log('✅ Moderador Core carregado');
