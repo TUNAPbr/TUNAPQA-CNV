@@ -309,54 +309,61 @@ function desconectarCanaisCore() {
 // =====================================================
 
 function atualizarBadgesStatus() {
-  const statusPerguntas = getEl('statusPerguntas');
-  const statusSilencio = getEl('statusSilencio');
-  const btnTogglePerguntas = getEl('btnTogglePerguntas');
-  const btnToggleSilencio = getEl('btnToggleSilencio');
-
   if (!ModeradorState.controle) return;
 
-  // Status Perguntas
-  if (statusPerguntas) {
-    if (ModeradorState.controle.perguntas_abertas) {
+  const statusPerguntas = document.getElementById('statusPerguntas');
+  const statusSilencio  = document.getElementById('statusSilencio');
+
+  // pega por id (principal) + por data-role (se houver réplicas)
+  const btnPergEls = [
+    ...[document.getElementById('btnTogglePerguntas')].filter(Boolean),
+    ...document.querySelectorAll('[data-role="btnTogglePerguntas"]')
+  ];
+  const btnSilEls = [
+    ...[document.getElementById('btnToggleSilencio')].filter(Boolean),
+    ...document.querySelectorAll('[data-role="btnToggleSilencio"]')
+  ];
+
+  // helpers que só mexem nas cores, não no resto das classes
+  const swapBg = (el, removeList, addList) => {
+    if (!el) return;
+    removeList.forEach(c => el.classList.remove(c));
+    addList.forEach(c => el.classList.add(c));
+  };
+  const setText = (els, text) => els.forEach(el => { el.textContent = text; });
+
+  // --- PERGUNTAS ---
+  if (ModeradorState.controle.perguntas_abertas) {
+    // status badge
+    if (statusPerguntas) {
       statusPerguntas.textContent = '✅ ABERTAS';
-      statusPerguntas.className =
-        'px-4 py-2 rounded-full text-sm font-semibold bg-cnv-success text-white';
-      if (btnTogglePerguntas) {
-        btnTogglePerguntas.textContent = '❌ Fechar Perguntas';
-        btnTogglePerguntas.className =
-          'px-4 py-2 bg-cnv-error text-white rounded-lg hover:opacity-90';
-      }
-    } else {
-      statusPerguntas.textContent = '❌ FECHADAS';
-      statusPerguntas.className =
-        'px-4 py-2 rounded-full text-sm font-semibold bg-gray-400 text-white';
-      if (btnTogglePerguntas) {
-        btnTogglePerguntas.textContent = '✓ Abrir Perguntas';
-        btnTogglePerguntas.className =
-          'px-4 py-2 bg-cnv-success text-white rounded-lg hover:opacity-90';
-      }
+      swapBg(statusPerguntas, ['bg-gray-400'], ['bg-cnv-success']);
     }
+    // botões: de "Abrir" -> "Fechar"
+    setText(btnPergEls, '❌ Fechar Perguntas');
+    btnPergEls.forEach(btn => swapBg(btn, ['bg-cnv-success', 'bg-gray-400'], ['bg-cnv-error']));
+  } else {
+    if (statusPerguntas) {
+      statusPerguntas.textContent = '❌ FECHADAS';
+      swapBg(statusPerguntas, ['bg-cnv-success'], ['bg-gray-400']);
+    }
+    setText(btnPergEls, '✓ Abrir Perguntas');
+    btnPergEls.forEach(btn => swapBg(btn, ['bg-cnv-error', 'bg-gray-400'], ['bg-cnv-success']));
   }
 
-  // Status Silêncio
-  if (statusSilencio) {
-    if (ModeradorState.controle.silencio_ativo) {
+  // --- SILÊNCIO ---
+  if (ModeradorState.controle.silencio_ativo) {
+    if (statusSilencio) {
       statusSilencio.classList.remove('hidden');
       statusSilencio.textContent = '🔇 SILÊNCIO';
-      if (btnToggleSilencio) {
-        btnToggleSilencio.textContent = '🔊 Desativar Silêncio';
-        btnToggleSilencio.className =
-          'px-4 py-2 bg-cnv-warning text-white rounded-lg hover:opacity-90';
-      }
-    } else {
-      statusSilencio.classList.add('hidden');
-      if (btnToggleSilencio) {
-        btnToggleSilencio.textContent = '🔇 Ativar Silêncio';
-        btnToggleSilencio.className =
-          'px-4 py-2 bg-gray-400 text-white rounded-lg hover:opacity-90';
-      }
+      // cor do badge aqui é opcional; mantendo default
     }
+    setText(btnSilEls, '🔊 Desativar Silêncio');
+    btnSilEls.forEach(btn => swapBg(btn, ['bg-gray-400'], ['bg-cnv-warning']));
+  } else {
+    if (statusSilencio) statusSilencio.classList.add('hidden');
+    setText(btnSilEls, '🔇 Ativar Silêncio');
+    btnSilEls.forEach(btn => swapBg(btn, ['bg-cnv-warning'], ['bg-gray-400']));
   }
 }
 
