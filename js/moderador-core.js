@@ -1,4 +1,31 @@
 // =====================================================
+// HELPERS DE CONTROLE (usado por Enquetes/Quiz/Perguntas)
+// =====================================================
+async function atualizarControlePalestra(palestraId, patch) {
+  if (!palestraId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('cnv25_palestra_controle')
+      .update({ 
+        ...patch, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('palestra_id', palestraId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    // Atualiza estado local imediatamente
+    ModeradorState.controle = data;
+    atualizarBadgesStatus();
+    return true;
+  } catch (e) {
+    console.error('❌ atualizarControlePalestra:', e);
+    return false;
+  }
+}
+
+// =====================================================
 // MODERADOR CORE - LÓGICA COMUM V2
 // =====================================================
 
