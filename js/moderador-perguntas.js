@@ -6,9 +6,10 @@ function abrirModalPalestra(modo) {
   _modoPalestra = modo;
   _editPalestraId = (modo === 'editar') ? window.ModeradorCore.state.palestraId : null;
 
-  document.getElementById('modalPalestraTitulo').textContent = 
+  document.getElementById('modalPalestraTitulo').textContent =
     (modo === 'novo') ? 'Nova Palestra' : 'Editar Palestra';
 
+  // preenche campos
   if (modo === 'editar' && window.ModeradorCore.state.palestra) {
     const p = window.ModeradorCore.state.palestra;
     document.getElementById('pal_titulo').value = p.titulo || '';
@@ -28,6 +29,8 @@ function abrirModalPalestra(modo) {
     document.getElementById('pal_intervalo').value = 60;
   }
 
+  document.getElementById('modalPalestraWarn').classList.add('hidden');
+
   const modal = document.getElementById('modalPalestra');
   modal.classList.remove('hidden'); modal.classList.add('flex');
 }
@@ -35,71 +38,134 @@ function abrirModalPalestra(modo) {
 function fecharModalPalestra() {
   const modal = document.getElementById('modalPalestra');
   modal.classList.add('hidden'); modal.classList.remove('flex');
+  // reseta botão
+  const btn = document.getElementById('btnSalvarPalestra');
+  if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+function setSalvarLoading(flag) {
+  const btn = document.getElementById('btnSalvarPalestra');
+  if (!btn) return;
+  btn.disabled = !!flag;
+  btn.textContent = flag ? 'Salvando…' : 'Salvar';
 }
 
 async function salvarPalestra() {
+  const warn = document.getElementById('modalPalestraWarn');
   const titulo = document.getElementById('pal_titulo').value.trim();
-  if (!titulo) { 
-    document.getElementById('modalPalestraWarn').classList.remove('hidden'); 
-    return; 
+  if (!titulo) {
+    warn.classList.remove('hidden');
+    return;
   }
-  document.getElementById('modalPalestraWarn').classList.add('hidden');
+  warn.classList.add('hidden');
 
   const payload = {
     titulo,
     palestrante: document.getElementById('pal_palestrante').value || null,
-    inicio: document.getElementById('pal_inicio').value ? new Date(document.getElementById('pal_inicio').value).toISOString() : new Date().toISOString(),
-    fim: document.getElementById('pal_fim').value ? new Date(document.getElementById('pal_fim').value).toISOString() : new Date(Date.now()+3600000).toISOString(),
+    inicio: document.getElementById('pal_inicio').value
+      ? new Date(document.getElementById('pal_inicio').value).toISOString()
+      : new Date().toISOString(),
+    fim: document.getElementById('pal_fim').value
+      ? new Date(document.getElementById('pal_fim').value).toISOString()
+      : new Date(Date.now() + 3600000).toISOString(),
     status: document.getElementById('pal_status').value || 'planejada',
     max_perguntas: parseInt(document.getElementById('pal_max').value || '3', 10),
     intervalo_perguntas: parseInt(document.getElementById('pal_intervalo').value || '60', 10)
   };
 
-  if (_modoPalestra === 'novo') {
-    const { data, error } = await supabase.from('cnv25_palestras').insert([payload]).select('*').single();
-    if (error) { alert('Erro ao criar'); console.error(error); return; }
-    await recarregarSelectPalestra(data.id);
-  } else {
-    const { error } = await supabase.from('cnv25_palestras').update(payload).eq('id', _editPalestraId);
-    if (error) { alert('Erro ao salvar'); console.error(error); return; }
-    await recarregarSelectPalestra(_editPalestraId);
+  setSalvarLoading(true);
+
+  try {
+    if (_modoPalestra === 'novo') {
+      const { data, error } = await supabase
+        .from('cnv25_palestras')
+        .insert([payload])
+        .select('*')
+        .single();
+      if (error) throw error;
+
+      await recarregarSelectPalestra(data.id);
+      fecharModalPalestra();
+      window.ModeradorCore?.mostrarNotificacao?.('Palestra criada com sucesso!', 'success');
+    } else {
+      const { error } = await supabase
+        .from('cnv25_palestras')
+        .update(payload)
+        .eq('id', _editPalestraId);
+      if (error) throw error;
+
+      await recarregarSelectPalestra(_editPalestraId);
+      fecharModalPalestra();
+      window.ModeradorCore?.mostrarNotificacao?.('Palestra atualizada!', 'success');
+    }
+  } catch (e) {
+    console.error(e);
+    setSalvarLoading(false);
+    window.ModeradorCore?.mostrarNotificacao?.('Falha ao salvar palestra.', 'error') || alert('Erro ao salvar');
   }
-  fecharModalPalestra();
 }
 
 async function excluirPalestra() {
   const atual = window.ModeradorCore.state.palestraId;
   if (!atual) return;
-  // Evita excluir a ativa global
-  const { data: pa } = await supabase.from('cnv25_palestra_ativa').select('palestra_id').eq('id',1).single();
-  if (pa?.palestra_id === atual) { alert('Selecione outra palestra ativa antes de excluir.'); return; }
+
+  // evita excluir a ativa global
+  const { data: pa } = await supabase
+    .from('cnv25_palestra_ativa')
+    .select('palestra_id')
+    .eq('id', 1)
+    .single();
+  if (pa?.palestra_id === atual) {
+    alert('Defina outra palestra como ativa antes de excluir.');
+    return;
+  }
 
   if (!confirm('Excluir esta palestra?')) return;
-  const { error } = await supabase.from('cnv25_palestras').delete().eq('id', atual);
-  if (error) { alert('Erro ao excluir'); console.error(error); return; }
-  await recarregarSelectPalestra(null);
+
+  try {
+    const { error } = await supabase.from('cnv25_palestras').delete().eq('id', atual);
+    if (error) throw error;
+
+    await recarregarSelectPalestra(null);
+    window.ModeradorCore?.mostrarNotificacao?.('Palestra excluída.', 'success');
+  } catch (e) {
+    console.error(e);
+    window.ModeradorCore?.mostrarNotificacao?.('Falha ao excluir palestra.', 'error') || alert('Erro ao excluir');
+  }
 }
 
+/**
+ * Recarrega o select sem duplicar placeholder e, se `idParaAtivar` vier,
+ * define como ativa global e dispara o fluxo padrão (change).
+ */
 async function recarregarSelectPalestra(idParaAtivar) {
-  // reaproveita o core
-  await (async function carregarListaPalestrasAgain(){
-    // hack leve: força reexecução da função core
-    // (se preferir, exponho publicamente no Core)
-    const select = document.getElementById('palestraSelect');
-    const { data } = await supabase.from('cnv25_palestras').select('*').order('inicio', { ascending: true });
-    select.innerHTML = '<option value="">📌 Selecione para usar Perguntas...</option>';
-    (data||[]).forEach(p => {
-      const o = document.createElement('option');
-      o.value = p.id; o.textContent = `${p.titulo} - ${p.palestrante || 'TBD'}`;
-      select.appendChild(o);
-    });
-  })();
+  const select = document.getElementById('selectPalestra');
+  if (!select) return;
+
+  const { data, error } = await supabase
+    .from('cnv25_palestras')
+    .select('id, titulo, palestrante, inicio')
+    .order('inicio', { ascending: true });
+
+  if (error) { console.error(error); return; }
+
+  // rebuild do select do zero (sem duplicar placeholder)
+  const placeholder = '<option value="">📌 Selecione para usar Perguntas...</option>';
+  select.innerHTML = placeholder + (data || []).map(p => {
+    const dt = p.inicio ? new Date(p.inicio) : null;
+    const when = dt ? ` (${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')})` : '';
+    return `<option value="${p.id}">${p.titulo} - ${p.palestrante || 'TBD'}${when}</option>`;
+  }).join('');
 
   if (idParaAtivar) {
-    // define ativa global e dispara fluxo core
-    await supabase.from('cnv25_palestra_ativa').update({ palestra_id: idParaAtivar }).eq('id',1);
-    document.getElementById('palestraSelect').value = idParaAtivar;
-    document.getElementById('palestraSelect').dispatchEvent(new Event('change'));
+    await supabase.from('cnv25_palestra_ativa').update({ palestra_id: idParaAtivar }).eq('id', 1);
+    select.value = idParaAtivar;
+    // dispara o fluxo core (listener de change já trata o resto)
+    select.dispatchEvent(new Event('change'));
+  } else {
+    // mantém o valor atual do core, se existir
+    const atual = window.ModeradorCore.state.palestraId;
+    if (atual) select.value = atual;
   }
 }
 
