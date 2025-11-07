@@ -143,6 +143,16 @@ const ModuloEnquetes = (() => {
               </button>
             ` : ''}
             
+            <button class="bg-gray-200 text-xs px-3 py-2 rounded"
+                    onclick="window.ModuloEnquetes.abrirResultados(${JSON.stringify({id:e.id, titulo:e.titulo, opcoes:e.opcoes}).replace(/"/g,'&quot;')})">
+              📊 Resultados
+            </button>
+            ${!isAtiva ? `
+            <button class="bg-red-600 text-white text-xs px-3 py-2 rounded"
+                    onclick="window.ModuloEnquetes.deletar('${e.id}')">
+              🗑️ Deletar
+            </button>` : ''}
+
             <button 
               onclick="window.ModuloEnquetes.verDetalhes('${e.id}')" 
               class="bg-cnv-primary text-white text-xs px-3 py-2 rounded hover:opacity-90 transition"
