@@ -114,6 +114,7 @@ async function carregarControle() {
     .single();
   
   controle = data || {};
+  decidirOQueExibir();
 }
 
 async function carregarConteudo() {
@@ -260,20 +261,68 @@ function desconectarCanais() {
 // =====================================================
 
 function decidirOQueExibir() {
-  // Prioridade: Quiz > Enquete > Pergunta > Vazio
-  
   esconderTudo();
-  
+
   if (quizAtivo && perguntaQuizAtual) {
     exibirQuiz();
   } else if (enqueteAtiva) {
-    exibirEnquete();
+    if (controle?.mostrar_resultado_enquete) {
+      exibirResultadoEnquete();
+    } else {
+      exibirEnquete();
+    }
   } else if (perguntaExibida) {
     exibirPergunta();
   } else {
     exibirVazio();
   }
 }
+
+async function exibirResultadoEnquete() {
+  document.getElementById('modoEnquete').classList.remove('hidden');
+  document.getElementById('tituloEnquete').textContent = `${enqueteAtiva.titulo} — Resultados`;
+
+  // Limpa corpo e exibe loading
+  const corpo = document.getElementById('opcoesEnquete');
+  corpo.innerHTML = '<div class="text-gray-500 text-sm mt-3">Carregando resultados...</div>';
+
+  try {
+    const { data: respostas } = await supabase
+      .from('cnv25_enquete_respostas')
+      .select('resposta')
+      .eq('enquete_id', enqueteAtiva.id);
+
+    const opcoes = enqueteAtiva.opcoes?.opcoes || [];
+    const contagem = Array(opcoes.length).fill(0);
+
+    respostas.forEach(r => {
+      const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0);
+      if (!isNaN(idx) && idx < contagem.length) contagem[idx]++;
+    });
+
+    const total = contagem.reduce((a,b) => a+b, 0) || 1;
+
+    corpo.innerHTML = opcoes.map((txt, i) => {
+      const votos = contagem[i];
+      const pct = Math.round((votos / total) * 100);
+      return `
+        <div class="mt-2 border rounded-lg p-3 bg-white/10 backdrop-blur">
+          <div class="flex justify-between text-sm">
+            <span>${String.fromCharCode(65+i)}. ${txt}</span>
+            <span>${votos} voto(s) • ${pct}%</span>
+          </div>
+          <div class="w-full bg-gray-700 h-2 rounded mt-1">
+            <div class="h-2 bg-green-500 rounded" style="width:${pct}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro ao carregar resultados:', err);
+    corpo.innerHTML = '<div class="text-red-500 text-sm mt-3">Erro ao carregar resultados</div>';
+  }
+}
+
 
 function esconderTudo() {
   document.getElementById('modoVazio').classList.add('hidden');
