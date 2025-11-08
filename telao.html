@@ -36,6 +36,37 @@
     
   </style>
 </head>
+
+  <!-- OCEANO LEVE (decorativo; não interfere nos modos de conteúdo) -->
+<aside class="ocean-aside" aria-hidden="true">
+  <div class="ocean-bg"></div>
+  <div class="wave wave--1"></div>
+  <div class="wave wave--2"></div>
+  <div class="bubbles" id="bubbles"></div>
+  <!-- usa a arte “outline” do mergulhador que você mandou -->
+  <img class="diver" src="Imagem do WhatsApp de 2025-10-29 à(s) 16.03.10_21c9ac11.jpg" alt="">
+</aside>
+
+<script>
+  // gera poucas bolhas com tempos aleatórios (leve)
+  const bubbles = document.getElementById('bubbles');
+  const TOTAL = parseInt(getComputedStyle(document.documentElement)
+                  .getPropertyValue('--ocean-bubbles')) || 12;
+  for (let i = 0; i < TOTAL; i++) {
+    const b = document.createElement('span');
+    b.className = 'bubble';
+    // espalha entre 15% e 85% da faixa
+    b.style.setProperty('--x', (15 + Math.random()*70) + '%');
+    const min = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ocean-bubble-min')) || 8;
+    const max = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ocean-bubble-max')) || 14;
+    b.style.setProperty('--dur', (min + Math.random()*(max-min)) + 's');
+    b.style.animationDelay = (-Math.random()*max) + 's';
+    const size = 6 + Math.random()*10;
+    b.style.width = b.style.height = size + 'px';
+    bubbles.appendChild(b);
+  }
+</script>
+  
 <body class="flex flex-col p-6">
   
   <!-- HEADER -->
