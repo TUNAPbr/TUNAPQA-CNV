@@ -250,7 +250,10 @@
 
   async function desativar() {
     // limpa broadcast
-    const ok = await setBroadcast({ enquete_ativa: null, mostrar_resultado_enquete: false });
+    const ok = await window.ModeradorCore.setModoGlobal(null, {
+      enquete_ativa: null,
+      mostrar_resultado_enquete: false
+    });
     if (!ok) return;
     marcarEnqueteAtivaUI(null);
     toast('Enquete desativada.', 'info');
@@ -259,9 +262,10 @@
  async function encerrar(enqueteId) {
     // 1) se for a ativa, desativa no telão
     if (_enqueteAtivaId === enqueteId) {
-      const ok = await setBroadcast({ enquete_ativa: null, mostrar_resultado_enquete: false });
-      if (!ok) return;
-      marcarEnqueteAtivaUI(null);
+      await window.ModeradorCore.setModoGlobal(null, {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false
+      });
     }
     // 2) marca encerrada na tabela
     const { error } = await supabase
