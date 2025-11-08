@@ -45,15 +45,147 @@ const ModuloEnquetes = (() => {
   // =====================================================
   
   async function inicializar() {
-    console.log('📊 Módulo Enquetes inicializando...');
-    
-    await carregarEnquetes();
-    await verificarEnqueteAtiva();
-    conectarRealtimeListaEnquetes();
-    configurarEventos();
-    
-    console.log('✅ Módulo Enquetes pronto');
+  await carregarEnquetes();
+  // pintar status ativo com base no controle atual (se carregado)
+  const ctrl = window.ModeradorCore?.state?.controle;
+  if (ctrl?.enquete_ativa) marcarEnqueteAtivaUI(ctrl.enquete_ativa);
+}
+
+async function carregarEnquetes() {
+  const { data, error } = await supabase
+    .from('cnv25_enquetes')
+    .select('id, titulo, opcoes, ativa, modo')
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error(error); return; }
+  _enquetes = data || [];
+  renderizarListaEnquetes();
+}
+
+async function abrirResultados(enqueteId) {
+  const e = _enquetes.find(x => x.id === enqueteId);
+  if (!e) return;
+
+  // abre drawer e renderiza
+  const backdrop = document.getElementById('drawerBackdrop');
+  const drawer   = document.getElementById('drawerResultados');
+  const body     = document.getElementById('drawerBody');
+  const title    = document.getElementById('drawerTitulo');
+  if (!drawer || !body || !title) return;
+
+  title.textContent = `Resultados — ${e.titulo}`;
+  body.innerHTML = '<div class="text-sm text-gray-600">Carregando…</div>';
+  drawer.classList.remove('translate-x-full');
+  if (backdrop) backdrop.classList.remove('hidden');
+
+  // agrega votos (tenta view, senão faz no front)
+  let votos = [];
+  let total = 0;
+
+  let viaView = true;
+  const r1 = await supabase
+    .from('cnv25_enquete_resultado_v') // se não existir, cai no catch
+    .select('*')
+    .eq('enquete_id', e.id);
+
+  if (r1.error) viaView = false;
+
+  if (viaView) {
+    votos = r1.data || [];
+    total = votos.reduce((acc,r)=>acc+(r.votos||0),0);
+  } else {
+    const { data: rs } = await supabase
+      .from('cnv25_enquete_respostas')
+      .select('resposta')
+      .eq('enquete_id', e.id);
+    const cont = {};
+    (rs||[]).forEach(r=>{
+      const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
+      cont[idx] = (cont[idx]||0)+1;
+    });
+    votos = Object.entries(cont).map(([k,v])=>({ opcao_index: parseInt(k,10), votos: v }));
+    total = (rs||[]).length;
   }
+
+  const labels = 'ABCDEFGHIJ'.split('');
+  const opcoes = e.opcoes?.opcoes || [];
+  body.innerHTML = opcoes.map((txt,idx)=>{
+    const v = votos.find(x=>x.opcao_index === idx)?.votos || 0;
+    const pct = total ? Math.round((v/total)*100) : 0;
+    return `
+      <div class="border rounded-lg p-3">
+        <div class="flex items-center justify-between">
+          <div class="font-medium"><strong>${labels[idx]}.</strong> ${txt}</div>
+          <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
+        </div>
+        <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+          <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function fecharResultados() {
+  const backdrop = document.getElementById('drawerBackdrop');
+  const drawer   = document.getElementById('drawerResultados');
+  if (drawer) drawer.classList.add('translate-x-full');
+  if (backdrop) backdrop.classList.add('hidden');
+}
+
+async function deletar(enqueteId) {
+  // bloqueia se for a ativa da palestra ativa global
+  const palestraId = await getPalestraAtivaGlobal();
+  const ctrl = window.ModeradorCore?.state?.controle;
+
+  if (ctrl?.enquete_ativa === enqueteId && ctrl && palestraId === window.ModeradorCore.state.palestraId) {
+    toast('Desative esta enquete antes de deletar.', 'warning');
+    return;
+  }
+
+  if (!confirm('Excluir esta enquete?')) return;
+
+  const { error } = await supabase.from('cnv25_enquetes').delete().eq('id', enqueteId);
+  if (error) { console.error(error); toast('Erro ao excluir', 'error'); return; }
+
+  // recarrega lista
+  await carregarEnquetes();
+  toast('Enquete excluída.', 'success');
+}
+
+
+function renderizarListaEnquetes() {
+  const wrap = document.getElementById('listaEnquetes');
+  if (!wrap) return;
+
+  wrap.innerHTML = (_enquetes || []).map(e => {
+    const isAtiva = e.id === _enqueteAtivaId;
+    const ops = (e.opcoes?.opcoes || []).map((t,i)=>`${String.fromCharCode(65+i)}. ${t}`).join(' • ');
+    return `
+      <div class="border rounded-lg p-3 mb-2 hover:bg-gray-50 transition"
+           data-enquete-id="${e.id}">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="font-semibold truncate">${e.titulo}</div>
+            <div class="text-xs text-gray-500 truncate">${ops}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span data-badge-ativa class="text-xs px-2 py-1 rounded bg-green-600 text-white ${isAtiva?'':'hidden'}">ATIVA</span>
+            <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white"
+                    onclick="window.ModuloEnquetes.ativar('${e.id}')">Ativar</button>
+            <button class="px-3 py-1 text-xs rounded bg-gray-200"
+                    onclick="window.ModuloEnquetes.abrirResultados('${e.id}')">Resultados</button>
+            <button class="px-3 py-1 text-xs rounded bg-red-600 text-white"
+                    onclick="window.ModuloEnquetes.deletar('${e.id}')">Deletar</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // repinta com o id atual
+  marcarEnqueteAtivaUI(_enqueteAtivaId);
+}
   
   // =====================================================
   // REALTIME PARA LISTA DE ENQUETES
@@ -317,34 +449,32 @@ const ModuloEnquetes = (() => {
   // =====================================================
   
   async function ativar(enqueteId) {
-    const palestraId = window.ModeradorCore.state.palestraId;
-    if (!palestraId) {
-      alert('Selecione uma palestra primeiro');
-      return;
-    }
-    
-    try {
-      // Atualizar controle
-      const resultado = await atualizarControlePalestra(palestraId, {
-        enquete_ativa: enqueteId
-      });
-      
-      if (resultado) {
-        window.ModeradorCore.mostrarNotificacao('Enquete ativada!', 'success');
-      }
+  // pega a palestra ativa global
+  const palestraId = await getPalestraAtivaGlobal();
 
-      const ok = await window.ModeradorCore.atualizarControlePalestra(palestraId, {
-        enquete_ativa: enqueteId,
-        mostrar_resultado_enquete: false
-      });
-    
-      if (ok) window.ModeradorCore.mostrarNotificacao('Enquete ativada!', 'success');
-      
-    } catch (error) {
-      console.error('Erro ao ativar enquete:', error);
-      alert('Erro ao ativar enquete');
-    }
+  if (!palestraId) {
+    toast('Defina uma palestra ativa (aba Perguntas) para direcionar o telão.', 'warning');
+    return;
   }
+
+  // UI otimista
+  marcarEnqueteAtivaUI(enqueteId);
+
+  // grava no controle DA PALESTRA ATIVA
+  const ok = await window.ModeradorCore.atualizarControlePalestra(palestraId, {
+    enquete_ativa: enqueteId,
+    mostrar_resultado_enquete: false
+  });
+
+  if (!ok) {
+    toast('Falha ao ativar enquete.', 'error');
+    // rollback (tira o highlight)
+    marcarEnqueteAtivaUI(null);
+    return;
+  }
+  toast('Enquete ativada!', 'success');
+}
+
   
   async function deletar(enqueteId) {
     if (window.ModeradorCore.state.controle?.enquete_ativa === enqueteId) {
@@ -600,7 +730,19 @@ const ModuloEnquetes = (() => {
   // =====================================================
   // UTILIDADES
   // =====================================================
+  function onEnqueteAtivaMudou(novaId) {
+    marcarEnqueteAtivaUI(novaId);
+  }
   
+  window.ModuloEnquetes = {
+    inicializar,
+    carregarEnquetes,
+    ativar,
+    abrirResultados,
+    deletar,
+    onEnqueteAtivaMudou
+  };
+
   function formatarData(timestamp) {
     const data = new Date(timestamp);
     return data.toLocaleString('pt-BR', {
