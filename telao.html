@@ -37,39 +37,14 @@
   </style>
 </head>
 
-  <!-- OCEANO LEVE (decorativo; não interfere nos modos de conteúdo) -->
-<aside class="ocean-aside" aria-hidden="true">
-  <div class="ocean-bg"></div>
-  <div class="wave wave--1"></div>
-  <div class="wave wave--2"></div>
-  <div class="bubbles" id="bubbles"></div>
-  <!-- usa a arte “outline” do mergulhador que você mandou -->
-  <img class="diver" src="Imagem do WhatsApp de 2025-10-29 à(s) 16.03.10_21c9ac11.jpg" alt="">
-<!-- Fundo oceano -->
-<div class="ocean-bg" aria-hidden="true">
-  <div class="wave wave--1"></div>
-  <div class="wave wave--2"></div>
-  <div class="bubbles" id="bubbles"></div>
-  <img class="diver" src="Imagem do WhatsApp de 2025-10-29 à(s) 16.03.10_21c9ac11.jpg" alt="">
+ <!-- Fundo animado de bolhas (leve) -->
+<div class="cnv-bubbles" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
 </div>
 
-<script>
-  // gera bolhas leves
-  const bubbles = document.getElementById('bubbles');
-  const total = 14;
-  for (let i = 0; i < total; i++) {
-    const b = document.createElement('span');
-    b.className = 'bubble';
-    b.style.setProperty('--x', (Math.random()*100) + '%');
-    b.style.setProperty('--dur', (8 + Math.random()*8) + 's');
-    b.style.animationDelay = (-Math.random()*10) + 's';
-    const s = 6 + Math.random()*10;
-    b.style.width = b.style.height = s + 'px';
-    bubbles.appendChild(b);
-  }
-</script>
-
-<body class="flex flex-col p-6">
   
   <!-- HEADER -->
   <header class="text-center mb-8">
