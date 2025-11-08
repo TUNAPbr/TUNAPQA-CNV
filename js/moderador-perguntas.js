@@ -551,6 +551,14 @@ const ModuloPerguntas = (() => {
           respondida_em: new Date().toISOString()
         })
         .eq('id', perguntas.exibida.id);
+      
+      // Liga o modo Perguntas e aponta a pergunta no broadcast
+      await window.ModeradorCore.setModoGlobal('perguntas', {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        quiz_ativo: null,
+        pergunta_exibida: perguntaId
+      });
     }
     
     try {
@@ -561,6 +569,14 @@ const ModuloPerguntas = (() => {
           exibida_em: new Date().toISOString()
         })
         .eq('id', id);
+
+      // Liga o modo Perguntas e aponta a pergunta no broadcast
+      await window.ModeradorCore.setModoGlobal('perguntas', {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        quiz_ativo: null,
+        pergunta_exibida: perguntaId
+      });
       
       if (error) throw error;
       
