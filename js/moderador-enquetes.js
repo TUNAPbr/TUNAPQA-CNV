@@ -120,29 +120,29 @@
       const encerrada = !!e.encerrada_em;
 
       return `
-        <div class="border rounded-lg p-3 mb-2 bg-white hover:bg-gray-50 transition"
-             data-enquete-id="${e.id}">
-          <div class="flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <div class="font-semibold truncate">${esc(e.titulo)}</div>
-              <div class="text-xs text-gray-500 truncate">${ops}</div>
-              ${encerrada ? '<div class="text-[11px] text-red-600 mt-1">🏁 Encerrada</div>' : ''}
-            </div>
-            <div class="flex items-center gap-2">
-              <span data-badge-ativa class="text-xs px-2 py-1 rounded bg-green-600 text-white ${isAtiva?'':'hidden'}">ATIVA</span>
-              ${!encerrada ? `
-                <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white"
-                        onclick="window.ModuloEnquetes.ativar('${e.id}')">Ativar</button>
-              ` : ''}
-              <button class="px-3 py-1 text-xs rounded bg-gray-200"
-                      onclick="window.ModuloEnquetes.abrirResultados('${e.id}')">Resultados</button>
-              ${!isAtiva ? `
-                <button class="px-3 py-1 text-xs rounded bg-red-600 text-white"
-                        onclick="window.ModuloEnquetes.deletar('${e.id}')">Deletar</button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
+        <div class="flex items-center gap-2">
+        <span data-badge-ativa class="text-xs px-2 py-1 rounded bg-green-600 text-white ${isAtiva?'':'hidden'}">ATIVA</span>
+      
+        ${!encerrada ? `
+          ${isAtiva ? `
+            <button class="px-3 py-1 text-xs rounded bg-gray-500 text-white"
+                    onclick="window.ModuloEnquetes.desativar()">Desativar</button>
+            <button class="px-3 py-1 text-xs rounded bg-orange-600 text-white"
+                    onclick="window.ModuloEnquetes.encerrar('${e.id}')">Encerrar</button>
+          ` : `
+            <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white"
+                    onclick="window.ModuloEnquetes.ativar('${e.id}')">Ativar</button>
+          `}
+        ` : ''}
+      
+        <button class="px-3 py-1 text-xs rounded bg-gray-200"
+                onclick="window.ModuloEnquetes.abrirResultados('${e.id}')">Resultados</button>
+      
+        ${!isAtiva ? `
+          <button class="px-3 py-1 text-xs rounded bg-red-600 text-white"
+                  onclick="window.ModuloEnquetes.deletar('${e.id}')">Deletar</button>
+        ` : ''}
+      </div>
       `;
     }).join('');
 
@@ -236,12 +236,31 @@
   }
 
   async function desativar() {
+    // limpa broadcast
     const ok = await setBroadcast({ enquete_ativa: null, mostrar_resultado_enquete: false });
     if (!ok) return;
     marcarEnqueteAtivaUI(null);
-    toast('Enquete desativada', 'info');
+    toast('Enquete desativada.', 'info');
   }
-
+  
+ async function encerrar(enqueteId) {
+    // 1) se for a ativa, desativa no telão
+    if (_enqueteAtivaId === enqueteId) {
+      const ok = await setBroadcast({ enquete_ativa: null, mostrar_resultado_enquete: false });
+      if (!ok) return;
+      marcarEnqueteAtivaUI(null);
+    }
+    // 2) marca encerrada na tabela
+    const { error } = await supabase
+      .from('cnv25_enquetes')
+      .update({ encerrada_em: new Date().toISOString(), ativa: false })
+      .eq('id', enqueteId);
+    if (error) { console.error(error); toast('Erro ao encerrar enquete.', 'error'); return; }
+  
+    await carregarEnquetes();
+    toast('Enquete encerrada.', 'success');
+  }
+  
   async function onToggleResultadoTelao(checked) {
     const ok = await setBroadcast({ mostrar_resultado_enquete: !!checked });
     if (!ok) return;
@@ -401,7 +420,9 @@
     desconectar,
     ativar,
     desativar,
+    encerrar,
     abrirResultados,
     deletar
   };
+
 })();
