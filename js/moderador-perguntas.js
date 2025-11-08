@@ -597,7 +597,13 @@ const ModuloPerguntas = (() => {
           respondida_em: new Date().toISOString()
         })
         .eq('id', id);
-      
+      await window.ModeradorCore.setModoGlobal(null, {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        quiz_ativo: null,
+        pergunta_exibida: null
+      });
+
       if (error) throw error;
       
       window.ModeradorCore.mostrarNotificacao('Pergunta marcada como respondida!', 'success');
