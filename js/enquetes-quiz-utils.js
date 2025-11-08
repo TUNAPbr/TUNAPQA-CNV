@@ -363,7 +363,7 @@ async function obterQuizAtivo(palestraId) {
     .eq('palestra_id', palestraId)
     .in('status', ['iniciado', 'em_andamento'])
     // use o nome REAL da coluna de data:
-    .order('created_at', { ascending: false }) // OU .order('criado_em', { ascending: false })
+    .order('criado_em', { ascending: false }) // OU .order('criado_em', { ascending: false })
     .limit(1)
     .maybeSingle(); // <— evita 406 quando não houver quiz
 
