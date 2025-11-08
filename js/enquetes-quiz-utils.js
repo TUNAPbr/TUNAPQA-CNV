@@ -355,22 +355,25 @@ async function obterStatsQuizPergunta(perguntaId) {
 
 // Obter quiz ativo
 async function obterQuizAtivo(palestraId) {
-  const { data, error } = await window.supabase
+  if (!palestraId) return null;
+
+  const { data, error } = await supabase
     .from('cnv25_quiz')
     .select('*')
     .eq('palestra_id', palestraId)
     .in('status', ['iniciado', 'em_andamento'])
-    .order('criado_em', { ascending: false })
+    // use o nome REAL da coluna de data:
+    .order('created_at', { ascending: false }) // OU .order('criado_em', { ascending: false })
     .limit(1)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') {
-    console.error('Erro ao buscar quiz:', error);
+    .maybeSingle(); // <— evita 406 quando não houver quiz
+
+  if (error) {
+    console.warn('obterQuizAtivo (sem quiz ativo):', error);
     return null;
   }
-  
   return data || null;
 }
+
 
 // Obter pergunta atual do quiz
 async function obterPerguntaAtualQuiz(quizId, numeroPergunta) {
