@@ -108,48 +108,59 @@
   }
 
   function renderizarLista() {
-    const wrap = document.getElementById('listaEnquetes');
-    if (!wrap) return;
+  const wrap = document.getElementById('listaEnquetes');
+  if (!wrap) return;
 
-    if (!_enquetes.length) {
-      wrap.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma enquete</p>';
-      return;
-    }
-
-    wrap.innerHTML = _enquetes.map(e => {
-      const isAtiva = e.id === _enqueteAtivaId;
-      const ops = (e.opcoes?.opcoes || []).map((t,i)=>`${String.fromCharCode(65+i)}. ${esc(t)}`).join(' • ');
-      const encerrada = !!e.encerrada_em;
-
-      return `
-        <div class="flex items-center gap-2">
-        <span data-badge-ativa class="text-xs px-2 py-1 rounded bg-green-600 text-white ${isAtiva?'':'hidden'}">ATIVA</span>
-      
-        ${!encerrada ? `
-          ${isAtiva ? `
-            <button class="px-3 py-1 text-xs rounded bg-gray-500 text-white"
-                    onclick="window.ModuloEnquetes.desativar()">Desativar</button>
-            <button class="px-3 py-1 text-xs rounded bg-orange-600 text-white"
-                    onclick="window.ModuloEnquetes.encerrar('${e.id}')">Encerrar</button>
-          ` : `
-            <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white"
-                    onclick="window.ModuloEnquetes.ativar('${e.id}')">Ativar</button>
-          `}
-        ` : ''}
-      
-        <button class="px-3 py-1 text-xs rounded bg-gray-200"
-                onclick="window.ModuloEnquetes.abrirResultados('${e.id}')">Resultados</button>
-      
-        ${!isAtiva ? `
-          <button class="px-3 py-1 text-xs rounded bg-red-600 text-white"
-                  onclick="window.ModuloEnquetes.deletar('${e.id}')">Deletar</button>
-        ` : ''}
-      </div>
-      `;
-    }).join('');
-
-    marcarEnqueteAtivaUI(_enqueteAtivaId);
+  if (!_enquetes.length) {
+    wrap.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma enquete</p>';
+    return;
   }
+
+  wrap.innerHTML = _enquetes.map(e => {
+    const isAtiva = e.id === _enqueteAtivaId;
+    const encerrada = !!e.encerrada_em;
+    const ops = (e.opcoes?.opcoes || []).map((t,i)=>`${String.fromCharCode(65+i)}. ${esc(t)}`).join(' • ');
+
+    return `
+      <div class="border rounded-lg p-3 mb-2 bg-white hover:bg-gray-50 transition" data-enquete-id="${e.id}">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="font-semibold truncate">${esc(e.titulo)}</div>
+            <div class="text-xs text-gray-500 truncate">${ops}</div>
+            ${encerrada ? '<div class="text-[11px] text-red-600 mt-1">🏁 Encerrada</div>' : ''}
+          </div>
+          <div class="flex items-center gap-2">
+            <span data-badge-ativa class="text-xs px-2 py-1 rounded bg-green-600 text-white ${isAtiva?'':'hidden'}">ATIVA</span>
+
+            ${!encerrada ? (
+              isAtiva
+              ? `
+                <button class="px-3 py-1 text-xs rounded bg-gray-500 text-white"
+                        onclick="window.ModuloEnquetes.desativar()">Desativar</button>
+                <button class="px-3 py-1 text-xs rounded bg-orange-600 text-white"
+                        onclick="window.ModuloEnquetes.encerrar('${e.id}')">Encerrar</button>
+              `
+              : `
+                <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white"
+                        onclick="window.ModuloEnquetes.ativar('${e.id}')">Ativar</button>
+              `
+            ) : ''}
+
+            <button class="px-3 py-1 text-xs rounded bg-gray-200"
+                    onclick="window.ModuloEnquetes.abrirResultados('${e.id}')">Resultados</button>
+
+            ${!isAtiva ? `
+              <button class="px-3 py-1 text-xs rounded bg-red-600 text-white"
+                      onclick="window.ModuloEnquetes.deletar('${e.id}')">Deletar</button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  marcarEnqueteAtivaUI(_enqueteAtivaId);
+}
 
   // =====================================================
   // RESULTADOS (Drawer)
@@ -355,6 +366,10 @@
   // Eventos
   // =====================================================
   function configurarEventos() {
+    
+    if (__eventsBound) return;   // <--- evita listeners duplicados
+    __eventsBound = true;
+    
     // Botões de modal
     window.abrirModalEnqueteNova = abrirModalEnqueteNova;   // para o HTML
     window.fecharModalEnqueteCRUD = fecharModalEnqueteCRUD; // para o HTML
