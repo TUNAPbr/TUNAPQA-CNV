@@ -307,39 +307,48 @@
 
   async function salvarEnqueteCRUD(ev) {
     ev?.preventDefault?.();
-    const titulo = document.getElementById('inputTituloEnqueteCRUD').value.trim();
-    const linhas = document.getElementById('inputOpcoesEnqueteCRUD').value.trim().split('\n')
-      .map(s=>s.trim()).filter(Boolean);
-
-    if (!titulo || linhas.length < 2) {
-      alert('Informe título e pelo menos 2 opções.');
-      return;
-    }
-    if (linhas.length > 10) {
-      alert('Máximo de 10 opções.');
-      return;
-    }
-
-    const payload = {
-      palestra_id: null,
-      titulo,
-      tipo: 'multipla_escolha',
-      modo: 'enquete',
-      opcoes: { opcoes: linhas },
-      ativa: true
-    };
-
-    const { error } = await supabase.from('cnv25_enquetes').insert([payload]);
-    if (error) { console.error(error); alert('Erro ao criar enquete'); return; }
-
-    fecharModalEnqueteCRUD();
-    await carregarEnquetes();
-
-    // Pergunta se ativa agora
-    const nova = _enquetes.find(e => e.titulo === titulo && (e.opcoes?.opcoes||[]).join('|') === linhas.join('|'));
-    if (nova && confirm('Ativar esta enquete agora?')) {
-      await ativar(nova.id);
-    }
+    
+    if (__enq_saving) return;
+    __enq_saving = true;
+    
+    try {
+      
+      const titulo = document.getElementById('inputTituloEnqueteCRUD').value.trim();
+      const linhas = document.getElementById('inputOpcoesEnqueteCRUD').value.trim().split('\n')
+        .map(s=>s.trim()).filter(Boolean);
+  
+      if (!titulo || linhas.length < 2) {
+        alert('Informe título e pelo menos 2 opções.');
+        return;
+      }
+      if (linhas.length > 10) {
+        alert('Máximo de 10 opções.');
+        return;
+      }
+  
+      const payload = {
+        palestra_id: null,
+        titulo,
+        tipo: 'multipla_escolha',
+        modo: 'enquete',
+        opcoes: { opcoes: linhas },
+        ativa: true
+      };
+  
+      const { error } = await supabase.from('cnv25_enquetes').insert([payload]);
+      if (error) { console.error(error); alert('Erro ao criar enquete'); return; }
+  
+      fecharModalEnqueteCRUD();
+      await carregarEnquetes();
+  
+      // Pergunta se ativa agora
+      const nova = _enquetes.find(e => e.titulo === titulo && (e.opcoes?.opcoes||[]).join('|') === linhas.join('|'));
+      if (nova && confirm('Ativar esta enquete agora?')) {
+        await ativar(nova.id);
+      }
+    } finally {
+        __enq_saving = false;
+      }
   }
 
   // =====================================================
