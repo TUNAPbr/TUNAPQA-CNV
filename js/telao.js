@@ -1,500 +1,238 @@
-// =====================================================
-// TELÃO V2 - EXIBIÇÃO DINÂMICA
-// =====================================================
+// ============================================================
+// TELÃO — Enquetes via BROADCAST GLOBAL (desacoplado de palestra)
+// ============================================================
 
-let palestraId = null;
-let palestra = null;
-let controle = null;
+// ====== ELEMENTOS DE UI ======
+const el = {
+  loading: document.getElementById('loading'),
+  main: document.getElementById('mainContent'),
 
-// Conteúdo
-let perguntaExibida = null;
-let enqueteAtiva = null;
-let quizAtivo = null;
-let perguntaQuizAtual = null;
+  // modos
+  emptyMode: document.getElementById('emptyMode'),
+  pollMode: document.getElementById('pollMode'),
+  pollTitle: document.getElementById('pollTitle'),
+  pollBody: document.getElementById('pollBody'),
 
-// Charts
-let chartQuiz = null;
+  // placeholders para quiz futuro (mantidos para compatibilidade)
+  quizQuestionMode: document.getElementById('quizQuestionMode'),
+  quizResultMode: document.getElementById('quizResultMode'),
+  quizProgress: document.getElementById('quizProgress'),
+  quizQuestionText: document.getElementById('quizQuestionText'),
+  quizCountdownContainer: document.getElementById('quizCountdownContainer'),
+  correctAnswer: document.getElementById('correctAnswer'),
+  accuracyPercentage: document.getElementById('accuracyPercentage'),
+  chartQuizDisplay: document.getElementById('chartQuizDisplay'),
+};
 
-// Canais Realtime
+// ====== ESTADO ======
+let currentMode = 'loading';
+
+// broadcast global (enquetes/quiz sem vínculo com palestra)
+let broadcast = {
+  enquete_ativa: null,
+  mostrar_resultado_enquete: false,
+  modo_global: null, // 'enquete' | 'perguntas' | 'quiz' | null
+};
+let canalBroadcast = null;
+
+// (opcional) se futuramente o telão voltar a exibir perguntas/quiz por palestra
 let canalPalestraAtiva = null;
-let canalPalestra = null;
-let canalControle = null;
-let canalPerguntas = null;
-let canalEnquete = null;
-let canalQuiz = null;
-let canalQuizPerguntas = null;
 
-// =====================================================
-// INICIALIZAÇÃO
-// =====================================================
-
-async function inicializar() {
-  console.log('🖥️ Telão v2 inicializando...');
-  await conectarRealtimePalestraAtiva();
-  await carregarPalestraAtiva();
+// ====== HELPERS VISUAIS ======
+function showContent() {
+  el.loading?.classList.add('hidden');
+  el.main?.classList.remove('hidden');
+}
+function hideAllModes() {
+  el.emptyMode?.classList.add('hidden');
+  el.pollMode?.classList.add('hidden');
+  el.quizQuestionMode?.classList.add('hidden');
+  el.quizResultMode?.classList.add('hidden');
+}
+function showMode(id) {
+  hideAllModes();
+  el[id]?.classList.remove('hidden');
+  showContent();
+  currentMode = id;
+}
+function displayEmptyMode() {
+  showMode('emptyMode');
 }
 
-// =====================================================
-// PALESTRA ATIVA
-// =====================================================
-
-function conectarRealtimePalestraAtiva() {
-  canalPalestraAtiva = supabase
-    .channel('palestra_ativa_telao_v2')
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'cnv25_palestra_ativa',
-      filter: 'id=eq.1'
-    }, async (payload) => {
-      console.log('🔄 Palestra mudou:', payload);
-      if (payload.new.palestra_id !== palestraId) {
-        await carregarPalestraAtiva();
-      }
-    })
-    .subscribe();
+// ====== RENDER: ENQUETE ======
+function displayPoll(poll) {
+  el.pollTitle.textContent = poll?.titulo || 'Enquete';
+  el.pollBody.innerHTML = ''; // minimalista no telão (mantém seu visual clean)
+  showMode('pollMode');
 }
 
-async function carregarPalestraAtiva() {
+function displayPollResult(poll, resultado) {
+  const labels = 'ABCDEFGHIJ'.split('');
+  const opcoes = poll?.opcoes?.opcoes || [];
+  const rows = resultado?.rows || [];
+  const total = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
+
+  el.pollTitle.textContent = `Resultados — ${poll?.titulo || 'Enquete'}`;
+  el.pollBody.innerHTML = opcoes.slice(0, 10).map((txt, idx) => {
+    const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
+    const pct = total ? Math.round((v / total) * 100) : 0;
+    return `
+      <div class="border rounded-lg p-3">
+        <div class="flex items-center justify-between">
+          <div class="font-medium"><strong>${labels[idx]}.</strong> ${escapeHtml(txt)}</div>
+          <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
+        </div>
+        <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+          <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  showMode('pollMode');
+}
+
+// ====== DATA FETCH (ENQUETE / RESULTADO) ======
+async function fetchEnquete(enqueteId) {
+  const { data, error } = await supabase
+    .from('cnv25_enquetes')
+    .select('*')
+    .eq('id', enqueteId)
+    .single();
+  if (error) { console.error('fetchEnquete:', error); return null; }
+  return data;
+}
+
+async function fetchResultadoEnquete(enqueteId) {
+  // 1) tenta view agregada
+  let viaView = true;
+  const resView = await supabase
+    .from('cnv25_enquete_resultado_v')
+    .select('*')
+    .eq('enquete_id', enqueteId);
+  if (resView.error) viaView = false;
+
+  if (viaView) {
+    return { rows: resView.data || [] };
+  }
+
+  // 2) fallback: agrega no cliente
+  const { data: rs, error } = await supabase
+    .from('cnv25_enquete_respostas')
+    .select('resposta')
+    .eq('enquete_id', enqueteId);
+  if (error) { console.error('fetchResultadoEnquete:', error); return { rows: [] }; }
+
+  const cont = {};
+  (rs || []).forEach(r => {
+    const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
+    cont[idx] = (cont[idx] || 0) + 1;
+  });
+  const rows = Object.entries(cont).map(([k, v]) => ({ opcao_index: parseInt(k, 10), votos: v }));
+  return { rows };
+}
+
+// ====== BROADCAST (CARREGAR / REALTIME) ======
+async function carregarBroadcast() {
   try {
-    const { data: palestraAtiva } = await supabase
-      .from('cnv25_palestra_ativa')
-      .select('palestra_id')
+    const { data, error } = await supabase
+      .from('cnv25_broadcast_controle')
+      .select('enquete_ativa, mostrar_resultado_enquete, modo_global')
       .eq('id', 1)
       .single();
-    
-    const novaPalestraId = palestraAtiva?.palestra_id;
-    
-    if (!novaPalestraId) {
-      mostrarLoading();
-      return;
-    }
-    
-    // Desconectar canais anteriores
-    if (palestraId && palestraId !== novaPalestraId) {
-      desconectarCanais();
-    }
-    
-    palestraId = novaPalestraId;
-    
-    // Carregar dados
-    await carregarPalestra();
-    await carregarControle();
-    await carregarConteudo();
-    
-    conectarRealtimePalestra();
-    
-    mostrarConteudo();
+    if (error) throw error;
+
+    broadcast.enquete_ativa = data?.enquete_ativa || null;
+    broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
+    broadcast.modo_global = data?.modo_global || null;
+
     decidirOQueExibir();
-    
-  } catch (error) {
-    console.error('Erro:', error);
-    mostrarLoading();
+  } catch (e) {
+    console.error('carregarBroadcast:', e);
+    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null };
+    displayEmptyMode();
   }
 }
 
-async function carregarPalestra() {
-  const { data } = await supabase
-    .from('cnv25_palestras')
-    .select('*')
-    .eq('id', palestraId)
-    .single();
-  
-  palestra = data;
-  
-  document.getElementById('palestraTitulo').textContent = palestra.titulo;
-  document.getElementById('palestrante').textContent = palestra.palestrante || 'Palestrante não definido';
-}
-
-async function carregarControle() {
-  const { data } = await supabase
-    .from('cnv25_palestra_controle')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .single();
-  
-  controle = data || {};
-  decidirOQueExibir();
-}
-
-async function carregarConteudo() {
-  // Pergunta exibida
-  const { data: pergunta } = await supabase
-    .from('cnv25_perguntas')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .eq('status', 'exibida')
-    .single();
-  
-  perguntaExibida = pergunta || null;
-  
-  // Enquete ativa
-  if (controle?.enquete_ativa) {
-    const { data: enquete } = await supabase
-      .from('cnv25_enquetes')
-      .select('*')
-      .eq('id', controle.enquete_ativa)
-      .single();
-    
-    enqueteAtiva = enquete;
-  } else {
-    enqueteAtiva = null;
-  }
-  
-  // Quiz ativo
-  quizAtivo = await obterQuizAtivo(palestraId);
-  
-  if (quizAtivo && quizAtivo.pergunta_atual > 0) {
-    perguntaQuizAtual = await obterPerguntaAtualQuiz(quizAtivo.id, quizAtivo.pergunta_atual);
-  } else {
-    perguntaQuizAtual = null;
-  }
-}
-
-// =====================================================
-// REALTIME - PALESTRA
-// =====================================================
-
-function conectarRealtimePalestra() {
-  desconectarCanais();
-  
-  canalPalestra = supabase
-    .channel(`telao_palestra:${palestraId}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'cnv25_palestras',
-      filter: `id=eq.${palestraId}`
-    }, (payload) => {
-      palestra = payload.new;
-      atualizarHeader();
-    })
-    .subscribe();
-  
-  canalControle = supabase
-    .channel(`telao_controle:${palestraId}`)
+function conectarRealtimeBroadcast() {
+  if (canalBroadcast) return;
+  canalBroadcast = supabase
+    .channel('telao_broadcast')
     .on('postgres_changes', {
       event: '*',
       schema: 'public',
-      table: 'cnv25_palestra_controle',
-      filter: `palestra_id=eq.${palestraId}`
+      table: 'cnv25_broadcast_controle',
+      filter: 'id=eq.1'
     }, async (payload) => {
-      controle = payload.new;
-      
-      // Verificar mudança em enquete_ativa
-      if (payload.new.enquete_ativa !== enqueteAtiva?.id) {
-        await carregarConteudo();
-        decidirOQueExibir();
-      }
+      broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
+      broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
+      broadcast.modo_global = payload.new?.modo_global || null;
+      decidirOQueExibir();
     })
     .subscribe();
-  
-  canalPerguntas = supabase
-    .channel(`telao_perguntas:${palestraId}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'cnv25_perguntas',
-      filter: `palestra_id=eq.${palestraId}`
-    }, async (payload) => {
-      const p = payload.new;
-      
-      if (p.status === 'exibida') {
-        perguntaExibida = p;
-        decidirOQueExibir();
-      } else if (perguntaExibida && p.id === perguntaExibida.id && p.status === 'respondida') {
-        perguntaExibida = null;
-        decidirOQueExibir();
-      }
-    })
-    .subscribe();
-  
-  // Quiz Realtime
-  if (quizAtivo) {
-    canalQuiz = supabase
-      .channel(`telao_quiz:${quizAtivo.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'cnv25_quiz',
-        filter: `id=eq.${quizAtivo.id}`
-      }, async (payload) => {
-        quizAtivo = payload.new;
-        
-        if (quizAtivo.pergunta_atual > 0) {
-          perguntaQuizAtual = await obterPerguntaAtualQuiz(quizAtivo.id, quizAtivo.pergunta_atual);
-        } else {
-          perguntaQuizAtual = null;
-        }
-        
-        decidirOQueExibir();
-      })
-      .subscribe();
-    
-    canalQuizPerguntas = supabase
-      .channel(`telao_quiz_perguntas:${quizAtivo.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'cnv25_quiz_perguntas'
-      }, async (payload) => {
-        if (perguntaQuizAtual && payload.new.id === perguntaQuizAtual.id && payload.new.revelada) {
-          perguntaQuizAtual = payload.new;
-          await exibirResultadoQuiz();
-        }
-      })
-      .subscribe();
-  }
 }
 
-function desconectarCanais() {
-  if (canalPalestra) window.supabase.removeChannel(canalPalestra);
-  if (canalControle) window.supabase.removeChannel(canalControle);
-  if (canalPerguntas) window.supabase.removeChannel(canalPerguntas);
-  if (canalEnquete) window.supabase.removeChannel(canalEnquete);
-  if (canalQuiz) window.supabase.removeChannel(canalQuiz);
-  if (canalQuizPerguntas) window.supabase.removeChannel(canalQuizPerguntas);
-}
+// ====== DECISOR (UMA COISA POR VEZ) ======
+async function decidirOQueExibir() {
+  // O "semáforo" global manda no universo
+  if (broadcast.modo_global === 'enquete') {
+    if (!broadcast.enquete_ativa) { displayEmptyMode(); return; }
 
-// =====================================================
-// DECIDIR O QUE EXIBIR
-// =====================================================
+    const enquete = await fetchEnquete(broadcast.enquete_ativa);
+    if (!enquete) { displayEmptyMode(); return; }
 
-function decidirOQueExibir() {
-  esconderTudo();
-
-  if (quizAtivo && perguntaQuizAtual) {
-    exibirQuiz();
-  } else if (enqueteAtiva) {
-    if (controle?.mostrar_resultado_enquete) {
-      exibirResultadoEnquete();
+    if (broadcast.mostrar_resultado_enquete) {
+      const resultado = await fetchResultadoEnquete(enquete.id);
+      displayPollResult(enquete, resultado);
     } else {
-      exibirEnquete();
+      displayPoll(enquete);
     }
-  } else if (perguntaExibida) {
-    exibirPergunta();
-  } else {
-    exibirVazio();
+    return;
   }
-}
 
-async function exibirResultadoEnquete() {
-  document.getElementById('modoEnquete').classList.remove('hidden');
-  document.getElementById('tituloEnquete').textContent = `${enqueteAtiva.titulo} — Resultados`;
-
-  // Limpa corpo e exibe loading
-  const corpo = document.getElementById('opcoesEnquete');
-  corpo.innerHTML = '<div class="text-gray-500 text-sm mt-3">Carregando resultados...</div>';
-
-  try {
-    const { data: respostas } = await supabase
-      .from('cnv25_enquete_respostas')
-      .select('resposta')
-      .eq('enquete_id', enqueteAtiva.id);
-
-    const opcoes = enqueteAtiva.opcoes?.opcoes || [];
-    const contagem = Array(opcoes.length).fill(0);
-
-    respostas.forEach(r => {
-      const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0);
-      if (!isNaN(idx) && idx < contagem.length) contagem[idx]++;
-    });
-
-    const total = contagem.reduce((a,b) => a+b, 0) || 1;
-
-    corpo.innerHTML = opcoes.map((txt, i) => {
-      const votos = contagem[i];
-      const pct = Math.round((votos / total) * 100);
-      return `
-        <div class="mt-2 border rounded-lg p-3 bg-white/10 backdrop-blur">
-          <div class="flex justify-between text-sm">
-            <span>${String.fromCharCode(65+i)}. ${txt}</span>
-            <span>${votos} voto(s) • ${pct}%</span>
-          </div>
-          <div class="w-full bg-gray-700 h-2 rounded mt-1">
-            <div class="h-2 bg-green-500 rounded" style="width:${pct}%"></div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  } catch (err) {
-    console.error('Erro ao carregar resultados:', err);
-    corpo.innerHTML = '<div class="text-red-500 text-sm mt-3">Erro ao carregar resultados</div>';
+  if (broadcast.modo_global === 'perguntas') {
+    // hoje o telão não exibe formulário; fica aguardando conteúdo
+    displayEmptyMode();
+    return;
   }
-}
 
-
-function esconderTudo() {
-  document.getElementById('modoVazio').classList.add('hidden');
-  document.getElementById('modoPergunta').classList.add('hidden');
-  document.getElementById('modoEnquete').classList.add('hidden');
-  document.getElementById('modoQuiz').classList.add('hidden');
-}
-
-// =====================================================
-// EXIBIR: VAZIO
-// =====================================================
-
-function exibirVazio() {
-  document.getElementById('modoVazio').classList.remove('hidden');
-}
-
-// =====================================================
-// EXIBIR: PERGUNTA
-// =====================================================
-
-function exibirPergunta() {
-  document.getElementById('modoPergunta').classList.remove('hidden');
-  
-  document.getElementById('textoPergunta').textContent = perguntaExibida.texto;
-  
-  const nomeEl = document.getElementById('nomePergunta');
-  if (perguntaExibida.anonimo) {
-    nomeEl.innerHTML = '👤 <em>Anônimo</em>';
-  } else {
-    nomeEl.innerHTML = `👤 ${esc(perguntaExibida.nome_opt)}`;
+  if (broadcast.modo_global === 'quiz') {
+    // quando migrarmos quiz p/ broadcast, pluga aqui as telas de quiz
+    displayEmptyMode();
+    return;
   }
+
+  // sem modo definido
+  displayEmptyMode();
 }
 
-// =====================================================
-// EXIBIR: ENQUETE
-// =====================================================
-
-function exibirEnquete() {
-  document.getElementById('modoEnquete').classList.remove('hidden');
-  document.getElementById('tituloEnquete').textContent = enqueteAtiva.titulo;
-}
-
-// =====================================================
-// EXIBIR: QUIZ
-// =====================================================
-
-function exibirQuiz() {
-  document.getElementById('modoQuiz').classList.remove('hidden');
-  document.getElementById('progressoQuiz').textContent = 
-    `🎮 QUIZ - Pergunta ${quizAtivo.pergunta_atual}/${quizAtivo.total_perguntas}`;
-  
-  if (perguntaQuizAtual.revelada) {
-    // Mostrar resultado
-    document.getElementById('quizPergunta').classList.add('hidden');
-    document.getElementById('quizResultado').classList.remove('hidden');
-  } else {
-    // Mostrar pergunta
-    document.getElementById('quizPergunta').classList.remove('hidden');
-    document.getElementById('quizResultado').classList.add('hidden');
-    document.getElementById('textoQuizPergunta').textContent = perguntaQuizAtual.pergunta;
-  }
-}
-
-async function exibirResultadoQuiz() {
-  document.getElementById('quizPergunta').classList.add('hidden');
-  document.getElementById('quizResultado').classList.remove('hidden');
-  
-  const labels = ['A', 'B', 'C', 'D'];
-  const respostaCorreta = labels[perguntaQuizAtual.resposta_correta];
-  
-  document.getElementById('respostaCorreta').textContent = respostaCorreta;
-  
-  // Buscar stats
-  const stats = await obterStatsQuizPergunta(perguntaQuizAtual.id);
-  
-  if (stats) {
-    document.getElementById('percentualAcerto').textContent = 
-      `${Math.round(stats.percentual_acerto || 0)}% acertaram!`;
-    
-    // Gráfico
-    const data = [0, 0, 0, 0];
-    
-    if (stats.distribuicao_respostas) {
-      stats.distribuicao_respostas.forEach(d => {
-        data[d.opcao] = d.total_votos;
-      });
-    }
-    
-    const ctx = document.getElementById('chartQuizTelao');
-    if (chartQuiz) chartQuiz.destroy();
-    
-    const backgroundColors = labels.map((_, idx) => 
-      idx === perguntaQuizAtual.resposta_correta ? '#27ae52' : '#94a3b8'
-    );
-    
-    chartQuiz = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Respostas',
-          data: data,
-          backgroundColor: backgroundColors,
-          borderColor: '#1e293b',
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { 
-              stepSize: 1,
-              font: { size: 16 }
-            }
-          },
-          x: {
-            ticks: {
-              font: { size: 20, weight: 'bold' }
-            }
-          }
-        }
-      }
-    });
-  }
-}
-
-// =====================================================
-// UI - TELAS
-// =====================================================
-
-function mostrarLoading() {
-  document.getElementById('loading').classList.remove('hidden');
-  document.getElementById('mainContent').classList.add('hidden');
-  document.getElementById('palestraTitulo').textContent = 'Aguardando palestra ativa...';
-  document.getElementById('palestrante').textContent = '';
-}
-
-function mostrarConteudo() {
-  document.getElementById('loading').classList.add('hidden');
-  document.getElementById('mainContent').classList.remove('hidden');
-}
-
-function atualizarHeader() {
-  document.getElementById('palestraTitulo').textContent = palestra.titulo;
-  document.getElementById('palestrante').textContent = palestra.palestrante || 'Palestrante não definido';
-}
-
-// =====================================================
-// UTILS
-// =====================================================
-
-function esc(text) {
+// ====== UTILS ======
+function escapeHtml(text) {
   const div = document.createElement('div');
-  div.textContent = text;
+  div.textContent = text ?? '';
   return div.innerHTML;
 }
 
-// =====================================================
-// INICIAR
-// =====================================================
+// ====== BOOT ======
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // visual inicial
+    displayEmptyMode();
 
-window.addEventListener('DOMContentLoaded', inicializar);
+    // carrega broadcast (enquete global) + liga realtime
+    await carregarBroadcast();
+    conectarRealtimeBroadcast();
 
-window.addEventListener('beforeunload', () => {
-  if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
-  desconectarCanais();
+    console.log('✅ Telão ouvindo cnv25_broadcast_controle (enquetes)');
+  } catch (e) {
+    console.error('Erro ao iniciar Telão:', e);
+    displayEmptyMode();
+  }
 });
 
-console.log('✅ Telão v2 carregado');
+// ====== CLEANUP ======
+window.addEventListener('beforeunload', () => {
+  try {
+    if (canalBroadcast) supabase.removeChannel(canalBroadcast);
+    if (canalPalestraAtiva) supabase.removeChannel(canalPalestraAtiva);
+  } catch (_) {}
+});
