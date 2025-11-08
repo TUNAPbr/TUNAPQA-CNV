@@ -675,18 +675,14 @@
       loading: document.getElementById('loading'),
       mainContent: document.getElementById('mainContent'),
       speakerName: document.getElementById('speakerName'),
-      
       emptyMode: document.getElementById('emptyMode'),
       questionMode: document.getElementById('questionMode'),
       pollMode: document.getElementById('pollMode'),
       quizQuestionMode: document.getElementById('quizQuestionMode'),
       quizResultMode: document.getElementById('quizResultMode'),
-      
       questionText: document.getElementById('questionText'),
       questionAuthor: document.getElementById('questionAuthor'),
-      
       pollTitle: document.getElementById('pollTitle'),
-      
       quizProgress: document.getElementById('quizProgress'),
       quizQuestionText: document.getElementById('quizQuestionText'),
       quizCountdownContainer: document.getElementById('quizCountdownContainer'),
@@ -696,60 +692,120 @@
     };
 
     // Ocultar loading e mostrar conteúdo
-    function showContent() {
-      elements.loading.classList.add('hidden');
-      elements.mainContent.classList.remove('hidden');
-    }
-
-    // Ocultar todos os modos
-    function hideAllModes() {
+    // Utilitários visuais
+    function showContent(){ elements.loading.classList.add('hidden'); elements.mainContent.classList.remove('hidden'); }
+    function hideAllModes(){
       elements.emptyMode.classList.add('hidden');
       elements.questionMode.classList.add('hidden');
       elements.pollMode.classList.add('hidden');
       elements.quizQuestionMode.classList.add('hidden');
       elements.quizResultMode.classList.add('hidden');
     }
-
-    // Mostrar modo específico
-    function showMode(mode) {
-      hideAllModes();
-      if (elements[mode]) {
-        elements[mode].classList.remove('hidden');
-      }
-    }
+    function showMode(key){ hideAllModes(); elements[key]?.classList.remove('hidden'); }
 
     // ============================================
     // MODO: VAZIO
     // ============================================
-    function displayEmptyMode() {
-      showContent();
-      showMode('emptyMode');
-      currentMode = 'empty';
+    function displayEmptyMode(){ showContent(); showMode('emptyMode'); currentMode='empty'; }
+    function displayPoll(poll){ showContent(); showMode('pollMode'); elements.pollTitle.textContent = poll.titulo || 'Enquete'; currentMode='poll'; }
+    function displayPollResult(poll, resultado){
+      showContent(); showMode('pollMode'); // reaproveitando card de enquete
+      elements.pollTitle.textContent = `Resultados — ${poll.titulo}`;
+      // você pode enriquecer aqui com barras/progresso no futuro
     }
 
     // ============================================
-    // MODO: PERGUNTA
+    // BROADCAST GLOBAL (sem palestra)
     // ============================================
-    function displayQuestion(question) {
-      showContent();
-      showMode('questionMode');
-      
-      elements.questionText.textContent = question.texto || question.pergunta;
-      elements.questionAuthor.textContent = question.nome || 'Anônimo';
-      
-      currentMode = 'question';
+    let broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false };
+    let canalBroadcast = null;
+  
+    async function carregarBroadcast(){
+      const { data, error } = await supabase
+        .from('cnv25_broadcast_controle')
+        .select('enquete_ativa, mostrar_resultado_enquete')
+        .eq('id', 1)
+        .single();
+      if (error) { console.error(error); displayEmptyMode(); return; }
+      broadcast.enquete_ativa = data?.enquete_ativa || null;
+      broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
+      decidirOQueExibir();
     }
-
+  
+    function conectarRealtimeBroadcast(){
+      if (canalBroadcast) return;
+      canalBroadcast = supabase
+        .channel('telao_broadcast')
+        .on('postgres_changes', {
+          event: '*', schema: 'public', table: 'cnv25_broadcast_controle', filter: 'id=eq.1'
+        }, (payload) => {
+          broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
+          broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
+          decidirOQueExibir();
+        })
+        .subscribe();
+    }
+  
     // ============================================
-    // MODO: ENQUETE
+    // CARREGAMENTO DE ENQUETE/RESULTADO
     // ============================================
-    function displayPoll(poll) {
-      showContent();
-      showMode('pollMode');
-      
-      elements.pollTitle.textContent = poll.titulo || poll.pergunta;
-      
-      currentMode = 'poll';
+    async function fetchEnquete(enqueteId){
+      const { data, error } = await supabase
+        .from('cnv25_enquetes')
+        .select('*')
+        .eq('id', enqueteId)
+        .single();
+      if (error) { console.error(error); return null; }
+      return data;
+    }
+  
+    async function fetchResultadoEnquete(enqueteId){
+      // Tenta view agregada; fallback simples
+      let viaView = true;
+      const r1 = await supabase
+        .from('cnv25_enquete_resultado_v') // se não existir, cai no catch
+        .select('*')
+        .eq('enquete_id', enqueteId);
+      if (r1.error) viaView = false;
+  
+      if (viaView){
+        return { via:'view', rows: r1.data || [] };
+      } else {
+        const { data: rs, error } = await supabase
+          .from('cnv25_enquete_respostas')
+          .select('resposta')
+          .eq('enquete_id', enqueteId);
+        if (error) { console.error(error); return { via:'none', rows: [] }; }
+        const cont = {};
+        (rs||[]).forEach(r=>{
+          const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
+          cont[idx] = (cont[idx]||0)+1;
+        });
+        const rows = Object.entries(cont).map(([k,v])=>({ opcao_index: parseInt(k,10), votos: v }));
+        return { via:'client', rows };
+      }
+    }
+  
+    // ============================================
+    // DECISOR DO TELÃO
+    // ============================================
+    async function decidirOQueExibir(){
+      // Por enquanto só orquestramos Enquetes via broadcast; Quiz vem depois
+      if (!broadcast.enquete_ativa){
+        displayEmptyMode();
+        return;
+      }
+  
+      // Tem enquete ativa
+      const enquete = await fetchEnquete(broadcast.enquete_ativa);
+      if (!enquete){ displayEmptyMode(); return; }
+  
+      if (broadcast.mostrar_resultado_enquete){
+        const resultado = await fetchResultadoEnquete(enquete.id);
+        displayPollResult(enquete, resultado);
+      } else {
+        displayPoll(enquete);
+      }
     }
 
     // ============================================
@@ -875,54 +931,19 @@
     }
 
     // ============================================
-    // INTEGRAÇÃO COM SUPABASE (adaptar conforme seu código)
+    // BOOT
     // ============================================
-    
-    // Inicialização
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       console.log('🌊 Telão Mar de Oportunidades iniciado!');
-      
-      // Começar com modo vazio (ou loading)
+      // Header palestrante era atrelado à palestra; como desacoplamos, mantém neutro:
+      elements.speakerName.textContent = '—';
       displayEmptyMode();
-      
-      // Aqui você integraria com seu código Supabase existente
-      // Exemplo:
-      // subscribeToChanges();
+  
+      await carregarBroadcast();
+      conectarRealtimeBroadcast();
+  
+      console.log('💡 Telão ouvindo broadcast global (enquete/resultado).');
     });
-
-    // Funções de exemplo para testar
-    function testQuestion() {
-      displayQuestion({
-        texto: 'Como podemos aplicar as estratégias discutidas no nosso dia a dia?',
-        nome: 'Maria Silva'
-      });
-    }
-
-    function testPoll() {
-      displayPoll({
-        titulo: 'Qual área tem mais potencial de crescimento para a empresa?'
-      });
-    }
-
-    function testQuiz() {
-      displayQuiz({
-        pergunta_atual: 1,
-        total_perguntas: 10,
-        pergunta: 'Qual é o principal benefício de mergulhar no mar de oportunidades?',
-        revelada: false,
-        tempo_limite: 30
-      });
-    }
-
-    // Disponibilizar funções para debug no console
-    window.testTelao = {
-      question: testQuestion,
-      poll: testPoll,
-      quiz: testQuiz,
-      empty: displayEmptyMode
-    };
-    
-    console.log('💡 Use window.testTelao para testar os modos!');
   </script>
 </body>
 </html>
