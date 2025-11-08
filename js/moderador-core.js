@@ -1,6 +1,32 @@
+
+// =====================================
+// MODO GLOBAL (broadcast)
+// =====================================
+async function setModoGlobal(modo, patchExtra = {}) {
+  // modo: 'perguntas' | 'enquete' | 'quiz' | null
+  const payload = {
+    modo_global: modo,
+    ...patchExtra,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabase
+    .from('cnv25_broadcast_controle')
+    .update(payload)
+    .eq('id', 1);
+
+  if (error) {
+    console.error('Erro ao setar modo_global:', error);
+    window.ModeradorCore?.mostrarNotificacao?.('Falha ao atualizar modo global.', 'error');
+    return false;
+  }
+  return true;
+}
+
 // =====================================================
 // HELPERS DE CONTROLE (usado por Enquetes/Quiz/Perguntas)
 // =====================================================
+
+
 async function atualizarControlePalestra(palestraId, patch) {
   if (!palestraId) return false;
   try {
@@ -526,7 +552,8 @@ window.ModeradorCore = {
   trocarAba: trocarAba,
   esc: esc,
   mostrarNotificacao: mostrarNotificacao,
-  atualizarControlePalestra // <--- exposto
+  atualizarControlePalestra,
+  setModoGlobal
 };
 
 console.log('✅ Moderador Core carregado');
