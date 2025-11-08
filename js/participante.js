@@ -1,6 +1,6 @@
 // =====================================================
-// PARTICIPANTE v2 — Agora com ENQUETE via BROADCAST global
-// Perguntas/Quiz continuam por palestra (inalterado)
+// PARTICIPANTE v2 — Enquete via BROADCAST global
+// Perguntas/Quiz continuam por palestra
 // =====================================================
 
 // -------------------------
@@ -15,7 +15,7 @@ function validarElemento(id) {
 function validarElementosHTML() {
   const ids = [
     'loading','semPalestra','conteudo',
-    // head dinâmico
+    // cabeçalho do card
     'cardHeader','cardHeadTitle','cardHeadSubtitle',
     // perguntas
     'secaoPerguntas','statusPerguntas','btnEnviar','textoPergunta',
@@ -39,6 +39,8 @@ function validarElementosHTML() {
 //  ESTADO GLOBAL
 // -------------------------
 let modoAtual = 'aguardando';
+
+// Palestra (Perguntas/Quiz)
 let palestraId = null;
 let palestra = null;
 let controle = null;
@@ -48,13 +50,12 @@ let deviceId = null;
 let deviceIdHash = null;
 
 // Enquete (via BROADCAST)
-let broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false };
+let broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null };
 let canalBroadcast = null;
-
 let enqueteAtiva = null;   // objeto da enquete ativa (se houver)
 let jaVotou = false;
 
-// Quiz
+// Quiz por palestra
 let quizAtivo = null;
 let perguntaAtual = null;
 let tempoInicio = null;
@@ -65,10 +66,10 @@ let acertosTotal = 0;
 let canalPalestraAtiva = null;
 let canalPalestra = null;
 let canalControle = null;
-let canalEnquete = null; // mantém para atualizar conteúdo/resultado da enquete específica
+let canalEnquete = null; // para ouvir UPDATE da enquete específica
 let canalQuiz = null;
 
-// Countdown (fallback seguro) — mantém como no teu arquivo atual
+// Countdown (fallback seguro)
 if (!('CountdownTimer' in window)) {
   class SimpleCountdownTimer {
     constructor({ duration, onTick, onComplete }) {
@@ -90,52 +91,49 @@ if (!('CountdownTimer' in window)) {
         }
       }, 1000);
     }
-    stop() {
-      if (this.t) { clearInterval(this.t); this.t = null; }
-    }
+    stop() { if (this.t) { clearInterval(this.t); this.t = null; } }
   }
   window.CountdownTimer = SimpleCountdownTimer;
 }
 
 // -------------------------
-//  UI GENÉRICA
+//  UI BÁSICA
 // -------------------------
 function mostrarLoading() {
   const loading = validarElemento('loading');
   const semPalestra = validarElemento('semPalestra');
   const conteudo = validarElemento('conteudo');
-  if (loading) loading.classList.remove('hidden');
-  if (semPalestra) semPalestra.classList.add('hidden');
-  if (conteudo) conteudo.classList.add('hidden');
+  loading?.classList.remove('hidden');
+  semPalestra?.classList.add('hidden');
+  conteudo?.classList.add('hidden');
 }
 
 function mostrarSemPalestra() {
   const loading = validarElemento('loading');
   const semPalestra = validarElemento('semPalestra');
   const conteudo = validarElemento('conteudo');
-  if (loading) loading.classList.add('hidden');
-  if (semPalestra) semPalestra.classList.remove('hidden');
-  if (conteudo) conteudo.classList.add('hidden');
+  loading?.classList.add('hidden');
+  semPalestra?.classList.remove('hidden');
+  conteudo?.classList.add('hidden');
 }
 
 function mostrarConteudo() {
   const loading = validarElemento('loading');
   const semPalestra = validarElemento('semPalestra');
   const conteudo = validarElemento('conteudo');
-  if (loading) loading.classList.add('hidden');
-  if (semPalestra) semPalestra.classList.add('hidden');
-  if (conteudo) conteudo.classList.remove('hidden');
+  loading?.classList.add('hidden');
+  semPalestra?.classList.add('hidden');
+  conteudo?.classList.remove('hidden');
 }
 
 function mostrarFeedback(elementId, tipo, mensagem) {
   const _tipo = (tipo === 'warning') ? 'info' : tipo;
   const feedback = document.getElementById(elementId);
   if (!feedback) return;
-
   const classes = {
     sucesso: 'bg-green-100 border-l-4 border-green-500 text-green-800',
-    erro: 'bg-red-100 border-l-4 border-red-500 text-red-800',
-    info: 'bg-blue-100 border-l-4 border-blue-500 text-blue-800'
+    erro:    'bg-red-100 border-l-4 border-red-500 text-red-800',
+    info:    'bg-blue-100 border-l-4 border-blue-500 text-blue-800'
   };
   feedback.className = `mt-4 p-4 rounded-lg ${classes[_tipo] || classes.info}`;
   feedback.innerHTML = `<strong>${_tipo === 'sucesso' ? '✓' : _tipo === 'erro' ? '✗' : 'ℹ'}</strong> ${mensagem}`;
@@ -151,16 +149,19 @@ function esc(text) {
   return div.innerHTML;
 }
 
-// Deriva o “modo” com nova prioridade: ENQUETE (broadcast) > QUIZ > PERGUNTAS > AGUARDANDO
+// -------------------------
+//  DERIVAÇÃO DE MODO (UMA COISA POR VEZ)
+// -------------------------
 function derivarModo() {
-  if (broadcast?.enquete_ativa && enqueteAtiva) return 'enquete';
-  if (quizAtivo && quizAtivo.status !== 'finalizado' && (quizAtivo.pergunta_atual || 0) > 0) return 'quiz';
-  if (controle?.perguntas_abertas && !controle?.silencio_ativo) return 'perguntas';
+  // O semáforo global manda no universo
+  if (broadcast?.modo_global === 'enquete' && enqueteAtiva) return 'enquete';
+  if (broadcast?.modo_global === 'quiz' && quizAtivo) return 'quiz';
+  if (broadcast?.modo_global === 'perguntas' && (controle?.perguntas_abertas && !controle?.silencio_ativo)) return 'perguntas';
   return 'aguardando';
 }
 
 function aplicarModo(novoModo) {
-  if (novoModo === modoAtual) return; // evita piscar
+  if (novoModo === modoAtual) return;
 
   // Se estava em quiz e vamos sair, para o countdown
   if (modoAtual === 'quiz' && typeof _countdownInstance !== 'undefined' && _countdownInstance) {
@@ -174,17 +175,15 @@ function aplicarModo(novoModo) {
   const sEnq  = document.getElementById('secaoEnquete');
   const sQuiz = document.getElementById('secaoQuiz');
 
-  // Esconde tudo
-  if (cardAguardando) cardAguardando.classList.add('hidden');
-  if (sPerg) sPerg.classList.add('hidden');
-  if (sEnq)  sEnq.classList.add('hidden');
-  if (sQuiz) sQuiz.classList.add('hidden');
+  cardAguardando?.classList.add('hidden');
+  sPerg?.classList.add('hidden');
+  sEnq?.classList.add('hidden');
+  sQuiz?.classList.add('hidden');
 
-  // Mostra só o modo atual
-  if (novoModo === 'aguardando' && cardAguardando) cardAguardando.classList.remove('hidden');
-  if (novoModo === 'perguntas' && sPerg) sPerg.classList.remove('hidden');
-  if (novoModo === 'enquete' && sEnq) sEnq.classList.remove('hidden');
-  if (novoModo === 'quiz' && sQuiz) sQuiz.classList.remove('hidden');
+  if (novoModo === 'aguardando') cardAguardando?.classList.remove('hidden');
+  if (novoModo === 'perguntas')  sPerg?.classList.remove('hidden');
+  if (novoModo === 'enquete')    sEnq?.classList.remove('hidden');
+  if (novoModo === 'quiz')       sQuiz?.classList.remove('hidden');
 
   renderCardHeader();
 }
@@ -195,11 +194,7 @@ function renderCardHeader() {
   const s = document.getElementById('cardHeadSubtitle');
   if (!header || !t || !s) return;
 
-  if (modoAtual === 'aguardando') {
-    header.classList.add('hidden');
-    return;
-  }
-
+  if (modoAtual === 'aguardando') { header.classList.add('hidden'); return; }
   header.classList.remove('hidden');
 
   if (modoAtual === 'enquete') {
@@ -207,7 +202,6 @@ function renderCardHeader() {
     s.textContent = enqueteAtiva?.titulo || '—';
     return;
   }
-
   if (modoAtual === 'perguntas') {
     t.textContent = 'Perguntas';
     const tema = palestra?.titulo || '—';
@@ -215,7 +209,6 @@ function renderCardHeader() {
     s.textContent = `${tema} — ${palestr}`;
     return;
   }
-
   if (modoAtual === 'quiz') {
     t.textContent = 'Quiz';
     const atual = quizAtivo?.pergunta_atual || 0;
@@ -231,23 +224,20 @@ async function inicializar() {
   console.log('👤 Participante v2 inicializando...');
   if (!validarElementosHTML()) return;
 
-  // Identificador do dispositivo
   deviceId = getDeviceId();
   deviceIdHash = await hashDeviceId(deviceId);
 
-  // Realtime: ouvir troca de palestra ativa (para Perguntas/Quiz)
+  // RT: palestra ativa (perguntas/quiz)
   conectarRealtimePalestraAtiva();
-
-  // Realtime: ouvir broadcast global (para Enquete)
+  // RT: broadcast global (enquete)
   conectarRealtimeBroadcast();
 
-  // Carregar primeira vez
+  // Carga inicial
   await Promise.all([
-    carregarPalestraAtiva(),  // define perguntas/quiz
-    carregarBroadcast()       // define enquete
+    carregarPalestraAtiva(),
+    carregarBroadcast()
   ]);
 
-  // Listeners de UI
   configurarListeners();
 }
 
@@ -256,12 +246,12 @@ async function inicializar() {
 // -------------------------
 async function carregarBroadcast() {
   try {
-    const { data } = await supabase
+    const { data } = await window.supabase
       .from('cnv25_broadcast_controle')
       .select('enquete_ativa, mostrar_resultado_enquete, modo_global')
       .eq('id', 1)
       .single();
-    
+
     broadcast.enquete_ativa = data?.enquete_ativa || null;
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
     broadcast.modo_global = data?.modo_global || null;
@@ -269,7 +259,7 @@ async function carregarBroadcast() {
     await carregarEnqueteViaBroadcast();
   } catch (e) {
     console.error('Erro ao carregar broadcast:', e);
-    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false };
+    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null };
     enqueteAtiva = null;
     jaVotou = false;
     atualizarSecaoEnquete();
@@ -279,7 +269,6 @@ async function carregarBroadcast() {
 
 function conectarRealtimeBroadcast() {
   if (canalBroadcast) return;
-
   canalBroadcast = window.supabase
     .channel('participante_broadcast')
     .on('postgres_changes', {
@@ -288,9 +277,9 @@ function conectarRealtimeBroadcast() {
       table: 'cnv25_broadcast_controle',
       filter: 'id=eq.1'
     }, async (payload) => {
-      broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
-      broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
-      broadcast.modo_global = payload.new?.modo_global || null;
+      broadcast.enquete_ativa = payload?.new?.enquete_ativa || null;
+      broadcast.mostrar_resultado_enquete = !!payload?.new?.mostrar_resultado_enquete;
+      broadcast.modo_global = payload?.new?.modo_global || null;
       await carregarEnqueteViaBroadcast();
     })
     .subscribe();
@@ -298,7 +287,6 @@ function conectarRealtimeBroadcast() {
 
 async function carregarEnqueteViaBroadcast() {
   if (!broadcast.enquete_ativa) {
-    // Sem enquete ativa
     enqueteAtiva = null;
     jaVotou = false;
     if (canalEnquete) { window.supabase.removeChannel(canalEnquete); canalEnquete = null; }
@@ -307,7 +295,6 @@ async function carregarEnqueteViaBroadcast() {
     return;
   }
 
-  // Busca a enquete ativa
   try {
     const { data, error } = await window.supabase
       .from('cnv25_enquetes')
@@ -319,9 +306,7 @@ async function carregarEnqueteViaBroadcast() {
     enqueteAtiva = data || null;
     jaVotou = enqueteAtiva ? await verificouVotouEnquete(enqueteAtiva.id, deviceIdHash) : false;
 
-    // Realtime dessa enquete específica (para refletir edição de título/opções/encerramento)
     conectarRealtimeEnquete();
-
     atualizarSecaoEnquete();
     aplicarModo(derivarModo());
   } catch (e) {
@@ -356,7 +341,7 @@ function conectarRealtimeEnquete() {
 }
 
 // -------------------------
-//  PALESTRA ATIVA (Perguntas/Quiz)
+//  PALESTRA ATIVA (PERGUNTAS/QUIZ)
 // -------------------------
 function conectarRealtimePalestraAtiva() {
   if (canalPalestraAtiva) return;
@@ -390,36 +375,31 @@ async function carregarPalestraAtiva() {
     const novaPalestraId = pa?.palestra_id || null;
 
     if (!novaPalestraId) {
-      // nenhuma palestra ativa para perguntas/quiz
       desconectarCanaisPalestra();
       palestraId = null;
       palestra = null;
       controle = null;
       quizAtivo = null;
 
-      // Conteúdo ainda pode ter ENQUETE via broadcast, então mostramos conteúdo
+      // Conteúdo pode ter ENQUETE via broadcast, então não mostramos "sem palestra"
       mostrarConteudo();
       atualizarUI();
       aplicarModo(derivarModo());
       return;
     }
 
-    // Se trocou de palestra, desconecta canais antigos antes de seguir
     if (palestraId && palestraId !== novaPalestraId) {
       desconectarCanaisPalestra();
     }
 
     palestraId = novaPalestraId;
 
-    // Carregar dados
     await carregarPalestra();
     await carregarControle();
     await carregarQuizAtivo();
 
-    // Conectar realtime da palestra/controle
     conectarRealtimePalestra();
 
-    // Atualiza UI inicial
     mostrarConteudo();
     atualizarUI();
     await atualizarContadorEnviadas();
@@ -427,7 +407,6 @@ async function carregarPalestraAtiva() {
 
   } catch (err) {
     console.error('Erro em carregarPalestraAtiva:', err);
-    // Mesmo sem palestra, ainda podemos exibir enquete via broadcast
     mostrarConteudo();
     atualizarUI();
     aplicarModo(derivarModo());
@@ -503,10 +482,10 @@ function desconectarCanaisPalestra() {
 //  UI — ATUALIZAÇÃO GERAL
 // -------------------------
 function atualizarUI() {
-  // Atualiza seções
   atualizarSecaoPerguntas();
   atualizarSecaoEnquete();
   atualizarSecaoQuiz();
+  // cabeçalho do card é atualizado dentro de aplicarModo()
 }
 
 // -------------------------
@@ -675,7 +654,7 @@ async function atualizarContadorEnviadas() {
 function labelsAte10(){ return 'ABCDEFGHIJ'.split(''); }
 
 async function fetchResultadoEnquete(enqueteId){
-  // tenta view agregada; fallback em client
+  // tenta view agregada; fallback
   let viaView = true;
   const r1 = await window.supabase
     .from('cnv25_enquete_resultado_v')
@@ -709,15 +688,13 @@ function atualizarSecaoEnquete() {
   const opcoesEl = validarElemento('opcoesEnquete');
   const feedback = validarElemento('feedbackEnquete');
 
-  // Sem enquete ativa
   if (!enqueteAtiva) {
     if (titulo) titulo.textContent = 'Enquete';
     if (opcoesEl) opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Nenhuma enquete ativa.</p>';
-    if (feedback) feedback.classList.add('hidden');
+    feedback?.classList.add('hidden');
     return;
   }
 
-  // Head do card é renderizado em renderCardHeader()
   if (titulo) titulo.textContent = enqueteAtiva.titulo || 'Enquete';
 
   const labels = labelsAte10();
@@ -725,9 +702,8 @@ function atualizarSecaoEnquete() {
   const total = Math.min(opcoesRaw.length, 10);
   const opcoes = opcoesRaw.slice(0, total);
 
-  // Se o moderador decidiu mostrar resultado no telão, exibimos barras aqui também
+  // Se moderador optou por mostrar resultado no telão, mostramos barras aqui também
   if (broadcast.mostrar_resultado_enquete) {
-    // Render de resultados
     (async () => {
       const { rows } = await fetchResultadoEnquete(enqueteAtiva.id);
       const totalVotos = rows.reduce((acc,r)=>acc+(r.votos||0),0);
@@ -752,7 +728,7 @@ function atualizarSecaoEnquete() {
     return;
   }
 
-  // Senão, fluxo normal de votação
+  // Fluxo normal de votação
   if (opcoesEl) {
     if (jaVotou) {
       opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Você já votou. Aguardando resultados…</p>';
@@ -787,7 +763,7 @@ async function votarEnqueteParticipante(opcaoIndex) {
 }
 
 // -------------------------
-//  SEÇÃO: QUIZ  (inalterado)
+//  SEÇÃO: QUIZ  (por palestra)
 // -------------------------
 async function carregarQuizAtivo() {
   quizAtivo = await obterQuizAtivo(palestraId);
@@ -807,7 +783,6 @@ async function carregarPerguntaAtualQuiz() {
     return;
   }
   perguntaAtual = await obterPerguntaAtualQuiz(quizAtivo.id, quizAtivo.pergunta_atual);
-
   if (perguntaAtual) {
     const responded = await verificouRespondeuQuiz(perguntaAtual.id, deviceIdHash);
     if (responded) {
@@ -892,7 +867,7 @@ function atualizarSecaoQuiz() {
   }
 }
 
-// Countdown integrado à renderização
+// Countdown integrado
 let _countdownInstance = null;
 
 function renderizarPerguntaQuiz() {
@@ -1026,9 +1001,9 @@ window.addEventListener('beforeunload', () => {
   try {
     if (canalPalestraAtiva) window.supabase.removeChannel(canalPalestraAtiva);
     if (canalBroadcast) window.supabase.removeChannel(canalBroadcast);
-    desconectarCanaisPalestra();
     if (canalEnquete) window.supabase.removeChannel(canalEnquete);
+    desconectarCanaisPalestra();
   } catch (e) {}
 });
 
-console.log('✅ Participante v2 (broadcast enquetes) carregado');
+console.log('✅ Participante v2 (broadcast enquetes + semáforo global) carregado');
