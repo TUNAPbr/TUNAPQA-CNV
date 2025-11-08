@@ -1,4 +1,3 @@
-
 // =====================================
 // MODO GLOBAL (broadcast)
 // =====================================
@@ -25,7 +24,6 @@ async function setModoGlobal(modo, patchExtra = {}) {
 // =====================================================
 // HELPERS DE CONTROLE (usado por Enquetes/Quiz/Perguntas)
 // =====================================================
-
 
 async function atualizarControlePalestra(palestraId, patch) {
   if (!palestraId) return false;
@@ -182,6 +180,13 @@ async function selecionarPalestra(id) {
     // 2) definir nova ativa
     ModeradorState.palestraId = id;
     await supabase.from('cnv25_palestra_ativa').update({ palestra_id: id }).eq('id', 1);
+
+    // 2.1) resetar semáforo global ao trocar de palestra (fica tudo aguardando)
+    await setModoGlobal(null, {
+      enquete_ativa: null,
+      mostrar_resultado_enquete: false,
+      quiz_ativo: null
+    });
 
     // 3) carregar dados e realtime como já fazia
     await carregarPalestra();
@@ -382,7 +387,6 @@ function atualizarBadgesStatus() {
     if (statusSilencio) {
       statusSilencio.classList.remove('hidden');
       statusSilencio.textContent = '🔇 SILÊNCIO';
-      // cor do badge aqui é opcional; mantendo default
     }
     setText(btnSilEls, '🔊 Desativar Silêncio');
     btnSilEls.forEach(btn => swapBg(btn, ['bg-gray-400'], ['bg-cnv-warning']));
@@ -424,6 +428,21 @@ async function togglePerguntas() {
     atualizarBadgesStatus();
     mostrarNotificacao('Falha ao alternar perguntas.', 'error');
     return;
+  }
+
+  // >>> ITEM 1: semáforo global conforme status
+  if (novoStatus) {
+    await setModoGlobal('perguntas', {
+      enquete_ativa: null,
+      mostrar_resultado_enquete: false,
+      quiz_ativo: null
+    });
+  } else {
+    await setModoGlobal(null, {
+      enquete_ativa: null,
+      mostrar_resultado_enquete: false,
+      quiz_ativo: null
+    });
   }
 
   mostrarNotificacao(
