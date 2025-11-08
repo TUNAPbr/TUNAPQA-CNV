@@ -1,5 +1,5 @@
 // ============================================================
-// TELÃO — Enquetes via BROADCAST GLOBAL (desacoplado de palestra)
+// TELÃO — Enquetes & Perguntas via BROADCAST GLOBAL (desacoplado)
 // ============================================================
 
 // ====== ELEMENTOS DE UI ======
@@ -13,7 +13,7 @@ const el = {
   pollTitle: document.getElementById('pollTitle'),
   pollBody: document.getElementById('pollBody'),
 
-  // placeholders para quiz futuro (mantidos para compatibilidade)
+  // placeholders de quiz (mantidos p/ compatibilidade futura)
   quizQuestionMode: document.getElementById('quizQuestionMode'),
   quizResultMode: document.getElementById('quizResultMode'),
   quizProgress: document.getElementById('quizProgress'),
@@ -27,9 +27,7 @@ const el = {
 // ====== ESTADO ======
 let currentMode = 'loading';
 
-
-
-// broadcast global (enquetes/quiz sem vínculo com palestra)
+// broadcast global
 let broadcast = {
   enquete_ativa: null,
   mostrar_resultado_enquete: false,
@@ -38,7 +36,7 @@ let broadcast = {
 };
 let canalBroadcast = null;
 
-// (opcional) se futuramente o telão voltar a exibir perguntas/quiz por palestra
+// (opcional) se futuramente voltarmos a usar palestra ativa
 let canalPalestraAtiva = null;
 
 // ====== HELPERS VISUAIS ======
@@ -64,8 +62,8 @@ function displayEmptyMode() {
 
 // ====== RENDER: ENQUETE ======
 function displayPoll(poll) {
-  el.pollTitle.textContent = poll?.titulo || 'Enquete';
-  el.pollBody.innerHTML = ''; // minimalista no telão (mantém seu visual clean)
+  if (el.pollTitle) el.pollTitle.textContent = poll?.titulo || 'Enquete';
+  if (el.pollBody) el.pollBody.innerHTML = ''; // telão minimalista
   showMode('pollMode');
 }
 
@@ -75,26 +73,28 @@ function displayPollResult(poll, resultado) {
   const rows = resultado?.rows || [];
   const total = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
 
-  el.pollTitle.textContent = `Resultados — ${poll?.titulo || 'Enquete'}`;
-  el.pollBody.innerHTML = opcoes.slice(0, 10).map((txt, idx) => {
-    const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
-    const pct = total ? Math.round((v / total) * 100) : 0;
-    return `
-      <div class="border rounded-lg p-3">
-        <div class="flex items-center justify-between">
-          <div class="font-medium"><strong>${labels[idx]}.</strong> ${escapeHtml(txt)}</div>
-          <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
+  if (el.pollTitle) el.pollTitle.textContent = `Resultados — ${poll?.titulo || 'Enquete'}`;
+  if (el.pollBody) {
+    el.pollBody.innerHTML = opcoes.slice(0, 10).map((txt, idx) => {
+      const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
+      const pct = total ? Math.round((v / total) * 100) : 0;
+      return `
+        <div class="border rounded-lg p-3">
+          <div class="flex items-center justify-between">
+            <div class="font-medium"><strong>${labels[idx]}.</strong> ${escapeHtml(txt)}</div>
+            <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
+          </div>
+          <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+          </div>
         </div>
-        <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
   showMode('pollMode');
 }
 
-// ====== DATA FETCH (ENQUETE / RESULTADO) ======
+// ====== RENDER: PERGUNTA (destaque) ======
 async function fetchPergunta(perguntaId) {
   const { data, error } = await supabase
     .from('cnv25_perguntas')
@@ -105,23 +105,20 @@ async function fetchPergunta(perguntaId) {
   return data;
 }
 function displayPergunta(pergunta) {
-  // reaproveite o mesmo card “pollMode” ou crie um “questionMode”.
-  // Se quiser simples: usar o mesmo body do card da enquete.
-  const titleEl = document.getElementById('pollTitle');
-  const bodyEl  = document.getElementById('pollBody');
-  if (titleEl) titleEl.textContent = 'Pergunta em destaque';
-  if (bodyEl) {
+  if (el.pollTitle) el.pollTitle.textContent = 'Pergunta em destaque';
+  if (el.pollBody) {
     const autor = pergunta.anonimo ? 'Anônimo' : (pergunta.nome_opt || 'Participante');
-    bodyEl.innerHTML = `
+    el.pollBody.innerHTML = `
       <div class="space-y-2">
         <p class="text-xl font-semibold">${escapeHtml(pergunta.texto)}</p>
         <p class="text-sm text-gray-500">por ${escapeHtml(autor)}</p>
       </div>
     `;
   }
-  showMode('pollMode'); // usa o visual existente do card central
+  showMode('pollMode'); // reaproveita o mesmo card central
 }
 
+// ====== DATA FETCH (ENQUETE / RESULTADO) ======
 async function fetchEnquete(enqueteId) {
   const { data, error } = await supabase
     .from('cnv25_enquetes')
@@ -164,7 +161,7 @@ async function fetchResultadoEnquete(enqueteId) {
 // ====== BROADCAST (CARREGAR / REALTIME) ======
 async function carregarBroadcast() {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('cnv25_broadcast_controle')
       .select('enquete_ativa, mostrar_resultado_enquete, modo_global, pergunta_exibida')
       .eq('id', 1)
@@ -179,7 +176,7 @@ async function carregarBroadcast() {
     decidirOQueExibir();
   } catch (e) {
     console.error('carregarBroadcast:', e);
-    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null };
+    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null, pergunta_exibida: null };
     displayEmptyMode();
   }
 }
@@ -222,12 +219,7 @@ async function decidirOQueExibir() {
   }
 
   if (broadcast.modo_global === 'perguntas') {
-    // hoje o telão não exibe formulário; fica aguardando conteúdo
-    displayEmptyMode();
-    return;
-  }
-
-  if (broadcast.modo_global === 'perguntas') {
+    // EXIBIR PERGUNTA EM DESTAQUE
     if (!broadcast.pergunta_exibida) { 
       displayEmptyMode(); 
       return; 
@@ -259,11 +251,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     // visual inicial
     displayEmptyMode();
 
-    // carrega broadcast (enquete global) + liga realtime
+    // carrega broadcast + liga realtime
     await carregarBroadcast();
     conectarRealtimeBroadcast();
 
-    console.log('✅ Telão ouvindo cnv25_broadcast_controle (enquetes)');
+    console.log('✅ Telão ouvindo cnv25_broadcast_controle (broadcast global)');
   } catch (e) {
     console.error('Erro ao iniciar Telão:', e);
     displayEmptyMode();
