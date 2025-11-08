@@ -256,14 +256,15 @@ async function inicializar() {
 // -------------------------
 async function carregarBroadcast() {
   try {
-    const { data } = await window.supabase
+    const { data } = await supabase
       .from('cnv25_broadcast_controle')
-      .select('enquete_ativa, mostrar_resultado_enquete')
+      .select('enquete_ativa, mostrar_resultado_enquete, modo_global')
       .eq('id', 1)
       .single();
-
+    
     broadcast.enquete_ativa = data?.enquete_ativa || null;
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
+    broadcast.modo_global = data?.modo_global || null;
 
     await carregarEnqueteViaBroadcast();
   } catch (e) {
@@ -287,8 +288,9 @@ function conectarRealtimeBroadcast() {
       table: 'cnv25_broadcast_controle',
       filter: 'id=eq.1'
     }, async (payload) => {
-      broadcast.enquete_ativa = payload?.new?.enquete_ativa || null;
-      broadcast.mostrar_resultado_enquete = !!payload?.new?.mostrar_resultado_enquete;
+      broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
+      broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
+      broadcast.modo_global = payload.new?.modo_global || null;
       await carregarEnqueteViaBroadcast();
     })
     .subscribe();
