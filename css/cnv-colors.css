@@ -212,78 +212,68 @@
   border-radius: 8px;
 }
 
-/* Camada oceano de fundo (full screen) */
-.ocean-bg {
+/* === Fundo de Bolhas Leve (GPU-friendly) === */
+.cnv-bubbles {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  z-index: 0;
-  background: linear-gradient(180deg, rgba(0,30,60,0.85), rgba(0,60,120,0.85));
+  z-index: -1;                /* atrás de tudo */
+  pointer-events: none;
+  /* leve vinheta para dar profundidade no tema azul */
+  background: radial-gradient(1200px 1200px at 15% 10%, rgba(255,255,255,0.04), transparent 60%)
+              , radial-gradient(1400px 1400px at 85% 90%, rgba(0,0,0,0.20), transparent 65%);
 }
 
-/* ondas em 2 camadas com parallax leve */
-.wave {
+.cnv-bubbles span {
   position: absolute;
-  left: -50%;
-  width: 200%;
-  height: 20%;
-  background-repeat: repeat-x;
-  opacity: 0.15;
-  transform: translateY(0);
-}
-
-.wave--1 {
-  top: 25%;
-  background-image: radial-gradient(circle at 50% 50%, var(--cnv-secondary) 0 30%, transparent 31%);
-  background-size: 250px 100%;
-  animation: wave1 60s linear infinite;
-}
-
-.wave--2 {
-  top: 65%;
-  background-image: radial-gradient(circle at 50% 50%, var(--cnv-tertiary) 0 30%, transparent 31%);
-  background-size: 300px 100%;
-  animation: wave2 90s linear infinite;
-}
-
-@keyframes wave1 { from { background-position: 0 0; } to { background-position: -500px 0; } }
-@keyframes wave2 { from { background-position: 0 0; } to { background-position: 600px 0; } }
-
-/* bolhas */
-.bubbles {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.bubble {
-  position: absolute;
-  bottom: -10%;
+  bottom: -10vh;
+  left: var(--x, 50%);
+  width: var(--sz, 12px);
+  height: var(--sz, 12px);
   border-radius: 50%;
-  background: rgba(255,255,255,.5);
-  animation: rise var(--dur) linear infinite;
-  left: var(--x);
-}
-@keyframes rise {
-  from { transform: translateY(0); opacity:.8; }
-  to   { transform: translateY(-120vh); opacity:0; }
-}
-
-/* mergulhador */
-.diver {
-  position: absolute;
-  bottom: 25%;
-  right: 8%;
-  width: min(20vw, 340px);
-  animation: float 10s ease-in-out infinite;
-  z-index: 1;
-}
-@keyframes float {
-  0%,100% { transform: translateY(0); }
-  50%     { transform: translateY(-8px); }
+  opacity: 0;
+  /* “volume” de bolha com gradiente suave lembrando as cores CNV */
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.85), rgba(255,255,255,0.35) 40%, rgba(255,255,255,0.0) 60%) ,
+    radial-gradient(circle at 70% 70%, rgba(146, 227, 169, 0.35), rgba(146, 227, 169, 0.00) 55%);
+  filter: blur(0.2px);
+  transform: translate3d(-50%, 0, 0) scale(0.8);
+  animation: cnv-bubble-up var(--dur, 16s) linear var(--delay, 0s) infinite;
+  will-change: transform, opacity;
+  mix-blend-mode: screen; /* integra com seu fundo azul sem “chapar” */
 }
 
-/* assegura que o conteúdo do site fique acima */
-main, header, footer {
-  position: relative;
-  z-index: 2;
+/* Subtle drift e “respirar” no scale */
+@keyframes cnv-bubble-up {
+  0%   { opacity: 0; transform: translate3d(-50%, 0, 0)       scale(0.80); }
+  6%   { opacity: 0.85; }
+  50%  {                transform: translate3d(-50%, -55vh, 0) scale(0.92); }
+  100% { opacity: 0;    transform: translate3d(-50%, -110vh,0) scale(1.00); }
+}
+
+/* Distribuição pseudoaleatória por nth-child (leve e suficiente) */
+.cnv-bubbles span:nth-child(1)  { --x: 8%;  --sz: 12px; --dur: 18s; --delay:  0s; }
+.cnv-bubbles span:nth-child(2)  { --x: 18%; --sz: 16px; --dur: 22s; --delay: -2s; }
+.cnv-bubbles span:nth-child(3)  { --x: 27%; --sz: 10px; --dur: 14s; --delay: -5s; }
+.cnv-bubbles span:nth-child(4)  { --x: 36%; --sz: 22px; --dur: 26s; --delay: -8s; }
+.cnv-bubbles span:nth-child(5)  { --x: 44%; --sz: 14px; --dur: 17s; --delay: -3s; }
+.cnv-bubbles span:nth-child(6)  { --x: 52%; --sz: 28px; --dur: 30s; --delay: -9s; }
+.cnv-bubbles span:nth-child(7)  { --x: 60%; --sz: 10px; --dur: 15s; --delay: -1s; }
+.cnv-bubbles span:nth-child(8)  { --x: 68%; --sz: 18px; --dur: 21s; --delay: -6s; }
+.cnv-bubbles span:nth-child(9)  { --x: 74%; --sz: 12px; --dur: 16s; --delay: -4s; }
+.cnv-bubbles span:nth-child(10) { --x: 82%; --sz: 20px; --dur: 24s; --delay: -7s; }
+.cnv-bubbles span:nth-child(11) { --x: 12%; --sz: 14px; --dur: 19s; --delay: -11s; }
+.cnv-bubbles span:nth-child(12) { --x: 22%; --sz: 26px; --dur: 28s; --delay: -13s; }
+.cnv-bubbles span:nth-child(13) { --x: 31%; --sz: 12px; --dur: 17s; --delay: -10s; }
+.cnv-bubbles span:nth-child(14) { --x: 41%; --sz: 16px; --dur: 22s; --delay: -12s; }
+.cnv-bubbles span:nth-child(15) { --x: 49%; --sz: 10px; --dur: 14s; --delay: -15s; }
+.cnv-bubbles span:nth-child(16) { --x: 57%; --sz: 22px; --dur: 26s; --delay: -18s; }
+.cnv-bubbles span:nth-child(17) { --x: 65%; --sz: 14px; --dur: 19s; --delay: -14s; }
+.cnv-bubbles span:nth-child(18) { --x: 71%; --sz: 28px; --dur: 31s; --delay: -21s; }
+.cnv-bubbles span:nth-child(19) { --x: 88%; --sz: 16px; --dur: 23s; --delay: -17s; }
+.cnv-bubbles span:nth-child(20) { --x: 94%; --sz: 12px; --dur: 18s; --delay: -19s; }
+
+/* Acessibilidade: respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  .cnv-bubbles span { animation: none; opacity: 0.15; transform: translate3d(-50%, -60vh, 0) scale(0.9); }
 }
