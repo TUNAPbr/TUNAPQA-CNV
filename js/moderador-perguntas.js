@@ -537,31 +537,23 @@ const ModuloPerguntas = (() => {
   }
   
   async function exibir(id) {
-    // Se já tem uma exibida, perguntar se quer substituir
-    if (perguntas.exibida) {
-      if (!confirm('Há uma pergunta no telão. Substituir?')) {
-        return;
-      }
-      
-      // Marcar a atual como respondida
-      await supabase
-        .from('cnv25_perguntas')
-        .update({ 
-          status: 'respondida',
-          respondida_em: new Date().toISOString()
-        })
-        .eq('id', perguntas.exibida.id);
-      
-      // Liga o modo Perguntas e aponta a pergunta no broadcast
-      await window.ModeradorCore.setModoGlobal('perguntas', {
-        enquete_ativa: null,
-        mostrar_resultado_enquete: false,
-        quiz_ativo: null,
-        pergunta_exibida: perguntaId
-      });
-    }
-    
     try {
+      // Se já tem uma exibida, confirmar substituição e marcar a anterior como respondida
+      if (perguntas.exibida && perguntas.exibida.id !== id) {
+        const ok = confirm('Há uma pergunta no telão. Substituir pela nova?');
+        if (!ok) return;
+
+        const { error: eResp } = await supabase
+          .from('cnv25_perguntas')
+          .update({ 
+            status: 'respondida',
+            respondida_em: new Date().toISOString()
+          })
+          .eq('id', perguntas.exibida.id);
+        if (eResp) throw eResp;
+      }
+
+      // Marca a pergunta selecionada como EXIBIDA
       const { error } = await supabase
         .from('cnv25_perguntas')
         .update({ 
@@ -569,21 +561,20 @@ const ModuloPerguntas = (() => {
           exibida_em: new Date().toISOString()
         })
         .eq('id', id);
+      if (error) throw error;
 
       // Liga o modo Perguntas e aponta a pergunta no broadcast
       await window.ModeradorCore.setModoGlobal('perguntas', {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
         quiz_ativo: null,
-        pergunta_exibida: perguntaId
+        pergunta_exibida: id
       });
-      
-      if (error) throw error;
-      
+
       window.ModeradorCore.mostrarNotificacao('Pergunta exibida no telão!', 'success');
-      
-    } catch (error) {
-      console.error('Erro ao exibir:', error);
+
+    } catch (err) {
+      console.error('Erro ao exibir:', err);
       alert('Erro ao exibir pergunta');
     }
   }
@@ -597,6 +588,8 @@ const ModuloPerguntas = (() => {
           respondida_em: new Date().toISOString()
         })
         .eq('id', id);
+
+      // apaga o ponteiro no broadcast e volta para aguardando
       await window.ModeradorCore.setModoGlobal(null, {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
@@ -649,7 +642,7 @@ const ModuloPerguntas = (() => {
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `perguntas_${window.ModeradorCore.state.palestra.titulo}_${Date.now()}.csv`;
+      link.download = `perguntas_${window.ModeradorCore.state.palestra?.titulo || 'palestra'}_${Date.now()}.csv`;
       link.click();
       
       window.ModeradorCore.mostrarNotificacao('CSV exportado!', 'success');
