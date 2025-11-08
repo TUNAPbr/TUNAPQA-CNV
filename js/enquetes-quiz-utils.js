@@ -357,16 +357,38 @@ async function obterStatsQuizPergunta(perguntaId) {
 async function obterQuizAtivo(palestraId) {
   if (!palestraId) return null;
 
-  const { data, error } = await supabase
-    .from('cnv25_quiz')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .in('status', ['iniciado', 'em_andamento'])
-    // use o nome REAL da coluna de data:
-    .order('criado_em', { ascending: false }) // OU .order('criado_em', { ascending: false })
-    .limit(1)
-    .maybeSingle(); // <— evita 406 quando não houver quiz
+  // helper interno para executar a consulta com uma coluna de ordenação opcional
+  async function runQuery(orderBy) {
+    let q = supabase
+      .from('cnv25_quiz')
+      .select('*')
+      .eq('palestra_id', palestraId)
+      .in('status', ['iniciado', 'em_andamento'])
+      .limit(1);
 
+    if (orderBy) q = q.order(orderBy, { ascending: false });
+
+    // evita 406 quando não há linhas
+    const { data, error } = await q.maybeSingle();
+    return { data, error };
+  }
+
+  // 1) tenta com 'criado_em'
+  let { data, error } = await runQuery('criado_em');
+  if (!error && data) return data;
+  if (error && error.code !== '42703') {
+    console.warn('obterQuizAtivo (erro com criado_em):', error);
+  }
+
+  // 2) tenta com 'created_at'
+  ({ data, error } = await runQuery('created_at'));
+  if (!error && data) return data;
+  if (error && error.code !== '42703') {
+    console.warn('obterQuizAtivo (erro com created_at):', error);
+  }
+
+  // 3) tenta sem ordenação (pega 1 qualquer que esteja em andamento)
+  ({ data, error } = await runQuery(null));
   if (error) {
     console.warn('obterQuizAtivo (sem quiz ativo):', error);
     return null;
