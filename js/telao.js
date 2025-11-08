@@ -27,11 +27,14 @@ const el = {
 // ====== ESTADO ======
 let currentMode = 'loading';
 
+
+
 // broadcast global (enquetes/quiz sem vínculo com palestra)
 let broadcast = {
   enquete_ativa: null,
   mostrar_resultado_enquete: false,
   modo_global: null, // 'enquete' | 'perguntas' | 'quiz' | null
+  pergunta_exibida: null
 };
 let canalBroadcast = null;
 
@@ -92,6 +95,33 @@ function displayPollResult(poll, resultado) {
 }
 
 // ====== DATA FETCH (ENQUETE / RESULTADO) ======
+async function fetchPergunta(perguntaId) {
+  const { data, error } = await supabase
+    .from('cnv25_perguntas')
+    .select('texto, nome_opt, anonimo')
+    .eq('id', perguntaId)
+    .single();
+  if (error) { console.error('fetchPergunta:', error); return null; }
+  return data;
+}
+function displayPergunta(pergunta) {
+  // reaproveite o mesmo card “pollMode” ou crie um “questionMode”.
+  // Se quiser simples: usar o mesmo body do card da enquete.
+  const titleEl = document.getElementById('pollTitle');
+  const bodyEl  = document.getElementById('pollBody');
+  if (titleEl) titleEl.textContent = 'Pergunta em destaque';
+  if (bodyEl) {
+    const autor = pergunta.anonimo ? 'Anônimo' : (pergunta.nome_opt || 'Participante');
+    bodyEl.innerHTML = `
+      <div class="space-y-2">
+        <p class="text-xl font-semibold">${escapeHtml(pergunta.texto)}</p>
+        <p class="text-sm text-gray-500">por ${escapeHtml(autor)}</p>
+      </div>
+    `;
+  }
+  showMode('pollMode'); // usa o visual existente do card central
+}
+
 async function fetchEnquete(enqueteId) {
   const { data, error } = await supabase
     .from('cnv25_enquetes')
@@ -134,13 +164,14 @@ async function fetchResultadoEnquete(enqueteId) {
 // ====== BROADCAST (CARREGAR / REALTIME) ======
 async function carregarBroadcast() {
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('cnv25_broadcast_controle')
-      .select('enquete_ativa, mostrar_resultado_enquete, modo_global')
+      .select('enquete_ativa, mostrar_resultado_enquete, modo_global, pergunta_exibida')
       .eq('id', 1)
       .single();
     if (error) throw error;
 
+    broadcast.pergunta_exibida = data?.pergunta_exibida || null;
     broadcast.enquete_ativa = data?.enquete_ativa || null;
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
     broadcast.modo_global = data?.modo_global || null;
@@ -163,6 +194,7 @@ function conectarRealtimeBroadcast() {
       table: 'cnv25_broadcast_controle',
       filter: 'id=eq.1'
     }, async (payload) => {
+      broadcast.pergunta_exibida = payload.new?.pergunta_exibida || null;
       broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
       broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
       broadcast.modo_global = payload.new?.modo_global || null;
@@ -195,13 +227,22 @@ async function decidirOQueExibir() {
     return;
   }
 
+  if (broadcast.modo_global === 'perguntas') {
+    if (!broadcast.pergunta_exibida) { 
+      displayEmptyMode(); 
+      return; 
+    }
+    const pergunta = await fetchPergunta(broadcast.pergunta_exibida);
+    if (!pergunta) { displayEmptyMode(); return; }
+    displayPergunta(pergunta);
+    return;
+  }
+
   if (broadcast.modo_global === 'quiz') {
-    // quando migrarmos quiz p/ broadcast, pluga aqui as telas de quiz
     displayEmptyMode();
     return;
   }
 
-  // sem modo definido
   displayEmptyMode();
 }
 
