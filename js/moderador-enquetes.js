@@ -4,6 +4,8 @@
 
 (() => {
   // Estado local
+  let __enq_saving = false;
+  let __eventsBound = false;
   let _enquetes = [];
   let _enqueteAtivaId = null;         // do broadcast
   let _mostrarResultado = false;      // do broadcast
