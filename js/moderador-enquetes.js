@@ -1,11 +1,39 @@
+let _enquetes = [];
+let _enqueteAtivaId = null;
+
+// pega a palestra ativa global (independe da aba Perguntas)
+async function getPalestraAtivaGlobal() {
+  const { data, error } = await supabase
+    .from('cnv25_palestra_ativa')
+    .select('palestra_id')
+    .eq('id', 1)
+    .single();
+  if (error) { console.error(error); return null; }
+  return data?.palestra_id || null;
+}
+
+function marcarEnqueteAtivaUI(enqueteId) {
+  _enqueteAtivaId = enqueteId || null;
+  document.querySelectorAll('[data-enquete-id]').forEach(row => {
+    const isAtiva = row.getAttribute('data-enquete-id') === _enqueteAtivaId;
+    row.classList.toggle('ring-2', isAtiva);
+    row.classList.toggle('ring-green-500', isAtiva);
+    const badge = row.querySelector('[data-badge-ativa]');
+    if (badge) badge.classList.toggle('hidden', !isAtiva);
+  });
+}
+
+function toast(msg, tipo='info') {
+  window.ModeradorCore?.mostrarNotificacao?.(msg, tipo);
+}
+
+
 // =====================================================
 // MODERADOR - MÓDULO DE ENQUETES
 // =====================================================
 
 const ModuloEnquetes = (() => {
   // Estado local
-  let enquetes = [];
-  let enqueteAtiva = null;
   let chartEnquete = null;
   
   let canalEnquete = null;
