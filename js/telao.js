@@ -22,6 +22,8 @@ const el = {
   correctAnswer: document.getElementById('correctAnswer'),
   accuracyPercentage: document.getElementById('accuracyPercentage'),
   chartQuizDisplay: document.getElementById('chartQuizDisplay'),
+  modeBadgeText: document.getElementById('modeBadgeText'),
+  voteHint: document.getElementById('voteHint'),
 };
 
 // ====== ESTADO ======
@@ -62,12 +64,17 @@ function displayEmptyMode() {
 
 // ====== RENDER: ENQUETE ======
 function displayPoll(poll) {
+  if (el.modeBadgeText) el.modeBadgeText.textContent = 'ENQUETE ATIVA';
+  if (el.voteHint) el.voteHint.classList.remove('hidden'); // mostra a dica de voto
   if (el.pollTitle) el.pollTitle.textContent = poll?.titulo || 'Enquete';
-  if (el.pollBody) el.pollBody.innerHTML = ''; // telão minimalista
+  if (el.pollBody) el.pollBody.innerHTML = ''; // corpo limpo no telão
   showMode('pollMode');
 }
 
 function displayPollResult(poll, resultado) {
+  if (el.pollTitle) el.pollTitle.classList.remove('hidden');
+  if (el.modeBadgeText) el.modeBadgeText.textContent = 'RESULTADOS';
+  if (el.voteHint) el.voteHint.classList.add('hidden');
   const labels = 'ABCDEFGHIJ'.split('');
   const opcoes = poll?.opcoes?.opcoes || [];
   const rows = resultado?.rows || [];
@@ -105,17 +112,29 @@ async function fetchPergunta(perguntaId) {
   return data;
 }
 function displayPergunta(pergunta) {
-  if (el.pollTitle) el.pollTitle.textContent = 'Pergunta em destaque';
+  if (el.pollTitle) el.pollTitle.classList.remove('hidden');
+  if (el.modeBadgeText) el.modeBadgeText.textContent = 'PERGUNTA';
+  if (el.voteHint) el.voteHint.classList.add('hidden'); // não mostra "vote" em pergunta
+
+  // tira o "Pergunta em destaque"
+  if (el.pollTitle) {
+    el.pollTitle.textContent = '';            // sem texto
+    el.pollTitle.classList.add('hidden');     // esconde o <h2>
+  }
+
   if (el.pollBody) {
     const autor = pergunta.anonimo ? 'Anônimo' : (pergunta.nome_opt || 'Participante');
     el.pollBody.innerHTML = `
-      <div class="space-y-2">
-        <p class="text-xl font-semibold">${escapeHtml(pergunta.texto)}</p>
-        <p class="text-sm text-gray-500">por ${escapeHtml(autor)}</p>
+      <div class="space-y-3">
+        <p style="font-size:56px; line-height:1.2; font-weight:700; letter-spacing:-0.02em;">
+          ${escapeHtml(pergunta.texto)}
+        </p>
+        <p class="text-lg" style="opacity:.6;">por ${escapeHtml(autor)}</p>
       </div>
     `;
   }
-  showMode('pollMode'); // reaproveita o mesmo card central
+
+  showMode('pollMode');
 }
 
 // ====== DATA FETCH (ENQUETE / RESULTADO) ======
