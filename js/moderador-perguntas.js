@@ -1,6 +1,7 @@
 // ===== CRUD Palestra (UI da aba Perguntas) =====
 let _modoPalestra = 'novo';
 let _editPalestraId = null;
+let _editId = null;
 
 function abrirModalPalestra(modo) {
   _modoPalestra = modo;
@@ -230,6 +231,65 @@ async function recarregarSelectPalestra(idParaAtivar) {
     // mantém o valor atual do core, se existir
     const atual = window.ModeradorCore.state.palestraId;
     if (atual) select.value = atual;
+  }
+}
+
+function abrirModalEditar(id, textoAtual) {
+  _editId = id;
+  const modal = document.getElementById('modalEditarPergunta');
+  const ta = document.getElementById('edit_texto');
+  const cnt = document.getElementById('edit_count');
+  const warn = document.getElementById('edit_warn');
+
+  ta.value = textoAtual || '';
+  cnt.textContent = String(ta.value.length);
+  warn.classList.add('hidden');
+
+  ta.oninput = () => { cnt.textContent = String(ta.value.length); };
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function fecharModalEditar() {
+  const modal = document.getElementById('modalEditarPergunta');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  _editId = null;
+}
+
+async function salvarEdicao() {
+  const ta = document.getElementById('edit_texto');
+  const warn = document.getElementById('edit_warn');
+  const btn = document.getElementById('btnSalvarEdicao');
+  const texto = ta.value.trim();
+
+  if (!texto) { warn.classList.remove('hidden'); return; }
+
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const patch = {
+      texto,
+      updated_at: new Date().toISOString()
+    };
+    // se tiver coluna edit_count
+    // patch.edit_count = (perguntas.pendentes.concat(perguntas.aprovadas, perguntas.respondidas, perguntas.exibida?[perguntas.exibida]:[])
+    //   .find(p => p.id === _editId)?.edit_count || 0) + 1;
+
+    const { error } = await supabase
+      .from('cnv25_perguntas')
+      .update(patch)
+      .eq('id', _editId);
+
+    if (error) throw error;
+
+    fecharModalEditar();
+    window.ModeradorCore.mostrarNotificacao('Pergunta atualizada!', 'success');
+  } catch (e) {
+    console.error(e);
+    window.ModeradorCore.mostrarNotificacao('Falha ao salvar edição.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar';
   }
 }
 
