@@ -146,6 +146,22 @@
         </div>
       </div>
 
+      <!-- Modal Editar Pergunta -->
+      <div id="modalEditarPergunta" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-xl shadow-xl">
+          <h3 class="text-lg font-semibold mb-3">Editar Pergunta</h3>
+          <textarea id="edit_texto" class="w-full border rounded p-3 h-32" maxlength="140"></textarea>
+          <div class="mt-1 text-right text-xs text-gray-500">
+            <span id="edit_count">0</span>/140
+          </div>
+          <div id="edit_warn" class="hidden mt-3 text-sm text-red-600">Texto obrigatório</div>
+          <div class="mt-6 flex items-center justify-end gap-2">
+            <button class="px-4 py-2 rounded bg-gray-200" onclick="window.ModuloPerguntas.fecharModalEditar()">Cancelar</button>
+            <button id="btnSalvarEdicao" class="px-4 py-2 rounded bg-cnv-primary text-white" onclick="window.ModuloPerguntas.salvarEdicao()">Salvar</button>
+          </div>
+        </div>
+      </div>
+
       <div id="tabPerguntas" class="tab-content active p-6">
         <!-- Bloco: Palestra atual (dentro da aba Perguntas) -->
         <div id="blkPalestraPerguntas" class="mb-4 bg-white rounded-xl p-4 shadow">
