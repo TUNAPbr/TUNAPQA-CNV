@@ -293,6 +293,46 @@ async function salvarEdicao() {
   }
 }
 
+async function reexibir(id) {
+  try {
+    // Se já tem uma exibida e é diferente, marca a anterior como respondida
+    if (perguntas.exibida && perguntas.exibida.id !== id) {
+      const { error: eResp } = await supabase
+        .from('cnv25_perguntas')
+        .update({
+          status: 'respondida',
+          respondida_em: new Date().toISOString()
+        })
+        .eq('id', perguntas.exibida.id);
+      if (eResp) throw eResp;
+    }
+
+    // Tira o carimbo de respondida (se quiser manter histórico, só mude o status)
+    const { error } = await supabase
+      .from('cnv25_perguntas')
+      .update({
+        status: 'exibida',
+        exibida_em: new Date().toISOString(),
+        // respondida_em: null // se quiser "des-responder"
+      })
+      .eq('id', id);
+    if (error) throw error;
+
+    // Liga semáforo e aponta para a pergunta
+    await window.ModeradorCore.setModoGlobal('perguntas', {
+      enquete_ativa: null,
+      mostrar_resultado_enquete: false,
+      quiz_ativo: null,
+      pergunta_exibida: id
+    });
+
+    window.ModeradorCore.mostrarNotificacao('Pergunta reexibida no telão!', 'success');
+  } catch (e) {
+    console.error(e);
+    window.ModeradorCore.mostrarNotificacao('Falha ao reexibir.', 'error');
+  }
+}
+
 // =====================================================
 // MODERADOR - MÓDULO DE PERGUNTAS
 // =====================================================
