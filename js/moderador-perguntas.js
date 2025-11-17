@@ -169,7 +169,7 @@ async function excluirPalestra() {
     // 3) Agora é seguro excluir a selecionada
     const { error: eDel } = await supabase
       .from('cnv25_palestras')
-      .dee()
+      .delete()
       .eq('id', palestraId);
     if (eDel) throw eDel;
 
