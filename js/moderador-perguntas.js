@@ -690,7 +690,7 @@ const ModuloPerguntas = (() => {
         .eq('id', id);
 
       // apaga o ponteiro no broadcast e volta para aguardando
-      await window.ModeradorCore.setModoGlobal(null, {
+      await window.ModeradorCore.setModoGlobal('perguntas', {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
         quiz_ativo: null,
