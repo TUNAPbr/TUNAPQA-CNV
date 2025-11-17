@@ -1,458 +1,626 @@
 // =====================================================
-// MODERADOR - ENQUETES (DESACOPLADO DE PALESTRA)
+// MODERADOR - MÓDULO DE ENQUETES (independente de palestra)
 // =====================================================
 
-(() => {
+const ModuloEnquetes = (() => {
   // Estado local
-  let __enq_saving = false;
-  let __eventsBound = false;
   let _enquetes = [];
-  let _enqueteAtivaId = null;         // do broadcast
-  let _mostrarResultado = false;      // do broadcast
-
-  // Canais realtime
+  let _enqueteAtivaId = null;
   let _canalEnquetes = null;
-  let _canalBroadcast = null;
+
+  // Estado do CRUD
+  let _editEnqueteId = null;
 
   // =====================================================
-  // Utils DOM
+  // INICIALIZAÇÃO
   // =====================================================
-  const $ = (sel) => document.querySelector(sel);
-  const esc = (t) => {
-    const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
-  };
-  const toast = (msg, tipo='info') => window.ModeradorCore?.mostrarNotificacao?.(msg, tipo);
 
-  // Render “ATIVA” no card
-  function marcarEnqueteAtivaUI(enqueteId) {
-    _enqueteAtivaId = enqueteId || null;
-    document.querySelectorAll('[data-enquete-id]').forEach(row => {
-      const isAtiva = row.getAttribute('data-enquete-id') === _enqueteAtivaId;
-      row.classList.toggle('ring-2', isAtiva);
-      row.classList.toggle('ring-green-500', isAtiva);
+  async function inicializar() {
+    console.log('📊 Módulo Enquetes inicializando...');
 
-      const badge = row.querySelector('[data-badge-ativa]');
-      if (badge) badge.classList.toggle('hidden', !isAtiva);
-    });
+    await carregarEnquetes();
+    conectarRealtime();
+    configurarEventos();
 
-    const toggle = $('#toggleResultadoTelao');
-    if (toggle) toggle.checked = !!_mostrarResultado;
+    console.log('✅ Módulo Enquetes pronto');
+  }
+
+  function desconectar() {
+    if (_canalEnquetes) {
+      window.supabase.removeChannel(_canalEnquetes);
+      _canalEnquetes = null;
+    }
   }
 
   // =====================================================
-  // BROADCAST (controle global do telão)
+  // CARREGAR ENQUETES
   // =====================================================
-  async function carregarBroadcast() {
-    const { data, error } = await supabase
-      .from('cnv25_broadcast_controle')
-      .select('enquete_ativa, mostrar_resultado_enquete')
-      .eq('id', 1)
-      .single();
-    if (error) { console.error(error); return; }
 
-    _enqueteAtivaId = data?.enquete_ativa || null;
-    _mostrarResultado = !!data?.mostrar_resultado_enquete;
-    marcarEnqueteAtivaUI(_enqueteAtivaId);
+  async function carregarEnquetes() {
+    try {
+      const { data, error } = await supabase
+        .from('cnv25_enquetes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      _enquetes = data || [];
+      // tentar descobrir qual é "ativa" pelo broadcast, se já estiver setado
+      // (o ModeradorCore chama onEnqueteAtivaMudou quando o broadcast muda)
+      renderizarLista();
+    } catch (err) {
+      console.error('Erro ao carregar enquetes:', err);
+    }
   }
 
-  async function setBroadcast(patch) {
-    const { error } = await supabase
-      .from('cnv25_broadcast_controle')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', 1);
-    if (error) { console.error(error); toast('Falha ao atualizar telão.', 'error'); return false; }
-    return true;
-  }
+  // =====================================================
+  // REALTIME
+  // =====================================================
 
-  function conectarRealtimeBroadcast() {
-    if (_canalBroadcast) return;
-    _canalBroadcast = supabase
-      .channel('mod_broadcast_enquetes')
+  function conectarRealtime() {
+    desconectar();
+
+    _canalEnquetes = supabase
+      .channel('mod_enquetes_global')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'cnv25_broadcast_controle',
-        filter: 'id=eq.1'
+        table: 'cnv25_enquetes'
       }, (payload) => {
-        const b = payload.new;
-        _enqueteAtivaId = b?.enquete_ativa || null;
-        _mostrarResultado = !!b?.mostrar_resultado_enquete;
-        marcarEnqueteAtivaUI(_enqueteAtivaId);
+        const nova = payload.new;
+        if (!nova) return;
+
+        // Atualiza/insere na lista local
+        const idx = _enquetes.findIndex(e => e.id === nova.id);
+        if (idx >= 0) {
+          _enquetes[idx] = nova;
+        } else {
+          _enquetes.unshift(nova);
+        }
+
+        renderizarLista();
       })
       .subscribe();
   }
 
   // =====================================================
-  // LISTA DE ENQUETES
+  // RENDERIZAÇÃO DA LISTA
   // =====================================================
-  async function carregarEnquetes() {
-    const { data, error } = await supabase
-      .from('cnv25_enquetes')
-      .select('id, titulo, opcoes, ativa, created_at, encerrada_em')
-      .eq('modo','enquete')
-      .order('created_at', { ascending: false });
-    if (error) { console.error(error); return; }
-
-    _enquetes = data || [];
-    renderizarLista();
-  }
-
-  function conectarRealtimeEnquetes() {
-    if (_canalEnquetes) return;
-    _canalEnquetes = supabase
-      .channel('mod_enquetes_lista_global')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cnv25_enquetes' }, async () => {
-        await carregarEnquetes();
-      })
-      .subscribe();
-  }
 
   function renderizarLista() {
-  const wrap = document.getElementById('listaEnquetes');
-  if (!wrap) return;
-
-  if (!_enquetes.length) {
-    wrap.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma enquete</p>';
-    return;
-  }
-
-  wrap.innerHTML = _enquetes.map(e => {
-    const isAtiva = e.id === _enqueteAtivaId;
-    const encerrada = !!e.encerrada_em;
-    const ops = (e.opcoes?.opcoes || []).map((t,i)=>`${String.fromCharCode(65+i)}. ${esc(t)}`).join(' • ');
-
-    return `
-      <div class="border rounded-lg p-3 mb-2 bg-white hover:bg-gray-50 transition" data-enquete-id="${e.id}">
-        <div class="flex items-center justify-between gap-2">
-          <div class="min-w-0">
-            <div class="font-semibold truncate">${esc(e.titulo)}</div>
-            <div class="text-xs text-gray-500 truncate">${ops}</div>
-            ${encerrada ? '<div class="text-[11px] text-red-600 mt-1">🏁 Encerrada</div>' : ''}
-          </div>
-          <div class="flex items-center gap-2">
-            <span data-badge-ativa class="text-xs px-2 py-1 rounded bg-green-600 text-white ${isAtiva?'':'hidden'}">ATIVA</span>
-
-            ${!encerrada ? (
-              isAtiva
-              ? `
-                <button class="px-3 py-1 text-xs rounded bg-gray-500 text-white"
-                        onclick="window.ModuloEnquetes.desativar()">Desativar</button>
-                <button class="px-3 py-1 text-xs rounded bg-orange-600 text-white"
-                        onclick="window.ModuloEnquetes.encerrar('${e.id}')">Encerrar</button>
-              `
-              : `
-                <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white"
-                        onclick="window.ModuloEnquetes.ativar('${e.id}')">Ativar</button>
-              `
-            ) : ''}
-
-            <button class="px-3 py-1 text-xs rounded bg-gray-200"
-                    onclick="window.ModuloEnquetes.abrirResultados('${e.id}')">Resultados</button>
-
-            ${!isAtiva ? `
-              <button class="px-3 py-1 text-xs rounded bg-red-600 text-white"
-                      onclick="window.ModuloEnquetes.deletar('${e.id}')">Deletar</button>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  marcarEnqueteAtivaUI(_enqueteAtivaId);
-}
-
-  // =====================================================
-  // RESULTADOS (Drawer)
-  // =====================================================
-  async function abrirResultados(enqueteId) {
-    const e = _enquetes.find(x => x.id === enqueteId);
-    if (!e) return;
-
-    const backdrop = document.getElementById('drawerBackdrop');
-    const drawer   = document.getElementById('drawerResultados');
-    const body     = document.getElementById('drawerBody');
-    const title    = document.getElementById('drawerTitulo');
-    if (!drawer || !body || !title) return;
-
-    title.textContent = `Resultados — ${e.titulo}`;
-    body.innerHTML = '<div class="text-sm text-gray-600">Carregando…</div>';
-    drawer.classList.remove('translate-x-full');
-    if (backdrop) backdrop.classList.remove('hidden');
-
-    // Tenta view agregada; fallback para contagem no front
-    let votos = [];
-    let total = 0;
-    let viaView = true;
-
-    const r1 = await supabase
-      .from('cnv25_enquete_resultado_v') // se não existir, cai no fallback
-      .select('*')
-      .eq('enquete_id', e.id);
-
-    if (r1.error) viaView = false;
-
-    if (viaView) {
-      votos = r1.data || [];
-      total = votos.reduce((acc,r)=>acc+(r.votos||0),0);
-    } else {
-      const { data: rs } = await supabase
-        .from('cnv25_enquete_respostas')
-        .select('resposta')
-        .eq('enquete_id', e.id);
-
-      const cont = {};
-      (rs||[]).forEach(r=>{
-        const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
-        cont[idx] = (cont[idx]||0)+1;
-      });
-      votos = Object.entries(cont).map(([k,v])=>({ opcao_index: parseInt(k,10), votos: v }));
-      total = (rs||[]).length;
+    const container = document.getElementById('listaEnquetes');
+    if (!container) {
+      console.warn('⚠️ listaEnquetes não encontrada no HTML');
+      return;
     }
 
-    const labels = 'ABCDEFGHIJ'.split('');
-    const opcoes = e.opcoes?.opcoes || [];
-    body.innerHTML = opcoes.map((txt,idx)=>{
-      const v = votos.find(x=>x.opcao_index === idx)?.votos || 0;
-      const pct = total ? Math.round((v/total)*100) : 0;
+    if (!_enquetes.length) {
+      container.innerHTML = `
+        <p class="text-gray-500 text-center py-6">
+          Nenhuma enquete cadastrada ainda.
+        </p>
+      `;
+      return;
+    }
+
+    container.innerHTML = _enquetes.map(enq => {
+      const ativa = enq.id === _enqueteAtivaId;
+      const encerrada = !!enq.encerrada_em;
+      const tipoLabel = traduzTipo(enq.tipo);
+      const modoLabel = traduzModo(enq.modo);
+      const created = formatarData(enq.created_at);
+
       return `
-        <div class="border rounded-lg p-3">
-          <div class="flex items-center justify-between">
-            <div class="font-medium"><strong>${labels[idx]}.</strong> ${esc(txt)}</div>
-            <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
+        <div class="border rounded-lg p-3 mb-2 bg-white hover:shadow-sm transition">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <div>
+              <p class="font-medium text-sm">${esc(enq.titulo)}</p>
+              <div class="text-xs text-gray-500">
+                ${modoLabel} • ${tipoLabel} • Criada em ${created}
+              </div>
+            </div>
+            <div class="flex flex-col items-end gap-1 text-xs">
+              ${ativa ? `
+                <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 font-semibold">
+                  🔴 ATIVA
+                </span>
+              ` : ''}
+              ${encerrada ? `
+                <span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                  Encerrada
+                </span>
+              ` : ''}
+            </div>
           </div>
-          <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
-            <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button 
+              class="px-3 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition"
+              onclick="window.ModuloEnquetes.abrirModalEditar('${enq.id}')"
+            >
+              ✎ Editar
+            </button>
+
+            ${!ativa ? `
+              <button 
+                class="px-3 py-1 text-xs rounded bg-green-500 text-white hover:bg-green-600 transition"
+                onclick="window.ModuloEnquetes.ativar('${enq.id}')"
+              >
+                ▶️ Ativar
+              </button>
+            ` : `
+              <button 
+                class="px-3 py-1 text-xs rounded bg-gray-500 text-white hover:bg-gray-600 transition"
+                onclick="window.ModuloEnquetes.desativar()"
+              >
+                ⏹ Desativar
+              </button>
+              <button 
+                class="px-3 py-1 text-xs rounded bg-amber-500 text-white hover:bg-amber-600 transition"
+                onclick="window.ModuloEnquetes.encerrar('${enq.id}')"
+              >
+                📊 Encerrar / Mostrar resultado
+              </button>
+            `}
+
+            <button 
+              class="px-3 py-1 text-xs rounded bg-indigo-500 text-white hover:bg-indigo-600 transition"
+              onclick="window.ModuloEnquetes.abrirResultados('${enq.id}')"
+            >
+              📈 Ver resultados
+            </button>
+
+            <button 
+              class="px-3 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600 transition"
+              onclick="window.ModuloEnquetes.deletar('${enq.id}')"
+            >
+              🗑 Excluir
+            </button>
           </div>
         </div>
       `;
     }).join('');
   }
 
-  function fecharResultados() {
-    const backdrop = document.getElementById('drawerBackdrop');
-    const drawer   = document.getElementById('drawerResultados');
-    if (drawer) drawer.classList.add('translate-x-full');
-    if (backdrop) backdrop.classList.add('hidden');
-  }
-
   // =====================================================
-  // AÇÕES
+  // CRUD - MODAL
   // =====================================================
-  async function ativar(enqueteId) {
-    // UI otimista
-    marcarEnqueteAtivaUI(enqueteId);
 
-    const ok = await setBroadcast({ enquete_ativa: enqueteId, mostrar_resultado_enquete: false });
-    if (!ok) marcarEnqueteAtivaUI(_enqueteAtivaId); // rollback
-    else toast('Enquete ativada!', 'success');
-  }
-
-  async function desativar() {
-    // limpa broadcast
-    const ok = await window.ModeradorCore.setModoGlobal(null, {
-      enquete_ativa: null,
-      mostrar_resultado_enquete: false
-    });
-    if (!ok) return;
-    marcarEnqueteAtivaUI(null);
-    toast('Enquete desativada.', 'info');
-  }
-  
- async function encerrar(enqueteId) {
-    // 1) se for a ativa, desativa no telão
-    if (_enqueteAtivaId === enqueteId) {
-      await window.ModeradorCore.setModoGlobal(null, {
-        enquete_ativa: null,
-        mostrar_resultado_enquete: false
-      });
-    }
-    // 2) marca encerrada na tabela
-    const { error } = await supabase
-      .from('cnv25_enquetes')
-      .update({ encerrada_em: new Date().toISOString(), ativa: false })
-      .eq('id', enqueteId);
-    if (error) { console.error(error); toast('Erro ao encerrar enquete.', 'error'); return; }
-  
-    await carregarEnquetes();
-    toast('Enquete encerrada.', 'success');
-  }
-  
-  async function onToggleResultadoTelao(checked) {
-    const ok = await setBroadcast({ mostrar_resultado_enquete: !!checked });
-    if (!ok) return;
-    _mostrarResultado = !!checked;
-    toast(checked ? 'Resultado habilitado no telão' : 'Resultado oculto no telão', checked ? 'success' : 'info');
-  }
-
-  async function deletar(enqueteId) {
-    // bloqueia se for a ativa global
-    if (_enqueteAtivaId === enqueteId) {
-      alert('Desative esta enquete antes de deletar.');
-      return;
-    }
-    if (!confirm('Excluir esta enquete?')) return;
-
-    const { error } = await supabase.from('cnv25_enquetes').delete().eq('id', enqueteId);
-    if (error) { console.error(error); toast('Erro ao excluir', 'error'); return; }
-
-    await carregarEnquetes();
-    toast('Enquete excluída.', 'success');
-  }
-
-  // =====================================================
-  // MODAL – Criar/Editar Enquete (usando IDs do HTML atual)
-  // =====================================================
-  function abrirModalEnqueteNova() {
+  function abrirModalNova() {
+    _editEnqueteId = null;
     const modal = document.getElementById('modalEnqueteCRUD');
     if (!modal) return;
-    document.getElementById('tituloModalEnquete').textContent = 'Criar Enquete';
-    document.getElementById('btnTextEnquete').textContent = 'Criar Enquete';
-    document.getElementById('enqueteIdEdit').value = '';
-    document.getElementById('inputTituloEnqueteCRUD').value = '';
-    document.getElementById('inputOpcoesEnqueteCRUD').value = '';
+
+    const titulo = document.getElementById('inputTituloEnqueteCRUD');
+    const opcoes = document.getElementById('inputOpcoesEnqueteCRUD');
+    const tipo   = document.getElementById('selectTipoEnqueteCRUD');
+    const modo   = document.getElementById('selectModoEnqueteCRUD');
+    const hiddenId = document.getElementById('enqueteIdEdit');
+
+    if (titulo) titulo.value = '';
+    if (opcoes) opcoes.value = '';
+    if (tipo)   tipo.value   = 'multipla_escolha';
+    if (modo)   modo.value   = 'enquete';
+    if (hiddenId) hiddenId.value = '';
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
   }
 
-  function fecharModalEnqueteCRUD() {
+  function abrirModalEditar(id) {
+    _editEnqueteId = id;
     const modal = document.getElementById('modalEnqueteCRUD');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    if (!modal) return;
+
+    const enq = _enquetes.find(e => e.id === id);
+    if (!enq) {
+      console.warn('Enquete não encontrada para edição:', id);
+      return;
+    }
+
+    const titulo = document.getElementById('inputTituloEnqueteCRUD');
+    const opcoes = document.getElementById('inputOpcoesEnqueteCRUD');
+    const tipo   = document.getElementById('selectTipoEnqueteCRUD');
+    const modo   = document.getElementById('selectModoEnqueteCRUD');
+    const hiddenId = document.getElementById('enqueteIdEdit');
+
+    if (titulo) titulo.value = enq.titulo || '';
+    if (opcoes) {
+      // opcoes é jsonb no banco, guardamos como array de strings
+      if (Array.isArray(enq.opcoes)) {
+        opcoes.value = enq.opcoes.join('\n');
+      } else if (enq.opcoes && Array.isArray(enq.opcoes.opcoes)) {
+        // caso venha no formato {opcoes:[...]}
+        opcoes.value = enq.opcoes.opcoes.join('\n');
+      } else {
+        opcoes.value = '';
+      }
+    }
+    if (tipo && enq.tipo) tipo.value = enq.tipo;
+    if (modo && enq.modo) modo.value = enq.modo;
+    if (hiddenId) hiddenId.value = enq.id;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
   }
 
-  async function salvarEnqueteCRUD(ev) {
-    ev?.preventDefault?.();
-    
-    if (__enq_saving) return;
-    __enq_saving = true;
-    
+  function fecharModalCRUD() {
+    const modal = document.getElementById('modalEnqueteCRUD');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    _editEnqueteId = null;
+  }
+
+  async function salvarEnqueteCRUD(event) {
+    if (event) event.preventDefault();
+
+    const titulo = document.getElementById('inputTituloEnqueteCRUD')?.value.trim();
+    const opcoesStr = document.getElementById('inputOpcoesEnqueteCRUD')?.value || '';
+    const tipo   = document.getElementById('selectTipoEnqueteCRUD')?.value || 'multipla_escolha';
+    const modo   = document.getElementById('selectModoEnqueteCRUD')?.value || 'enquete';
+    const hiddenId = document.getElementById('enqueteIdEdit');
+
+    if (!titulo) {
+      alert('Informe um título para a enquete.');
+      return;
+    }
+
+    const rawOpcoes = opcoesStr.split('\n')
+      .map(o => o.trim())
+      .filter(o => o.length > 0);
+
+    if (!rawOpcoes.length) {
+      alert('Informe pelo menos uma opção.');
+      return;
+    }
+
+    const payload = {
+      titulo,
+      tipo,
+      modo,
+      opcoes: rawOpcoes,
+      ativa: false
+    };
+
+    const btn = document.getElementById('btnSalvarEnqueteCRUD');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+    }
+
     try {
-      
-      const titulo = document.getElementById('inputTituloEnqueteCRUD').value.trim();
-      const linhas = document.getElementById('inputOpcoesEnqueteCRUD').value.trim().split('\n')
-        .map(s=>s.trim()).filter(Boolean);
-  
-      if (!titulo || linhas.length < 2) {
-        alert('Informe título e pelo menos 2 opções.');
-        return;
+      if (hiddenId && hiddenId.value) {
+        // UPDATE
+        const { error } = await supabase
+          .from('cnv25_enquetes')
+          .update(payload)
+          .eq('id', hiddenId.value);
+
+        if (error) throw error;
+      } else {
+        // INSERT
+        const { error } = await supabase
+          .from('cnv25_enquetes')
+          .insert([payload]);
+
+        if (error) throw error;
       }
-      if (linhas.length > 10) {
-        alert('Máximo de 10 opções.');
-        return;
-      }
-  
-      const payload = {
-        palestra_id: null,
-        titulo,
-        tipo: 'multipla_escolha',
-        modo: 'enquete',
-        opcoes: { opcoes: linhas },
-        ativa: true
-      };
-  
-      const { error } = await supabase.from('cnv25_enquetes').insert([payload]);
-      if (error) { console.error(error); alert('Erro ao criar enquete'); return; }
-  
-      fecharModalEnqueteCRUD();
+
       await carregarEnquetes();
-  
-      // Pergunta se ativa agora
-      const nova = _enquetes.find(e => e.titulo === titulo && (e.opcoes?.opcoes||[]).join('|') === linhas.join('|'));
-      if (nova && confirm('Ativar esta enquete agora?')) {
-        await ativar(nova.id);
-      }
+      fecharModalCRUD();
+      window.ModeradorCore?.mostrarNotificacao?.('Enquete salva com sucesso!', 'success');
+    } catch (err) {
+      console.error('Erro ao salvar enquete:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao salvar enquete.', 'error') || alert('Erro ao salvar enquete');
     } finally {
-        __enq_saving = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Salvar';
       }
-  }
-
-  // =====================================================
-  // Eventos
-  // =====================================================
-  function configurarEventos() {
-    
-    if (__eventsBound) return;   // <--- evita listeners duplicados
-    __eventsBound = true;
-    
-    // Botões de modal
-    window.abrirModalEnqueteNova = abrirModalEnqueteNova;   // para o HTML
-    window.fecharModalEnqueteCRUD = fecharModalEnqueteCRUD; // para o HTML
-
-    const formCRUD = document.getElementById('formEnqueteCRUD');
-    if (formCRUD) formCRUD.addEventListener('submit', salvarEnqueteCRUD);
-
-    // Drawer fechar (já expõe global)
-    window.fecharResultados = fecharResultados;
-
-    // Toggle “mostrar resultado”
-    window.onToggleResultadoTelao = onToggleResultadoTelao;
-
-    // Exportar CSV da enquete ATIVA (se quiser manter esse botão)
-    const btnExport = document.getElementById('btnExportarEnquete');
-    if (btnExport) {
-      btnExport.onclick = async () => {
-        if (!_enqueteAtivaId) return alert('Nenhuma enquete ativa.');
-        try {
-          const ativa = _enquetes.find(x => x.id === _enqueteAtivaId);
-          const { data: respostas } = await supabase
-            .from('cnv25_enquete_respostas')
-            .select('*')
-            .eq('enquete_id', _enqueteAtivaId)
-            .order('created_at');
-
-          if (!respostas || respostas.length === 0) {
-            alert('Nenhuma resposta para exportar');
-            return;
-          }
-
-          const csv = [
-            ['Data/Hora','Opção','Device (hash 8)'].join(','),
-            ...respostas.map(r => [
-              new Date(r.created_at).toLocaleString('pt-BR'),
-              (ativa?.opcoes?.opcoes || [])[ (r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0) ] || 'N/A',
-              (r.device_id_hash||'').slice(0,8)
-            ].map(c => `"${String(c).replace(/"/g,'""')}"`).join(','))
-          ].join('\n');
-
-          const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' });
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = `enquete_${(ativa?.titulo||'ativa').replace(/[^a-z0-9]/gi,'_')}_${Date.now()}.csv`;
-          link.click();
-          toast('CSV exportado!', 'success');
-        } catch (e) {
-          console.error(e);
-          alert('Erro ao exportar CSV');
-        }
-      };
     }
   }
 
   // =====================================================
-  // API Pública (global)
+  // AÇÕES: ATIVAR / DESATIVAR / ENCERRAR / DELETAR
   // =====================================================
-  async function inicializar() {
-    await carregarEnquetes();
-    await carregarBroadcast();
-    conectarRealtimeEnquetes();
-    conectarRealtimeBroadcast();
-    configurarEventos();
-    console.log('✅ Módulo Enquetes (global) pronto');
+
+  async function ativar(enqueteId) {
+    try {
+      // 1) Atualiza coluna "ativa" no banco (apenas esta como true)
+      const { error: eReset } = await supabase
+        .from('cnv25_enquetes')
+        .update({ ativa: false })
+        .eq('ativa', true);
+      if (eReset) throw eReset;
+
+      const { error: eSet } = await supabase
+        .from('cnv25_enquetes')
+        .update({ ativa: true, encerrada_em: null })
+        .eq('id', enqueteId);
+      if (eSet) throw eSet;
+
+      // 2) Liga semáforo global em modo ENQUETES
+      await window.ModeradorCore.setModoGlobal('enquetes', {
+        enquete_ativa: enqueteId,
+        mostrar_resultado_enquete: false,
+        pergunta_exibida: null,
+        quiz_ativo: null
+      });
+
+      _enqueteAtivaId = enqueteId;
+      renderizarLista();
+      window.ModeradorCore?.mostrarNotificacao?.('Enquete ativada!', 'success');
+    } catch (err) {
+      console.error('Erro ao ativar enquete:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao ativar enquete.', 'error') || alert('Erro ao ativar enquete');
+    }
   }
 
-  function desconectar() {
-    if (_canalEnquetes) { window.supabase.removeChannel(_canalEnquetes); _canalEnquetes = null; }
-    if (_canalBroadcast) { window.supabase.removeChannel(_canalBroadcast); _canalBroadcast = null; }
+  async function desativar() {
+    if (!_enqueteAtivaId) return;
+
+    try {
+      const { error } = await supabase
+        .from('cnv25_enquetes')
+        .update({ ativa: false })
+        .eq('id', _enqueteAtivaId);
+      if (error) throw error;
+
+      // Desliga modo global (volta pra "aguardando conteúdo")
+      await window.ModeradorCore.setModoGlobal(null, {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        pergunta_exibida: null,
+        quiz_ativo: null
+      });
+
+      _enqueteAtivaId = null;
+      renderizarLista();
+      window.ModeradorCore?.mostrarNotificacao?.('Enquete desativada.', 'info');
+    } catch (err) {
+      console.error('Erro ao desativar enquete:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao desativar enquete.', 'error') || alert('Erro ao desativar enquete');
+    }
   }
 
-  window.ModuloEnquetes = {
+  async function encerrar(enqueteId) {
+    try {
+      const agora = new Date().toISOString();
+      const { error } = await supabase
+        .from('cnv25_enquetes')
+        .update({
+          ativa: false,
+          encerrada_em: agora
+        })
+        .eq('id', enqueteId);
+      if (error) throw error;
+
+      // Exibe o resultado dessa enquete no telão/participante
+      await window.ModeradorCore.setModoGlobal('enquetes', {
+        enquete_ativa: enqueteId,
+        mostrar_resultado_enquete: true,
+        pergunta_exibida: null,
+        quiz_ativo: null
+      });
+
+      _enqueteAtivaId = enqueteId;
+      renderizarLista();
+      window.ModeradorCore?.mostrarNotificacao?.('Enquete encerrada. Resultado no telão.', 'success');
+    } catch (err) {
+      console.error('Erro ao encerrar enquete:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao encerrar enquete.', 'error') || alert('Erro ao encerrar enquete');
+    }
+  }
+
+  async function deletar(enqueteId) {
+    const alvo = _enquetes.find(e => e.id === enqueteId);
+    const titulo = alvo ? alvo.titulo : 'esta enquete';
+
+    if (!confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
+
+    try {
+      // Se ela for a ativa, desliga o semáforo
+      if (_enqueteAtivaId === enqueteId) {
+        await window.ModeradorCore.setModoGlobal(null, {
+          enquete_ativa: null,
+          mostrar_resultado_enquete: false,
+          pergunta_exibida: null,
+          quiz_ativo: null
+        });
+        _enqueteAtivaId = null;
+      }
+
+      const { error } = await supabase
+        .from('cnv25_enquetes')
+        .delete()
+        .eq('id', enqueteId);
+      if (error) throw error;
+
+      _enquetes = _enquetes.filter(e => e.id !== enqueteId);
+      renderizarLista();
+      window.ModeradorCore?.mostrarNotificacao?.('Enquete excluída.', 'success');
+    } catch (err) {
+      console.error('Erro ao excluir enquete:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao excluir enquete.', 'error') || alert('Erro ao excluir enquete');
+    }
+  }
+
+  async function abrirResultados(enqueteId) {
+    try {
+      await window.ModeradorCore.setModoGlobal('enquetes', {
+        enquete_ativa: enqueteId,
+        mostrar_resultado_enquete: true,
+        pergunta_exibida: null,
+        quiz_ativo: null
+      });
+
+      _enqueteAtivaId = enqueteId;
+      renderizarLista();
+      window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete no telão.', 'info');
+    } catch (err) {
+      console.error('Erro ao abrir resultados:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao abrir resultados.', 'error');
+    }
+  }
+
+  // =====================================================
+  // EXPORTAR CSV
+  // =====================================================
+
+  async function exportarCSV() {
+    if (!_enquetes.length) {
+      alert('Não há enquetes para exportar.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('cnv25_enquete_respostas')
+        .select('*')
+        .in('enquete_id', _enquetes.map(e => e.id));
+
+      if (error) throw error;
+
+      const respostas = data || [];
+
+      const header = [
+        'Enquete',
+        'Enquete_ID',
+        'Device_ID',
+        'Resposta',
+        'Data/Hora'
+      ];
+
+      const linhas = [header.join(',')];
+
+      for (const enq of _enquetes) {
+        const respEnq = respostas.filter(r => r.enquete_id === enq.id);
+        for (const r of respEnq) {
+          const respStr = JSON.stringify(r.resposta).replace(/"/g, '""');
+          linhas.push([
+            `"${enq.titulo.replace(/"/g, '""')}"`,
+            enq.id,
+            `"${(r.device_id_hash || '').replace(/"/g, '""')}"`,
+            `"${respStr}"`,
+            formatarData(r.created_at)
+          ].join(','));
+        }
+      }
+
+      const csv = linhas.join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `enquetes_${Date.now()}.csv`;
+      link.click();
+
+      window.ModeradorCore?.mostrarNotificacao?.('CSV de enquetes exportado!', 'success');
+    } catch (err) {
+      console.error('Erro ao exportar CSV de enquetes:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao exportar CSV.', 'error');
+    }
+  }
+
+  // =====================================================
+  // EVENTOS (BOTÕES / FORM)
+  // =====================================================
+
+  function configurarEventos() {
+    const btnNova = document.getElementById('btnNovaEnquete');
+    const btnExportar = document.getElementById('btnExportarEnquetes');
+    const formCRUD = document.getElementById('formEnqueteCRUD');
+
+    if (btnNova) {
+      btnNova.onclick = () => abrirModalNova();
+    } else {
+      console.warn('⚠️ btnNovaEnquete não encontrado');
+    }
+
+    if (btnExportar) {
+      btnExportar.onclick = () => exportarCSV();
+    }
+
+    if (formCRUD) {
+      formCRUD.onsubmit = salvarEnqueteCRUD;
+    } else {
+      console.warn('⚠️ formEnqueteCRUD não encontrado');
+    }
+  }
+
+  // =====================================================
+  // INTERAÇÃO COM BROADCAST (CHAMADO PELO CORE)
+  // =====================================================
+
+  function onEnqueteAtivaMudou(novaId) {
+    _enqueteAtivaId = novaId || null;
+    renderizarLista();
+  }
+
+  // =====================================================
+  // UTILIDADES
+  // =====================================================
+
+  function formatarData(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function traduzTipo(tipo) {
+    switch (tipo) {
+      case 'sim_nao': return 'Sim / Não';
+      case 'estrelas': return 'Estrelas';
+      case 'multipla_escolha':
+      default: return 'Múltipla escolha';
+    }
+  }
+
+  function traduzModo(modo) {
+    switch (modo) {
+      case 'quiz': return 'Quiz';
+      case 'enquete':
+      default: return 'Enquete';
+    }
+  }
+
+  function esc(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+  }
+
+  // =====================================================
+  // API PÚBLICA
+  // =====================================================
+
+  return {
     inicializar,
     desconectar,
     ativar,
     desativar,
     encerrar,
+    deletar,
     abrirResultados,
-    deletar
+    exportarCSV,
+    // CRUD
+    abrirModalNova,
+    abrirModalEditar,
+    fecharModalCRUD,
+    salvarEnqueteCRUD,
+    // integração broadcast
+    onEnqueteAtivaMudou
   };
-
 })();
+
+// Expor global
+window.ModuloEnquetes = ModuloEnquetes;
+
+console.log('✅ Módulo Enquetes carregado (independente de palestra)');
