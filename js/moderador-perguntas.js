@@ -1,7 +1,6 @@
 // ===== CRUD Palestra (UI da aba Perguntas) =====
 let _modoPalestra = 'novo';
 let _editPalestraId = null;
-let _editId = null;
 
 function abrirModalPalestra(modo) {
   _modoPalestra = modo;
@@ -137,7 +136,7 @@ async function excluirPalestra() {
     if (eAct) throw eAct;
 
     const ativaAtual = pa?.palestra_id || null;
-    let novaAtivaId = null;
+     novaAtivaId = null;
 
     if (ativaAtual === palestraId) {
       // 2) Buscar outra palestra para assumir (se existir)
@@ -170,7 +169,7 @@ async function excluirPalestra() {
     // 3) Agora é seguro excluir a selecionada
     const { error: eDel } = await supabase
       .from('cnv25_palestras')
-      .delete()
+      .dee()
       .eq('id', palestraId);
     if (eDel) throw eDel;
 
@@ -234,119 +233,23 @@ async function recarregarSelectPalestra(idParaAtivar) {
   }
 }
 
-function abrirModalEditar(id, textoAtual) {
-  _editId = id;
-  const modal = document.getElementById('modalEditarPergunta');
-  const ta = document.getElementById('edit_texto');
-  const cnt = document.getElementById('edit_count');
-  const warn = document.getElementById('edit_warn');
-
-  ta.value = textoAtual || '';
-  cnt.textContent = String(ta.value.length);
-  warn.classList.add('hidden');
-
-  ta.oninput = () => { cnt.textContent = String(ta.value.length); };
-
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-}
-
-function fecharModalEditar() {
-  const modal = document.getElementById('modalEditarPergunta');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
-  _editId = null;
-}
-
-async function salvarEdicao() {
-  const ta = document.getElementById('edit_texto');
-  const warn = document.getElementById('edit_warn');
-  const btn = document.getElementById('btnSalvarEdicao');
-  const texto = ta.value.trim();
-
-  if (!texto) { warn.classList.remove('hidden'); return; }
-
-  btn.disabled = true; btn.textContent = 'Salvando…';
-  try {
-    const patch = {
-      texto,
-      updated_at: new Date().toISOString()
-    };
-    // se tiver coluna edit_count
-    // patch.edit_count = (perguntas.pendentes.concat(perguntas.aprovadas, perguntas.respondidas, perguntas.exibida?[perguntas.exibida]:[])
-    //   .find(p => p.id === _editId)?.edit_count || 0) + 1;
-
-    const { error } = await supabase
-      .from('cnv25_perguntas')
-      .update(patch)
-      .eq('id', _editId);
-
-    if (error) throw error;
-
-    fecharModalEditar();
-    window.ModeradorCore.mostrarNotificacao('Pergunta atualizada!', 'success');
-  } catch (e) {
-    console.error(e);
-    window.ModeradorCore.mostrarNotificacao('Falha ao salvar edição.', 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Salvar';
-  }
-}
-
-async function reexibir(id) {
-  try {
-    // Se já tem uma exibida e é diferente, marca a anterior como respondida
-    if (perguntas.exibida && perguntas.exibida.id !== id) {
-      const { error: eResp } = await supabase
-        .from('cnv25_perguntas')
-        .update({
-          status: 'respondida',
-          respondida_em: new Date().toISOString()
-        })
-        .eq('id', perguntas.exibida.id);
-      if (eResp) throw eResp;
-    }
-
-    // Tira o carimbo de respondida (se quiser manter histórico, só mude o status)
-    const { error } = await supabase
-      .from('cnv25_perguntas')
-      .update({
-        status: 'exibida',
-        exibida_em: new Date().toISOString(),
-        // respondida_em: null // se quiser "des-responder"
-      })
-      .eq('id', id);
-    if (error) throw error;
-
-    // Liga semáforo e aponta para a pergunta
-    await window.ModeradorCore.setModoGlobal('perguntas', {
-      enquete_ativa: null,
-      mostrar_resultado_enquete: false,
-      quiz_ativo: null,
-      pergunta_exibida: id
-    });
-
-    window.ModeradorCore.mostrarNotificacao('Pergunta reexibida no telão!', 'success');
-  } catch (e) {
-    console.error(e);
-    window.ModeradorCore.mostrarNotificacao('Falha ao reexibir.', 'error');
-  }
-}
-
 // =====================================================
 // MODERADOR - MÓDULO DE PERGUNTAS
 // =====================================================
 
 const ModuloPerguntas = (() => {
   // Estado local
-  let perguntas = {
+   perguntas = {
     pendentes: [],
     aprovadas: [],
     exibida: null,
     respondidas: []
   };
   
-  let canalPerguntas = null;
+   canalPerguntas = null;
+
+  // editor
+   _editId = null;
   
   // =====================================================
   // INICIALIZAÇÃO
@@ -379,9 +282,9 @@ const ModuloPerguntas = (() => {
       
       if (error) throw error;
       
-      perguntas.pendentes = data.filter(p => p.status === 'pendente');
-      perguntas.aprovadas = data.filter(p => p.status === 'aprovada');
-      perguntas.exibida = data.find(p => p.status === 'exibida') || null;
+      perguntas.pendentes   = data.filter(p => p.status === 'pendente');
+      perguntas.aprovadas   = data.filter(p => p.status === 'aprovada');
+      perguntas.exibida     = data.find(p => p.status === 'exibida') || null;
       perguntas.respondidas = data.filter(p => p.status === 'respondida');
       
       renderizar();
@@ -411,8 +314,6 @@ const ModuloPerguntas = (() => {
       }, (payload) => {
         perguntas.pendentes.push(payload.new);
         renderizar();
-        
-        // Notificação sonora/visual opcional
         window.ModeradorCore.mostrarNotificacao('Nova pergunta recebida!', 'info');
       })
       .on('postgres_changes', {
@@ -439,9 +340,12 @@ const ModuloPerguntas = (() => {
   
   function atualizarPergunta(pergunta) {
     // Remover de todas as listas
-    perguntas.pendentes = perguntas.pendentes.filter(p => p.id !== pergunta.id);
-    perguntas.aprovadas = perguntas.aprovadas.filter(p => p.id !== pergunta.id);
+    perguntas.pendentes   = perguntas.pendentes.filter(p => p.id !== pergunta.id);
+    perguntas.aprovadas   = perguntas.aprovadas.filter(p => p.id !== pergunta.id);
     perguntas.respondidas = perguntas.respondidas.filter(p => p.id !== pergunta.id);
+    if (perguntas.exibida && perguntas.exibida.id === pergunta.id) {
+      perguntas.exibida = null;
+    }
     
     // Adicionar na lista correta
     if (pergunta.status === 'pendente') {
@@ -452,11 +356,6 @@ const ModuloPerguntas = (() => {
       perguntas.exibida = pergunta;
     } else if (pergunta.status === 'respondida') {
       perguntas.respondidas.push(pergunta);
-      if (perguntas.exibida?.id === pergunta.id) {
-        perguntas.exibida = null;
-      }
-    } else if (pergunta.status === 'recusada') {
-      // Não exibir recusadas
     }
     
     renderizar();
@@ -484,21 +383,23 @@ const ModuloPerguntas = (() => {
     
     container.innerHTML = perguntas.pendentes.map(p => `
       <div class="border rounded-lg p-3 bg-white hover:shadow-md transition">
-        <p class="text-sm mb-2">${window.ModeradorCore.esc(p.texto)}</p>       
+        <p class="text-sm mb-2">${window.ModeradorCore.esc(p.texto)}</p>
         <div class="text-xs text-gray-500 mb-2">
           ${p.anonimo ? '👤 Anônimo' : '👤 ' + window.ModeradorCore.esc(p.nome_opt || 'Sem nome')}
           ${p.email_opt ? ' • 📧 ' + window.ModeradorCore.esc(p.email_opt) : ''}
         </div>
-        <div class="text-xs text-gray-400 mb-3">
+        <div class="text-xs text-gray-400 mb-2">
           🕐 ${formatarData(p.created_at)}
         </div>
+
         <div class="flex gap-2 mb-2">
           <button 
-            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}', \`${window.ModeradorCore.esc(p.texto)}\`)" 
+            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}')" 
             class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
             ✎ Editar
           </button>
         </div>
+
         <div class="flex gap-2">
           <button 
             onclick="window.ModuloPerguntas.aprovar('${p.id}')" 
@@ -528,18 +429,23 @@ const ModuloPerguntas = (() => {
     }
     
     container.innerHTML = perguntas.aprovadas.map(p => `
-      <div class="flex gap-2 mt-2">
-        <button 
-          onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}', \`${window.ModeradorCore.esc(p.texto)}\`)" 
-          class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
-          ✎ Editar
-        </button>
-      
-        <button 
-          onclick="window.ModuloPerguntas.exibir('${p.id}')" 
-          class="flex-1 bg-cnv-success text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
-          📺 Exibir no Telão
-        </button>
+      <div class="border border-green-200 bg-green-50 rounded p-3 hover:shadow-md transition">
+        <p class="text-sm mb-2">${window.ModeradorCore.esc(p.texto)}</p>
+        <div class="text-xs text-gray-600 mb-2">
+          ${p.anonimo ? '👤 Anônimo' : '👤 ' + window.ModeradorCore.esc(p.nome_opt || 'Sem nome')}
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button 
+            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}')" 
+            class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
+            ✎ Editar
+          </button>
+          <button 
+            onclick="window.ModuloPerguntas.exibir('${p.id}')" 
+            class="flex-1 bg-cnv-success text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
+            📺 Exibir no Telão
+          </button>
+        </div>
       </div>
     `).join('');
   }
@@ -589,22 +495,19 @@ const ModuloPerguntas = (() => {
         <p class="text-sm mb-1">${window.ModeradorCore.esc(p.texto)}</p>
         <div class="text-xs text-gray-500">
           ${p.anonimo ? '👤 Anônimo' : '👤 ' + window.ModeradorCore.esc(p.nome_opt || 'Sem nome')}
-          • ✓ ${formatarData(p.respondida_em)}
+          ${p.respondida_em ? ' • ✓ ' + formatarData(p.respondida_em) : ''}
         </div>
         <div class="flex gap-2 mt-2">
-
           <button 
-            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}', \`${window.ModeradorCore.esc(p.texto)}\`)" 
+            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}')" 
             class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
             ✎ Editar
           </button>
-        
           <button 
             onclick="window.ModuloPerguntas.reexibir('${p.id}')" 
             class="flex-1 bg-cnv-success text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
             🔁 Reexibir no Telão
           </button>
-        
         </div>
       </div>
     `).join('');
@@ -712,7 +615,7 @@ const ModuloPerguntas = (() => {
         })
         .eq('id', id);
 
-      // apaga o ponteiro no broadcast e volta para aguardando
+      // mantém modo_global = 'perguntas', apenas limpa a pergunta_exibida
       await window.ModeradorCore.setModoGlobal('perguntas', {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
@@ -727,6 +630,122 @@ const ModuloPerguntas = (() => {
     } catch (error) {
       console.error('Erro ao marcar como respondida:', error);
       alert('Erro ao processar ação');
+    }
+  }
+
+  async function reexibir(id) {
+    try {
+      // Se já tem uma exibida e é diferente, marca a anterior como respondida
+      if (perguntas.exibida && perguntas.exibida.id !== id) {
+        const { error: eResp } = await supabase
+          .from('cnv25_perguntas')
+          .update({
+            status: 'respondida',
+            respondida_em: new Date().toISOString()
+          })
+          .eq('id', perguntas.exibida.id);
+        if (eResp) throw eResp;
+      }
+
+      // Marca a selecionada como EXIBIDA
+      const { error } = await supabase
+        .from('cnv25_perguntas')
+        .update({
+          status: 'exibida',
+          exibida_em: new Date().toISOString()
+        })
+        .eq('id', id);
+      if (error) throw error;
+
+      await window.ModeradorCore.setModoGlobal('perguntas', {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        quiz_ativo: null,
+        pergunta_exibida: id
+      });
+
+      window.ModeradorCore.mostrarNotificacao('Pergunta reexibida no telão!', 'success');
+    } catch (e) {
+      console.error('Erro ao reexibir:', e);
+      window.ModeradorCore.mostrarNotificacao('Falha ao reexibir.', 'error');
+    }
+  }
+
+  // =====================================================
+  // EDITAR PERGUNTA
+  // =====================================================
+
+  function abrirModalEditar(id) {
+    _editId = id;
+
+    const all = [
+      ...perguntas.pendentes,
+      ...perguntas.aprovadas,
+      ...perguntas.respondidas,
+      ...(perguntas.exibida ? [perguntas.exibida] : [])
+    ];
+
+    const p = all.find(x => x.id === id);
+    if (!p) {
+      console.warn('Pergunta não encontrada para edição:', id);
+      return;
+    }
+
+    const modal = document.getElementById('modalEditarPergunta');
+    const ta = document.getElementById('edit_texto');
+    const cnt = document.getElementById('edit_count');
+    const warn = document.getElementById('edit_warn');
+
+    ta.value = p.texto || '';
+    cnt.textContent = String(ta.value.length);
+    warn.classList.add('hidden');
+
+    ta.oninput = () => { cnt.textContent = String(ta.value.length); };
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function fecharModalEditar() {
+    const modal = document.getElementById('modalEditarPergunta');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    _editId = null;
+  }
+
+  async function salvarEdicao() {
+    const ta = document.getElementById('edit_texto');
+    const warn = document.getElementById('edit_warn');
+    const btn = document.getElementById('btnSalvarEdicao');
+    const texto = ta.value.trim();
+
+    if (!texto) {
+      warn.classList.remove('hidden');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      const patch = {
+        texto,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('cnv25_perguntas')
+        .update(patch)
+        .eq('id', _editId);
+
+      if (error) throw error;
+
+      fecharModalEditar();
+      window.ModeradorCore.mostrarNotificacao('Pergunta atualizada!', 'success');
+    } catch (e) {
+      console.error(e);
+      window.ModeradorCore.mostrarNotificacao('Falha ao salvar edição.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Salvar';
     }
   }
   
@@ -795,6 +814,7 @@ const ModuloPerguntas = (() => {
   // =====================================================
   
   function formatarData(timestamp) {
+    if (!timestamp) return '';
     const data = new Date(timestamp);
     return data.toLocaleString('pt-BR', {
       day: '2-digit',
@@ -815,7 +835,11 @@ const ModuloPerguntas = (() => {
     recusar,
     exibir,
     marcarRespondida,
-    exportarCSV
+    exportarCSV,
+    abrirModalEditar,
+    fecharModalEditar,
+    salvarEdicao,
+    reexibir
   };
 })();
 
