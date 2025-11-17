@@ -19,7 +19,6 @@ const ModuloEnquetes = (() => {
     console.log('📊 Módulo Enquetes inicializando...');
 
     await carregarEnquetes();
-    conectarRealtime();
     configurarEventos();
 
     console.log('✅ Módulo Enquetes pronto');
