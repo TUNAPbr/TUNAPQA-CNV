@@ -484,13 +484,20 @@ const ModuloPerguntas = (() => {
     
     container.innerHTML = perguntas.pendentes.map(p => `
       <div class="border rounded-lg p-3 bg-white hover:shadow-md transition">
-        <p class="text-sm mb-2">${window.ModeradorCore.esc(p.texto)}</p>
+        <p class="text-sm mb-2">${window.ModeradorCore.esc(p.texto)}</p>       
         <div class="text-xs text-gray-500 mb-2">
           ${p.anonimo ? '👤 Anônimo' : '👤 ' + window.ModeradorCore.esc(p.nome_opt || 'Sem nome')}
           ${p.email_opt ? ' • 📧 ' + window.ModeradorCore.esc(p.email_opt) : ''}
         </div>
         <div class="text-xs text-gray-400 mb-3">
           🕐 ${formatarData(p.created_at)}
+        </div>
+        <div class="flex gap-2 mb-2">
+          <button 
+            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}', \`${window.ModeradorCore.esc(p.texto)}\`)" 
+            class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
+            ✎ Editar
+          </button>
         </div>
         <div class="flex gap-2">
           <button 
@@ -521,15 +528,16 @@ const ModuloPerguntas = (() => {
     }
     
     container.innerHTML = perguntas.aprovadas.map(p => `
-      <div class="border border-green-200 bg-green-50 rounded p-3 hover:shadow-md transition">
-        <p class="text-sm mb-2">${window.ModeradorCore.esc(p.texto)}</p>
-        <div class="text-xs text-gray-600 mb-2">
-          ${p.anonimo ? '👤 Anônimo' : '👤 ' + window.ModeradorCore.esc(p.nome_opt || 'Sem nome')}
-        </div>
+      <div class="flex gap-2 mt-2">
+        <button 
+          onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}', \`${window.ModeradorCore.esc(p.texto)}\`)" 
+          class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
+          ✎ Editar
+        </button>
+      
         <button 
           onclick="window.ModuloPerguntas.exibir('${p.id}')" 
-          class="w-full bg-cnv-success text-white text-xs px-3 py-2 rounded hover:opacity-90 transition"
-        >
+          class="flex-1 bg-cnv-success text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
           📺 Exibir no Telão
         </button>
       </div>
@@ -582,6 +590,21 @@ const ModuloPerguntas = (() => {
         <div class="text-xs text-gray-500">
           ${p.anonimo ? '👤 Anônimo' : '👤 ' + window.ModeradorCore.esc(p.nome_opt || 'Sem nome')}
           • ✓ ${formatarData(p.respondida_em)}
+        </div>
+        <div class="flex gap-2 mt-2">
+
+          <button 
+            onclick="window.ModuloPerguntas.abrirModalEditar('${p.id}', \`${window.ModeradorCore.esc(p.texto)}\`)" 
+            class="flex-1 bg-blue-500 text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
+            ✎ Editar
+          </button>
+        
+          <button 
+            onclick="window.ModuloPerguntas.reexibir('${p.id}')" 
+            class="flex-1 bg-cnv-success text-white text-xs px-3 py-2 rounded hover:opacity-90 transition">
+            🔁 Reexibir no Telão
+          </button>
+        
         </div>
       </div>
     `).join('');
