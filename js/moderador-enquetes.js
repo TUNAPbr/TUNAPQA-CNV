@@ -19,6 +19,7 @@ const ModuloEnquetes = (() => {
     console.log('📊 Módulo Enquetes inicializando...');
 
     await carregarEnquetes();
+    conectarRealtime();
     configurarEventos();
 
     console.log('✅ Módulo Enquetes pronto');
@@ -107,7 +108,7 @@ const ModuloEnquetes = (() => {
       const ativa = enq.id === _enqueteAtivaId;
       const encerrada = !!enq.encerrada_em;
       const tipoLabel = traduzTipo(enq.tipo);
-      const modoLabel = traduzModo(enq.modo);
+      const modoLabel = traduzModo(enq.modo); // enq.modo agora vem undefined, cai no default "Enquete"
       const created = formatarData(enq.created_at);
 
       return `
@@ -194,7 +195,7 @@ const ModuloEnquetes = (() => {
     const titulo = document.getElementById('inputTituloEnqueteCRUD');
     const opcoes = document.getElementById('inputOpcoesEnqueteCRUD');
     const tipo   = document.getElementById('selectTipoEnqueteCRUD');
-    const modo   = document.getElementById('selectModoEnqueteCRUD');
+    const modo   = document.getElementById('selectModoEnqueteCRUD'); // mantido só pra não quebrar HTML
     const hiddenId = document.getElementById('enqueteIdEdit');
 
     if (titulo) titulo.value = '';
@@ -237,7 +238,8 @@ const ModuloEnquetes = (() => {
       }
     }
     if (tipo && enq.tipo) tipo.value = enq.tipo;
-    if (modo && enq.modo) modo.value = enq.modo;
+    // enq.modo não existe mais na tabela; mantemos select no HTML apenas visual
+    if (modo) modo.value = 'enquete';
     if (hiddenId) hiddenId.value = enq.id;
 
     modal.classList.remove('hidden');
@@ -258,7 +260,7 @@ const ModuloEnquetes = (() => {
     const titulo = document.getElementById('inputTituloEnqueteCRUD')?.value.trim();
     const opcoesStr = document.getElementById('inputOpcoesEnqueteCRUD')?.value || '';
     const tipo   = document.getElementById('selectTipoEnqueteCRUD')?.value || 'multipla_escolha';
-    const modo   = document.getElementById('selectModoEnqueteCRUD')?.value || 'enquete';
+    // const modo   = document.getElementById('selectModoEnqueteCRUD')?.value || 'enquete'; // não usamos mais no banco
     const hiddenId = document.getElementById('enqueteIdEdit');
 
     if (!titulo) {
@@ -278,7 +280,6 @@ const ModuloEnquetes = (() => {
     const payload = {
       titulo,
       tipo,
-      modo,
       opcoes: rawOpcoes,
       ativa: false
     };
@@ -340,8 +341,8 @@ const ModuloEnquetes = (() => {
         .eq('id', enqueteId);
       if (eSet) throw eSet;
 
-      // 2) Liga semáforo global em modo ENQUETES
-      await window.ModeradorCore.setModoGlobal('enquetes', {
+      // 2) Liga semáforo global em modo ENQUETE
+      await window.ModeradorCore.setModoGlobal('enquete', {
         enquete_ativa: enqueteId,
         mostrar_resultado_enquete: false,
         pergunta_exibida: null,
@@ -397,7 +398,7 @@ const ModuloEnquetes = (() => {
       if (error) throw error;
 
       // Exibe o resultado dessa enquete no telão/participante
-      await window.ModeradorCore.setModoGlobal('enquetes', {
+      await window.ModeradorCore.setModoGlobal('enquete', {
         enquete_ativa: enqueteId,
         mostrar_resultado_enquete: true,
         pergunta_exibida: null,
@@ -448,7 +449,7 @@ const ModuloEnquetes = (() => {
 
   async function abrirResultados(enqueteId) {
     try {
-      await window.ModeradorCore.setModoGlobal('enquetes', {
+      await window.ModeradorCore.setModoGlobal('enquete', {
         enquete_ativa: enqueteId,
         mostrar_resultado_enquete: true,
         pergunta_exibida: null,
