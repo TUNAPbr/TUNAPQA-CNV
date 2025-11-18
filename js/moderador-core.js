@@ -237,34 +237,47 @@ async function carregarPalestra() {
 }
 
 async function carregarControle() {
-  let { data, error } = await supabase
-    .from('cnv25_palestra_controle')
-    .select('*')
-    .eq('palestra_id', ModeradorState.palestraId)
-    .single();
-
-  if (error && error.code === 'PGRST116') {
-    // Criar controle se não existir
-    const { data: novoControle, error: err2 } = await supabase
-      .from('cnv25_palestra_controle')
-      .insert([
-        {
-          palestra_id: ModeradorState.palestraId,
-          perguntas_abertas: false,
-          silencio_ativo: false,
-          enquete_ativa: null,
-          quiz_ativo: null
-        }
-      ])
-      .select()
-      .single();
-
-    if (!err2) data = novoControle;
+  const palestraId = ModeradorState.palestraId;
+  if (!palestraId) {
+    ModeradorState.controle = null;
+    atualizarBadgesStatus();
+    return;
   }
 
-  ModeradorState.controle = data || null;
+  let data = null;
+
+  // 1) tenta buscar o controle existente
+  const { data: ctrl, error } = await supabase
+    .from('cnv25_palestra_controle')
+    .select('palestra_id, perguntas_abertas, silencio_ativo, updated_at')
+    .eq('palestra_id', palestraId)
+    .maybeSingle(); // não explode em 0 linhas
+
+  if (!error && ctrl) {
+    data = ctrl;
+  } else {
+    // 2) se não existir, cria um registro novo APENAS com colunas que existem
+    const { data: novoCtrl, error: err2 } = await supabase
+      .from('cnv25_palestra_controle')
+      .insert([{
+        palestra_id: palestraId,
+        perguntas_abertas: false,
+        silencio_ativo: false
+      }])
+      .select('palestra_id, perguntas_abertas, silencio_ativo, updated_at')
+      .single();
+
+    if (!err2) {
+      data = novoCtrl;
+    } else {
+      console.error('❌ Erro ao criar controle de palestra:', err2);
+    }
+  }
+
+  ModeradorState.controle = data;
   atualizarBadgesStatus();
 }
+
 
 // =====================================================
 // REALTIME
@@ -277,22 +290,25 @@ function conectarRealtimeCore() {
   if (!palestraId) return;
 
   // Canal da palestra
-  ModeradorState.canais.palestra = supabase
-    .channel(`mod_palestra:${palestraId}`)
+  ModeradorState.canais.controle = supabase
+    .channel(`mod_controle:${palestraId}`)
     .on(
       'postgres_changes',
       {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
-        table: 'cnv25_palestras',
-        filter: `id=eq.${palestraId}`
+        table: 'cnv25_palestra_controle',
+        filter: `palestra_id=eq.${palestraId}`
       },
       (payload) => {
-        ModeradorState.palestra = payload.new;
-        atualizarUICore();
+        ModeradorState.controle = payload.new;
+        atualizarBadgesStatus();
+        // Não usamos mais enquete_ativa / quiz_ativo aqui;
+        // enquetes e quiz agora escutam o broadcast global (cnv25_broadcast_controle).
       }
     )
     .subscribe();
+
 
   // Canal de controle
   ModeradorState.canais.controle = supabase
