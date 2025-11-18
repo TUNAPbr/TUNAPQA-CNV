@@ -46,18 +46,21 @@ function showContent() {
   el.loading?.classList.add('hidden');
   el.main?.classList.remove('hidden');
 }
+
 function hideAllModes() {
   el.emptyMode?.classList.add('hidden');
   el.pollMode?.classList.add('hidden');
   el.quizQuestionMode?.classList.add('hidden');
   el.quizResultMode?.classList.add('hidden');
 }
+
 function showMode(id) {
   hideAllModes();
   el[id]?.classList.remove('hidden');
   showContent();
   currentMode = id;
 }
+
 function displayEmptyMode() {
   showMode('emptyMode');
 }
@@ -65,9 +68,18 @@ function displayEmptyMode() {
 // ====== RENDER: ENQUETE ======
 function displayPoll(poll) {
   if (el.modeBadgeText) el.modeBadgeText.textContent = 'ENQUETE ATIVA';
-  if (el.voteHint) el.voteHint.classList.remove('hidden'); // mostra a dica de voto
+  if (el.voteHint) {
+    el.voteHint.textContent = '📱 Vote pelo seu dispositivo!';
+    el.voteHint.classList.remove('hidden');
+  }
   if (el.pollTitle) el.pollTitle.textContent = poll?.titulo || 'Enquete';
-  if (el.pollBody) el.pollBody.innerHTML = ''; // corpo limpo no telão
+  if (el.pollBody) {
+    el.pollBody.innerHTML = `
+      <p class="sub-text text-3xl md:text-4xl">
+        Há uma enquete disponível. Participe votando pelo seu dispositivo.
+      </p>
+    `;
+  }
   showMode('pollMode');
 }
 
@@ -75,12 +87,16 @@ function displayPollResult(poll, resultado) {
   if (el.pollTitle) el.pollTitle.classList.remove('hidden');
   if (el.modeBadgeText) el.modeBadgeText.textContent = 'RESULTADOS';
   if (el.voteHint) el.voteHint.classList.add('hidden');
+
   const labels = 'ABCDEFGHIJ'.split('');
   const opcoes = poll?.opcoes?.opcoes || [];
   const rows = resultado?.rows || [];
   const total = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
 
-  if (el.pollTitle) el.pollTitle.textContent = `Resultados — ${poll?.titulo || 'Enquete'}`;
+  if (el.pollTitle) {
+    el.pollTitle.textContent = `Resultados — ${poll?.titulo || 'Enquete'}`;
+  }
+
   if (el.pollBody) {
     el.pollBody.innerHTML = opcoes.slice(0, 10).map((txt, idx) => {
       const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
@@ -98,6 +114,7 @@ function displayPollResult(poll, resultado) {
       `;
     }).join('');
   }
+
   showMode('pollMode');
 }
 
@@ -108,18 +125,21 @@ async function fetchPergunta(perguntaId) {
     .select('texto, nome_opt, anonimo')
     .eq('id', perguntaId)
     .single();
-  if (error) { console.error('fetchPergunta:', error); return null; }
+  if (error) {
+    console.error('fetchPergunta:', error);
+    return null;
+  }
   return data;
 }
-function displayPergunta(pergunta) {
-  if (el.pollTitle) el.pollTitle.classList.remove('hidden');
-  if (el.modeBadgeText) el.modeBadgeText.textContent = 'PERGUNTA';
-  if (el.voteHint) el.voteHint.classList.add('hidden'); // não mostra "vote" em pergunta
 
-  // tira o "Pergunta em destaque"
+function displayPergunta(pergunta) {
+  if (el.modeBadgeText) el.modeBadgeText.textContent = 'PERGUNTA';
+  if (el.voteHint) el.voteHint.classList.add('hidden');
+
+  // esconde o título padrão
   if (el.pollTitle) {
-    el.pollTitle.textContent = '';            // sem texto
-    el.pollTitle.classList.add('hidden');     // esconde o <h2>
+    el.pollTitle.textContent = '';
+    el.pollTitle.classList.add('hidden');
   }
 
   if (el.pollBody) {
@@ -144,7 +164,10 @@ async function fetchEnquete(enqueteId) {
     .select('*')
     .eq('id', enqueteId)
     .single();
-  if (error) { console.error('fetchEnquete:', error); return null; }
+  if (error) {
+    console.error('fetchEnquete:', error);
+    return null;
+  }
   return data;
 }
 
@@ -166,14 +189,20 @@ async function fetchResultadoEnquete(enqueteId) {
     .from('cnv25_enquete_respostas')
     .select('resposta')
     .eq('enquete_id', enqueteId);
-  if (error) { console.error('fetchResultadoEnquete:', error); return { rows: [] }; }
+  if (error) {
+    console.error('fetchResultadoEnquete:', error);
+    return { rows: [] };
+  }
 
   const cont = {};
   (rs || []).forEach(r => {
     const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
     cont[idx] = (cont[idx] || 0) + 1;
   });
-  const rows = Object.entries(cont).map(([k, v]) => ({ opcao_index: parseInt(k, 10), votos: v }));
+  const rows = Object.entries(cont).map(([k, v]) => ({
+    opcao_index: parseInt(k, 10),
+    votos: v
+  }));
   return { rows };
 }
 
@@ -195,13 +224,19 @@ async function carregarBroadcast() {
     decidirOQueExibir();
   } catch (e) {
     console.error('carregarBroadcast:', e);
-    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null, pergunta_exibida: null };
+    broadcast = {
+      enquete_ativa: null,
+      mostrar_resultado_enquete: false,
+      modo_global: null,
+      pergunta_exibida: null
+    };
     displayEmptyMode();
   }
 }
 
 function conectarRealtimeBroadcast() {
   if (canalBroadcast) return;
+
   canalBroadcast = supabase
     .channel('telao_broadcast')
     .on('postgres_changes', {
@@ -221,12 +256,18 @@ function conectarRealtimeBroadcast() {
 
 // ====== DECISOR (UMA COISA POR VEZ) ======
 async function decidirOQueExibir() {
-  // O "semáforo" global manda no universo
+  // "Semáforo" global
   if (broadcast.modo_global === 'enquete') {
-    if (!broadcast.enquete_ativa) { displayEmptyMode(); return; }
+    if (!broadcast.enquete_ativa) {
+      displayEmptyMode();
+      return;
+    }
 
     const enquete = await fetchEnquete(broadcast.enquete_ativa);
-    if (!enquete) { displayEmptyMode(); return; }
+    if (!enquete) {
+      displayEmptyMode();
+      return;
+    }
 
     if (broadcast.mostrar_resultado_enquete) {
       const resultado = await fetchResultadoEnquete(enquete.id);
@@ -239,17 +280,21 @@ async function decidirOQueExibir() {
 
   if (broadcast.modo_global === 'perguntas') {
     // EXIBIR PERGUNTA EM DESTAQUE
-    if (!broadcast.pergunta_exibida) { 
-      displayEmptyMode(); 
-      return; 
+    if (!broadcast.pergunta_exibida) {
+      displayEmptyMode();
+      return;
     }
     const pergunta = await fetchPergunta(broadcast.pergunta_exibida);
-    if (!pergunta) { displayEmptyMode(); return; }
+    if (!pergunta) {
+      displayEmptyMode();
+      return;
+    }
     displayPergunta(pergunta);
     return;
   }
 
   if (broadcast.modo_global === 'quiz') {
+    // placeholder — implementação de quiz no telão pode vir depois
     displayEmptyMode();
     return;
   }
