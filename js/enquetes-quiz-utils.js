@@ -1,463 +1,337 @@
 // =====================================================
-// CNV 2025 - MÓDULO DE ENQUETES E QUIZ - COMPLETO
+// CNV 2025 - MÓDULO DE ENQUETES E QUIZ - UTILITÁRIOS
 // =====================================================
+
+// Sempre usar window.supabase explicitamente
+const sb = window.supabase;
 
 // =====================================================
 // ENQUETES
 // =====================================================
 
-// Criar enquete simples
+// Criar enquete simples (param palestraId mantido só p/ compatibilidade, mas ignorado)
 async function criarEnqueteSimples(palestraId, titulo, opcoes) {
-  const { data, error } = await window.supabase
-    .from('cnv25_enquetes')
-    .insert([{
-      palestra_id: palestraId,
+  try {
+    const payload = {
       titulo: titulo,
       tipo: 'multipla_escolha',
-      modo: 'enquete',
       opcoes: { opcoes: opcoes }, // ["Opção 1", "Opção 2", ...]
       ativa: true
-    }])
-    .select()
-    .single();
-  
-  if (error) {
+    };
+
+    const { data, error } = await sb
+      .from('cnv25_enquetes')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao criar enquete:', error);
     return null;
   }
-  
-  return data;
 }
 
-// Votar em enquete
+// Votar em enquete (usado pelo participante)
 async function votarEnquete(enqueteId, deviceIdHash, opcaoIndex) {
-  const { data, error} = await window.supabase
-    .from('cnv25_enquete_respostas')
-    .insert([{
+  try {
+    const payload = {
       enquete_id: enqueteId,
       device_id_hash: deviceIdHash,
-      resposta: { valor: opcaoIndex }
-    }])
-    .select()
-    .single();
-  
-  if (error) {
-    if (error.code === '23505') {
-      return { error: 'Você já votou nesta enquete' };
-// js/enquetes-quiz-utils.js
+      resposta: {
+        valor: opcaoIndex,      // compatível com lógica antiga / views
+        opcaoIndex: opcaoIndex  // compatível com código novo
+      }
+    };
 
-// Gera um ID estável por dispositivo (fica no localStorage)
-function getOrCreateDeviceId() {
-  const KEY = 'cnv25_device_id_hash';
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    // não precisa ser cifra NSA, só ser estável e único
-    id = 'dev_' + crypto.randomUUID();
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-}
-
-window.DeviceId = getOrCreateDeviceId();
-
-// ==========================
-//  BROADCAST SERVICE
-//  controla cnv25_broadcast_controle (linha única, id=1)
-// ==========================
-window.BroadcastService = (function () {
-  const TABLE = 'cnv25_broadcast_controle';
-  const BROADCAST_ID = 1;
-
-  async function getEstado() {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('id', BROADCAST_ID)
-      .single();
-
-    if (error) {
-      console.error('Erro ao carregar broadcast:', error);
-      return null;
-    }
-    console.error('Erro ao votar:', error);
-    return { error: 'Erro ao registrar voto' };
-    return data;
-  }
-
-  async function patchEstado(patch) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .update({
-        ...patch,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', BROADCAST_ID)
+    const { data, error } = await sb
+      .from('cnv25_enquete_respostas')
+      .insert([payload])
       .select()
       .single();
 
     if (error) {
-      console.error('Erro ao atualizar broadcast:', error);
-      throw error;
+      if (error.code === '23505') {
+        return { error: 'Você já votou nesta enquete' };
+      }
+      console.error('Erro ao votar na enquete:', error);
+      return { error: 'Erro ao registrar voto' };
     }
-    return data;
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Erro ao votar na enquete:', error);
+    return { error: 'Erro ao registrar voto' };
   }
-
-  function subscribe(callback) {
-    // callback(estadoAtual) toda vez que mudar
-    const channel = supabase
-      .channel('cnv25_broadcast_controle_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: TABLE,
-          filter: `id=eq.${BROADCAST_ID}`
-        },
-        async (payload) => {
-          const novo = payload.new || (await getEstado());
-          callback(novo);
-        }
-      )
-      .subscribe();
-
-    // opcional: já chama uma vez com o estado atual
-    getEstado().then((estado) => {
-      if (estado) callback(estado);
-    });
-
-    return channel;
-  }
-
-  // Helpers específicos para ENQUETE
-  async function ativarEnquete(enqueteId) {
-    return patchEstado({
-      modo_global: 'enquete',
-      enquete_ativa: enqueteId,
-      mostrar_resultado_enquete: false,
-      quiz_ativo: null,
-      pergunta_exibida: null
-    });
-  }
-
-  async function encerrarEnquete() {
-    return patchEstado({
-      modo_global: null,
-      enquete_ativa: null,
-      mostrar_resultado_enquete: false
-    });
-  }
-
-  async function mostrarResultadoEnquete(flag) {
-    return patchEstado({
-      mostrar_resultado_enquete: !!flag
-    });
-  }
-  
-  return { success: true, data };
 }
 
-// Obter resultados da enquete em tempo real
+// Obter resultados da enquete (agregado)
 async function obterResultadosEnquete(enqueteId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_enquete_respostas')
-    .select('resposta')
-    .eq('enquete_id', enqueteId);
-  
-  if (error) {
-    console.error('Erro ao buscar resultados:', error);
+  try {
+    const { data, error } = await sb
+      .from('cnv25_enquete_respostas')
+      .select('resposta')
+      .eq('enquete_id', enqueteId);
+
+    if (error) throw error;
+
+    const contagem = {};
+    (data || []).forEach(r => {
+      const valor = r.resposta?.valor ?? 0;
+      contagem[valor] = (contagem[valor] || 0) + 1;
+    });
+
+    return {
+      total: (data || []).length,
+      distribuicao: contagem
+    };
+  } catch (error) {
+    console.error('Erro ao buscar resultados da enquete:', error);
     return null;
   }
-  
-  // Contar votos por opção
-  const contagem = {};
-  data.forEach(r => {
-    const valor = r.resposta.valor;
-    contagem[valor] = (contagem[valor] || 0) + 1;
-  });
-  
-  return {
-    total: data.length,
-    distribuicao: contagem
-    getEstado,
-    patchEstado,
-    subscribe,
-    ativarEnquete,
-    encerrarEnquete,
-    mostrarResultadoEnquete
-  };
 }
 
-// Obter enquete ativa da palestra
-async function obterEnqueteAtiva(palestraId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_enquetes')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .eq('ativa', true)
-    .eq('modo', 'enquete')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') {
-    console.error('Erro ao buscar enquete:', error);
+// Obter enquete ativa (global, não mais por palestra)
+async function obterEnqueteAtiva() {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_enquetes')
+      .select('*')
+      .eq('ativa', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      // quando não há linhas, maybeSingle pode vir com error "PGRST116"
+      console.warn('obterEnqueteAtiva:', error);
+      return null;
+    }
+    return data || null;
+  } catch (error) {
+    console.error('Erro em obterEnqueteAtiva:', error);
     return null;
   }
-  
-  return data || null;
 }
 
-// Ativar enquete (atualizar controle da palestra)
+// Mantidos por compatibilidade: agora só ligam/desligam flag no controle global
 async function ativarEnquete(palestraId, enqueteId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_palestra_controle')
-    .update({ enquete_ativa: enqueteId })
-    .eq('palestra_id', palestraId)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Erro ao ativar enquete:', error);
-    return null;
+  try {
+    const { error } = await sb
+      .from('cnv25_broadcast_controle')
+      .update({
+        modo_global: 'enquete',
+        enquete_ativa: enqueteId,
+        mostrar_resultado_enquete: false,
+        pergunta_exibida: null,
+        quiz_ativo: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', 1);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao ativar enquete (broadcast):', error);
+    return false;
   }
-  
-  return data;
 }
 
-// Desativar enquete
 async function desativarEnquete(palestraId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_palestra_controle')
-    .update({ enquete_ativa: null })
-    .eq('palestra_id', palestraId)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Erro ao desativar enquete:', error);
-    return null;
+  try {
+    const { error } = await sb
+      .from('cnv25_broadcast_controle')
+      .update({
+        modo_global: null,
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', 1);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao desativar enquete (broadcast):', error);
+    return false;
   }
-  
-  return data;
 }
 
-// Encerrar enquete
+// Encerrar enquete (marca no banco; broadcast é controlado em outro lugar)
 async function encerrarEnquete(enqueteId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_enquetes')
-    .update({
-      ativa: false,
-      encerrada_em: new Date().toISOString()
-    })
-    .eq('id', enqueteId)
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_enquetes')
+      .update({
+        ativa: false,
+        encerrada_em: new Date().toISOString()
+      })
+      .eq('id', enqueteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao encerrar enquete:', error);
     return null;
   }
-  
-  return data;
 }
 
-// Listar enquetes da palestra
+// Listar enquetes (param palestraId mantido só pra não quebrar chamadas antigas)
 async function listarEnquetesPalestra(palestraId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_enquetes')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .eq('modo', 'enquete')
-    .order('created_at', { ascending: false });
-  
-  if (error) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_enquetes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
     console.error('Erro ao listar enquetes:', error);
     return [];
   }
-  
-  return data || [];
 }
 
 // =====================================================
 // QUIZ
 // =====================================================
 
-// Criar novo quiz
+// Criar novo quiz (palestraId ignorado — quiz agora é global)
 async function criarQuiz(palestraId, titulo, descricao) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz')
-    .insert([{
-      palestra_id: palestraId,
-      titulo: titulo,
-      descricao: descricao,
-      status: 'preparando'
-    }])
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const payload = {
+      titulo,
+      descricao,
+      status: 'preparando',
+      total_perguntas: 0
+    };
+
+    const { data, error } = await sb
+      .from('cnv25_quiz')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao criar quiz:', error);
     return null;
   }
-  
-  return data;
 }
 
 // Adicionar pergunta ao quiz
 async function adicionarPerguntaQuiz(quizId, ordem, pergunta, opcoes, respostaCorreta) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz_perguntas')
-    .insert([{
-      quiz_id: quizId,
-      ordem: ordem,
-      pergunta: pergunta,
-      opcoes: opcoes, // ["Opção A", "Opção B", "Opção C", "Opção D"]
-      resposta_correta: respostaCorreta // 0, 1, 2 ou 3
-    }])
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Erro ao adicionar pergunta:', error);
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz_perguntas')
+      .insert([{
+        quiz_id: quizId,
+        ordem: ordem,
+        pergunta: pergunta,
+        opcoes: opcoes,          // ["A", "B", "C", "D"]
+        resposta_correta: respostaCorreta
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Atualiza total_perguntas
+    await sb
+      .from('cnv25_quiz')
+      .update({ total_perguntas: ordem })
+      .eq('id', quizId);
+
+    return data;
+  } catch (error) {
+    console.error('Erro ao adicionar pergunta ao quiz:', error);
     return null;
   }
-  
-  // Atualizar total de perguntas no quiz
-  await window.supabase
-    .from('cnv25_quiz')
-    .update({ total_perguntas: ordem })
-    .eq('id', quizId);
-  
-  return data;
 }
 
 // Iniciar quiz
 async function iniciarQuiz(quizId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz')
-    .update({
-      status: 'iniciado',
-      iniciado_em: new Date().toISOString(),
-      pergunta_atual: 1
-    })
-    .eq('id', quizId)
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz')
+      .update({
+        status: 'iniciado',
+        iniciado_em: new Date().toISOString(),
+        pergunta_atual: 1
+      })
+      .eq('id', quizId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao iniciar quiz:', error);
     return null;
-})();
-
-// ==========================
-//  ENQUETE SERVICE
-//  CRUD e voto de enquetes
-// ==========================
-window.EnqueteService = (function () {
-  const TABLE = 'cnv25_enquetes';
-  const RESPOSTAS_TABLE = 'cnv25_enquete_respostas';
-
-  async function listarEnquetes() {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao listar enquetes:', error);
-      return [];
-    }
-    return data;
   }
-  
-  return data;
 }
 
 // Avançar para próxima pergunta
 async function avancarPerguntaQuiz(quizId, proximaPergunta) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz')
-    .update({
-      status: 'em_andamento',
-      pergunta_atual: proximaPergunta
-    })
-    .eq('id', quizId)
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz')
+      .update({
+        status: 'em_andamento',
+        pergunta_atual: proximaPergunta
+      })
+      .eq('id', quizId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao avançar pergunta:', error);
     return null;
   }
-  
-  return data;
 }
-  async function carregarEnquete(id) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('id', id)
+
+// Revelar resposta correta (marca campo revelada=true)
+async function revelarRespostaQuiz(perguntaId) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz_perguntas')
+      .update({ revelada: true })
+      .eq('id', perguntaId)
+      .select()
       .single();
 
-// Revelar resposta correta
-async function revelarRespostaQuiz(perguntaId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz_perguntas')
-    .update({ revelada: true })
-    .eq('id', perguntaId)
-    .select()
-    .single();
-  
-  if (error) {
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao revelar resposta:', error);
     return null;
   }
-  
-  return data;
 }
-    if (error) {
-      console.error('Erro ao carregar enquete:', error);
-      return null;
-    }
-    return data;
-  }
 
-  async function votar(enquete, opcaoIndex) {
-    const deviceId = window.DeviceId;
-
-    // opcoes pode ser array ou json com textos
-    let opcoesArray = [];
-    if (Array.isArray(enquete.opcoes)) {
-      opcoesArray = enquete.opcoes;
-    } else if (enquete.opcoes) {
-      try {
-        opcoesArray = Array.isArray(enquete.opcoes)
-          ? enquete.opcoes
-          : JSON.parse(enquete.opcoes);
-      } catch (e) {
-        console.warn('Opções de enquete em formato inesperado', e);
-      }
-    }
-
-// Participante responder pergunta do quiz
-// Pontuação: 1000 pontos base - tempo_resposta (quanto mais rápido, mais pontos)
-// Mínimo de 100 pontos por resposta correta
+// Participante responde pergunta do quiz
+// Pontos: 1000 - tempoResposta (mínimo 100) se acertou
 async function responderPerguntaQuiz(perguntaId, deviceIdHash, respostaEscolhida, tempoResposta) {
-  // Buscar pergunta para verificar se está correta
-  const { data: pergunta } = await window.supabase
+  // Busca pergunta pra saber qual é a correta
+  const { data: pergunta, error: errorPerg } = await sb
     .from('cnv25_quiz_perguntas')
     .select('resposta_correta')
     .eq('id', perguntaId)
     .single();
-  
-  if (!pergunta) {
+
+  if (errorPerg || !pergunta) {
+    console.error('Pergunta não encontrada para responderQuiz:', errorPerg);
     return { error: 'Pergunta não encontrada' };
   }
-  
+
   const correta = (respostaEscolhida === pergunta.resposta_correta);
-  
-  const { data, error } = await window.supabase
+
+  const { data, error } = await sb
     .from('cnv25_quiz_respostas')
     .insert([{
       quiz_pergunta_id: perguntaId,
@@ -468,175 +342,156 @@ async function responderPerguntaQuiz(perguntaId, deviceIdHash, respostaEscolhida
     }])
     .select()
     .single();
-  
+
   if (error) {
     if (error.code === '23505') {
       return { error: 'Você já respondeu esta pergunta' };
-    const valor = opcoesArray[opcaoIndex] ?? '';
-
-    const payload = {
-      enquete_id: enquete.id,
-      device_id_hash: deviceId,
-      resposta: {
-        opcaoIndex,
-        valor
-      }
-    };
-
-    const { error } = await supabase
-      .from(RESPOSTAS_TABLE)
-      .insert(payload);
-
-    if (error) {
-      // se cair no unique (já votou), só devolve erro para o front tratar
-      console.error('Erro ao votar na enquete:', error);
-      throw error;
     }
-    console.error('Erro ao responder:', error);
+    console.error('Erro ao registrar resposta do quiz:', error);
     return { error: 'Erro ao registrar resposta' };
   }
-  
-  // Calcular pontos apenas se acertou
+
   let pontos = 0;
   if (correta) {
     pontos = Math.max(1000 - (tempoResposta || 0), 100);
   }
-  
+
   return { success: true, data, correta, pontos };
 }
 
-// Obter estatísticas da pergunta do quiz
+// Estatísticas da pergunta do quiz
 async function obterStatsQuizPergunta(perguntaId) {
-  // Buscar stats gerais da view
-  const { data: stats, error: errorStats } = await window.supabase
-    .from('cnv25_quiz_stats')
-    .select('*')
-    .eq('pergunta_id', perguntaId)
-    .single();
-  
-  if (errorStats) {
-    console.error('Erro ao buscar stats:', errorStats);
+  try {
+    const { data: stats, error: errorStats } = await sb
+      .from('cnv25_quiz_stats')
+      .select('*')
+      .eq('pergunta_id', perguntaId)
+      .single();
+
+    if (errorStats) throw errorStats;
+
+    const { data: distribuicao, error: errorDist } = await sb
+      .rpc('cnv25_quiz_distribuicao', { pergunta_uuid: perguntaId });
+
+    if (errorDist) {
+      console.error('Erro ao buscar distribuição de respostas:', errorDist);
+    }
+
+    return {
+      ...stats,
+      distribuicao_respostas: distribuicao || []
+    };
+  } catch (error) {
+    console.error('Erro ao buscar stats da pergunta do quiz:', error);
     return null;
   }
-  
-  // Buscar distribuição de respostas usando a função RPC
-  const { data: distribuicao, error: errorDist } = await window.supabase
-    .rpc('cnv25_quiz_distribuicao', { pergunta_uuid: perguntaId });
-  
-  if (errorDist) {
-    console.error('Erro ao buscar distribuição:', errorDist);
-  }
-  
-  return {
-    ...stats,
-    distribuicao_respostas: distribuicao || []
-    listarEnquetes,
-    carregarEnquete,
-    votar
-  };
 }
 
-// Obter quiz ativo
-// ✅ Versão robusta: sem ORDER para evitar 400/42703
+// Obter quiz ativo (global, não mais por palestra)
 async function obterQuizAtivo(palestraId) {
-  if (!palestraId) return null;
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz')
+      .select('*')
+      .in('status', ['iniciado', 'em_andamento'])
+      .limit(1)
+      .maybeSingle();
 
-  const { data, error } = await supabase
-    .from('cnv25_quiz')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .in('status', ['iniciado', 'em_andamento'])
-    .limit(1)
-    .maybeSingle(); // não gera 406 quando não há linhas
-
-  if (error) {
-    console.warn('obterQuizAtivo (tratado como sem quiz ativo):', error);
+    if (error) {
+      console.warn('obterQuizAtivo:', error);
+      return null;
+    }
+    return data || null;
+  } catch (error) {
+    console.error('Erro em obterQuizAtivo:', error);
     return null;
   }
-  return data || null;
 }
-
 
 // Obter pergunta atual do quiz
 async function obterPerguntaAtualQuiz(quizId, numeroPergunta) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz_perguntas')
-    .select('*')
-    .eq('quiz_id', quizId)
-    .eq('ordem', numeroPergunta)
-    .single();
-  
-  if (error) {
-    console.error('Erro ao buscar pergunta:', error);
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz_perguntas')
+      .select('*')
+      .eq('quiz_id', quizId)
+      .eq('ordem', numeroPergunta)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Erro ao buscar pergunta atual do quiz:', error);
     return null;
   }
-  
-  return data;
 }
 
 // Finalizar quiz
 async function finalizarQuiz(quizId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz')
-    .update({
-      status: 'finalizado',
-      finalizado_em: new Date().toISOString()
-    })
-    .eq('id', quizId)
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz')
+      .update({
+        status: 'finalizado',
+        finalizado_em: new Date().toISOString()
+      })
+      .eq('id', quizId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Erro ao finalizar quiz:', error);
     return null;
   }
-  
-  return data;
 }
 
-// Obter ranking do quiz usando a função RPC
+// Ranking via função RPC
 async function obterRankingQuiz(quizId) {
-  const { data, error } = await window.supabase
-    .rpc('cnv25_quiz_ranking', { quiz_uuid: quizId });
-  
-  if (error) {
-    console.error('Erro ao buscar ranking:', error);
+  try {
+    const { data, error } = await sb
+      .rpc('cnv25_quiz_ranking', { quiz_uuid: quizId });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar ranking do quiz:', error);
     return [];
   }
-  
-  return data || [];
 }
 
-// Obter todas as perguntas de um quiz
+// Todas as perguntas de um quiz
 async function obterPerguntasQuiz(quizId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz_perguntas')
-    .select('*')
-    .eq('quiz_id', quizId)
-    .order('ordem', { ascending: true });
-  
-  if (error) {
-    console.error('Erro ao buscar perguntas:', error);
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz_perguntas')
+      .select('*')
+      .eq('quiz_id', quizId)
+      .order('ordem', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar perguntas do quiz:', error);
     return [];
   }
-  
-  return data || [];
 }
 
-// Listar quizzes da palestra
+// Listar quizzes (param palestraId mantido só p/ compatibilidade, mas ignorado)
 async function listarQuizzesPalestra(palestraId) {
-  const { data, error } = await window.supabase
-    .from('cnv25_quiz')
-    .select('*')
-    .eq('palestra_id', palestraId)
-    .order('criado_em', { ascending: false });
-  
-  if (error) {
+  try {
+    const { data, error } = await sb
+      .from('cnv25_quiz')
+      .select('*')
+      .order('criado_em', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
     console.error('Erro ao listar quizzes:', error);
     return [];
   }
-  
-  return data || [];
 }
 
 // =====================================================
@@ -645,61 +500,69 @@ async function listarQuizzesPalestra(palestraId) {
 
 // Verificar se já votou na enquete
 async function verificouVotouEnquete(enqueteId, deviceIdHash) {
-  const { count } = await window.supabase
+  const { count, error } = await sb
     .from('cnv25_enquete_respostas')
     .select('*', { count: 'exact', head: true })
     .eq('enquete_id', enqueteId)
     .eq('device_id_hash', deviceIdHash);
-  
-  return count > 0;
+
+  if (error) {
+    console.error('Erro em verificouVotouEnquete:', error);
+    return false;
+  }
+  return (count || 0) > 0;
 }
 
 // Verificar se já respondeu pergunta do quiz
 async function verificouRespondeuQuiz(perguntaId, deviceIdHash) {
-  const { count } = await window.supabase
+  const { count, error } = await sb
     .from('cnv25_quiz_respostas')
     .select('*', { count: 'exact', head: true })
     .eq('quiz_pergunta_id', perguntaId)
     .eq('device_id_hash', deviceIdHash);
-  
-  return count > 0;
+
+  if (error) {
+    console.error('Erro em verificouRespondeuQuiz:', error);
+    return false;
+  }
+  return (count || 0) > 0;
 }
 
 // =====================================================
 // EXPORTAR CSV - ENQUETES
 // =====================================================
 async function exportarEnqueteCSV(enqueteId) {
-  const { data: enquete } = await window.supabase
+  const { data: enquete } = await sb
     .from('cnv25_enquetes')
     .select('titulo')
     .eq('id', enqueteId)
     .single();
-  
-  const { data: respostas } = await window.supabase
+
+  const { data: respostas } = await sb
     .from('cnv25_enquete_respostas')
     .select('*')
     .eq('enquete_id', enqueteId)
     .order('created_at');
-  
+
   if (!respostas || respostas.length === 0) {
     return null;
   }
-  
+
   const csv = [
     ['Data/Hora', 'Resposta', 'Device Hash'].join(','),
     ...respostas.map(r => [
       new Date(r.created_at).toLocaleString('pt-BR'),
-      r.resposta.valor,
-      r.device_id_hash.substring(0, 8)
+      r.resposta?.valor,
+      (r.device_id_hash || '').substring(0, 8)
     ].map(c => `"${c}"`).join(','))
   ].join('\n');
-  
+
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `enquete_${enquete?.titulo || 'export'}_${Date.now()}.csv`;
+  link.download = `enquete_${(enquete?.titulo || 'export').replace(/"/g, '')}_${Date.now()}.csv`;
   link.click();
-  
+
   return true;
 }
 
@@ -707,36 +570,36 @@ async function exportarEnqueteCSV(enqueteId) {
 // EXPORTAR CSV - QUIZ
 // =====================================================
 async function exportarQuizCSV(quizId) {
-  const { data: quiz } = await window.supabase
+  const { data: quiz } = await sb
     .from('cnv25_quiz')
     .select('titulo')
     .eq('id', quizId)
     .single();
-  
+
   const ranking = await obterRankingQuiz(quizId);
-  
+
   if (!ranking || ranking.length === 0) {
     return null;
   }
-  
+
   const csv = [
     ['Posição', 'Device Hash', 'Acertos', 'Pontos', 'Tempo Médio (s)'].join(','),
     ...ranking.map(r => [
       r.ranking,
-      r.device_id_hash.substring(0, 8),
+      (r.device_id_hash || '').substring(0, 8),
       r.total_acertos,
       r.pontos_totais,
       r.tempo_medio_resposta
     ].map(c => `"${c}"`).join(','))
   ].join('\n');
-  
+
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `quiz_${quiz?.titulo || 'export'}_${Date.now()}.csv`;
+  link.download = `quiz_${(quiz?.titulo || 'export').replace(/"/g, '')}_${Date.now()}.csv`;
   link.click();
-  
+
   return true;
 }
 
-console.log('✅ Módulo de Enquetes e Quiz carregado');
+console.log('✅ Módulo de Enquetes e Quiz (utils) carregado');
