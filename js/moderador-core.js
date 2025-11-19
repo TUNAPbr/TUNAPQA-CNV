@@ -289,7 +289,6 @@ function conectarRealtimeCore() {
   const palestraId = ModeradorState.palestraId;
   if (!palestraId) return;
 
-  // Canal da palestra
   ModeradorState.canais.controle = supabase
     .channel(`mod_controle:${palestraId}`)
     .on(
@@ -303,41 +302,12 @@ function conectarRealtimeCore() {
       (payload) => {
         ModeradorState.controle = payload.new;
         atualizarBadgesStatus();
-        // Não usamos mais enquete_ativa / quiz_ativo aqui;
-        // enquetes e quiz agora escutam o broadcast global (cnv25_broadcast_controle).
-      }
-    )
-    .subscribe();
-
-
-  // Canal de controle
-  ModeradorState.canais.controle = supabase
-    .channel(`mod_controle:${palestraId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'cnv25_palestra_controle',
-        filter: `palestra_id=eq.${palestraId}`
-      },
-      (payload) => {
-        const prev = ModeradorState.controle;
-        ModeradorState.controle = payload.new;
-        atualizarBadgesStatus();
-
-        // Notificar módulos sobre mudanças relevantes
-        if (window.ModuloEnquetes && prev?.enquete_ativa !== payload.new.enquete_ativa) {
-          window.ModuloEnquetes.onEnqueteAtivaMudou?.(payload.new.enquete_ativa);
-        }
-
-        if (window.ModuloQuiz && prev?.quiz_ativo !== payload.new.quiz_ativo) {
-          window.ModuloQuiz.onQuizAtivoMudou?.(payload.new.quiz_ativo);
-        }
+        // enquetes e quiz agora escutam o broadcast global (cnv25_broadcast_controle)
       }
     )
     .subscribe();
 }
+
 
 function desconectarCanaisCore() {
   Object.values(ModeradorState.canais).forEach((canal) => {
