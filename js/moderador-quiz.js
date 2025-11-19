@@ -388,42 +388,42 @@ const ModuloQuiz = (() => {
     }
   
     if (quizAtual.status !== 'preparando') {
-      alert('Quiz já foi iniciado');
+      alert('Esse quiz já foi iniciado ou finalizado.');
       return;
     }
   
-    if (!confirm(`Iniciar quiz "${quizAtual.titulo}"?`)) {
-      return;
-    }
-  
-    const palestraId = window.ModeradorCore.state.palestraId;
-    if (!palestraId) {
-      alert('Selecione uma palestra primeiro');
+    if (!confirm(`Iniciar o quiz "${quizAtual.titulo}"?`)) {
       return;
     }
   
     try {
-      // 1) Liga modo global em "quiz" e registra qual quiz está ativo
-      await window.ModeradorCore.setModoGlobal('quiz', {
+      // 1) Liga o semáforo global em modo QUIZ
+      const ok = await window.ModeradorCore.setModoGlobal('quiz', {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
-        quiz_ativo: quizAtual.id
+        quiz_ativo: quizAtual.id,
+        pergunta_exibida: null
       });
   
-      // 2) Marca o quiz como iniciado no banco
+      if (!ok) {
+        alert('Falha ao atualizar o modo global.');
+        return;
+      }
+  
+      // 2) Atualiza o status do quiz
       const { error } = await supabase
         .from('cnv25_quiz')
         .update({
           status: 'iniciado',
           iniciado_em: new Date().toISOString(),
-          pergunta_atual: 0 // começa em 0, primeira pergunta será 1
+          pergunta_atual: 0 // primeira pergunta vem com "Avançar"
         })
         .eq('id', quizAtual.id);
   
       if (error) throw error;
   
       window.ModeradorCore.mostrarNotificacao(
-        'Quiz iniciado! Clique em "Avançar" para a primeira pergunta.',
+        'Quiz iniciado! Clique em "Avançar" para ir à primeira pergunta.',
         'success'
       );
     } catch (error) {
@@ -431,7 +431,6 @@ const ModuloQuiz = (() => {
       alert('Erro ao iniciar quiz');
     }
   }
-
   
   async function avancar() {
     if (!quizAtual) return;
@@ -497,10 +496,7 @@ const ModuloQuiz = (() => {
       return;
     }
   
-    const palestraId = window.ModeradorCore.state.palestraId;
-  
     try {
-      // 1) Finaliza quiz no banco
       const { error } = await supabase
         .from('cnv25_quiz')
         .update({
@@ -511,11 +507,12 @@ const ModuloQuiz = (() => {
   
       if (error) throw error;
   
-      // 2) Desliga o modo quiz no broadcast global
+      // Desliga modo QUIZ no broadcast
       await window.ModeradorCore.setModoGlobal(null, {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
-        quiz_ativo: null
+        quiz_ativo: null,
+        pergunta_exibida: null
       });
   
       window.ModeradorCore.mostrarNotificacao('Quiz finalizado!', 'success');
