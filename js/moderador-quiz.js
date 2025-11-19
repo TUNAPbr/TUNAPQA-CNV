@@ -20,13 +20,13 @@ const ModuloQuiz = (() => {
   
   async function inicializar() {
     console.log('🎮 Módulo Quiz inicializando...');
-    
+  
     await carregarQuizzes();
-    await verificarQuizAtivo();
     configurarEventos();
-    
+  
     console.log('✅ Módulo Quiz pronto');
   }
+
   
   // =====================================================
   // CARREGAR QUIZZES
@@ -47,24 +47,6 @@ const ModuloQuiz = (() => {
       
     } catch (error) {
       console.error('Erro ao carregar quizzes:', error);
-    }
-  }
-  
-  async function verificarQuizAtivo() {
-    const controle = window.ModeradorCore.state.controle;
-    
-    if (controle?.quiz_ativo) {
-      const quiz = quizzes.find(q => q.id === controle.quiz_ativo);
-      
-      if (quiz) {
-        quizAtual = quiz;
-        document.getElementById('quizSelect').value = quiz.id;
-        await carregarPerguntaAtual();
-        conectarRealtimeQuiz();
-      }
-    } else {
-      quizAtual = null;
-      limparQuiz();
     }
   }
   
@@ -404,47 +386,52 @@ const ModuloQuiz = (() => {
       alert('Selecione um quiz primeiro');
       return;
     }
-    
+  
     if (quizAtual.status !== 'preparando') {
       alert('Quiz já foi iniciado');
       return;
     }
-    
+  
     if (!confirm(`Iniciar quiz "${quizAtual.titulo}"?`)) {
       return;
     }
-    
+  
     const palestraId = window.ModeradorCore.state.palestraId;
     if (!palestraId) {
       alert('Selecione uma palestra primeiro');
       return;
     }
-    
+  
     try {
-      // Atualizar controle para marcar quiz como ativo
-      await atualizarControlePalestra(palestraId, {
+      // 1) Liga modo global em "quiz" e registra qual quiz está ativo
+      await window.ModeradorCore.setModoGlobal('quiz', {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
         quiz_ativo: quizAtual.id
       });
-      
-      // Iniciar quiz
+  
+      // 2) Marca o quiz como iniciado no banco
       const { error } = await supabase
         .from('cnv25_quiz')
         .update({
           status: 'iniciado',
           iniciado_em: new Date().toISOString(),
-          pergunta_atual: 0 // Começa em 0, primeira pergunta será 1
+          pergunta_atual: 0 // começa em 0, primeira pergunta será 1
         })
         .eq('id', quizAtual.id);
-      
+  
       if (error) throw error;
-      
-      window.ModeradorCore.mostrarNotificacao('Quiz iniciado! Clique em "Avançar" para a primeira pergunta.', 'success');
-      
+  
+      window.ModeradorCore.mostrarNotificacao(
+        'Quiz iniciado! Clique em "Avançar" para a primeira pergunta.',
+        'success'
+      );
     } catch (error) {
       console.error('Erro ao iniciar quiz:', error);
       alert('Erro ao iniciar quiz');
     }
   }
+
   
   async function avancar() {
     if (!quizAtual) return;
@@ -505,15 +492,15 @@ const ModuloQuiz = (() => {
   
   async function finalizar() {
     if (!quizAtual) return;
-    
+  
     if (!confirm('Finalizar este quiz? Os participantes verão o ranking final.')) {
       return;
     }
-    
+  
     const palestraId = window.ModeradorCore.state.palestraId;
-    
+  
     try {
-      // Finalizar quiz
+      // 1) Finaliza quiz no banco
       const { error } = await supabase
         .from('cnv25_quiz')
         .update({
@@ -521,24 +508,23 @@ const ModuloQuiz = (() => {
           finalizado_em: new Date().toISOString()
         })
         .eq('id', quizAtual.id);
-      
+  
       if (error) throw error;
-      
-      // Desativar do controle
-      if (palestraId) {
-        await atualizarControlePalestra(palestraId, {
-          quiz_ativo: null
-        });
-      }
-      
+  
+      // 2) Desliga o modo quiz no broadcast global
+      await window.ModeradorCore.setModoGlobal(null, {
+        enquete_ativa: null,
+        mostrar_resultado_enquete: false,
+        quiz_ativo: null
+      });
+  
       window.ModeradorCore.mostrarNotificacao('Quiz finalizado!', 'success');
-      
     } catch (error) {
-      console.error('Erro ao finalizar:', error);
+      console.error('Erro ao finalizar quiz:', error);
       alert('Erro ao finalizar quiz');
     }
   }
-  
+ 
   // =====================================================
   // EXPORTAR CSV
   // =====================================================
