@@ -14,140 +14,59 @@ let quizEmCriacao = {
 };
 
 // =====================================================
-// ENQUETE - CRUD
+// ENQUETE - CRUD (AGORA SÓ CHAMA O MÓDULO ENQUETES)
 // =====================================================
 
+// Abrir modal de nova enquete
 function abrirModalEnqueteNova() {
-  document.getElementById('modalEnqueteCRUD').classList.remove('hidden');
-  document.getElementById('modalEnqueteCRUD').classList.add('flex');
-  document.getElementById('tituloModalEnquete').textContent = 'Criar Enquete';
-  document.getElementById('btnTextEnquete').textContent = 'Criar Enquete';
-  document.getElementById('enqueteIdEdit').value = '';
-  document.getElementById('inputTituloEnqueteCRUD').value = '';
-  document.getElementById('inputOpcoesEnqueteCRUD').value = '';
-}
-
-function abrirModalEnqueteEditar(enqueteId) {
-  const enquete = window.ModuloEnquetes ? 
-    enquetes.find(e => e.id === enqueteId) : null;
-  
-  if (!enquete) {
-    alert('Enquete não encontrada');
-    return;
+  if (window.ModuloEnquetes?.abrirModalNova) {
+    window.ModuloEnquetes.abrirModalNova();
+  } else {
+    console.warn('ModuloEnquetes.abrirModalNova não encontrado');
   }
-  
-  document.getElementById('modalEnqueteCRUD').classList.remove('hidden');
-  document.getElementById('modalEnqueteCRUD').classList.add('flex');
-  document.getElementById('tituloModalEnquete').textContent = 'Editar Enquete';
-  document.getElementById('btnTextEnquete').textContent = 'Salvar Alterações';
-  document.getElementById('enqueteIdEdit').value = enquete.id;
-  document.getElementById('inputTituloEnqueteCRUD').value = enquete.titulo;
-  document.getElementById('inputOpcoesEnqueteCRUD').value = 
-    enquete.opcoes.opcoes.join('\n');
 }
 
+// Abrir modal de edição de enquete
+function abrirModalEnqueteEditar(enqueteId) {
+  if (window.ModuloEnquetes?.abrirModalEditar) {
+    window.ModuloEnquetes.abrirModalEditar(enqueteId);
+  } else {
+    console.warn('ModuloEnquetes.abrirModalEditar não encontrado');
+  }
+}
+
+// Fechar modal de enquete
 function fecharModalEnqueteCRUD() {
-  document.getElementById('modalEnqueteCRUD').classList.add('hidden');
-  document.getElementById('modalEnqueteCRUD').classList.remove('flex');
+  if (window.ModuloEnquetes?.fecharModalCRUD) {
+    window.ModuloEnquetes.fecharModalCRUD();
+  } else {
+    const modal = document.getElementById('modalEnqueteCRUD');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+  }
 }
 
+// Delegar o submit do formulário para o módulo de enquetes
 document.getElementById('formEnqueteCRUD')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  
-  const enqueteId = document.getElementById('enqueteIdEdit').value;
-  const titulo = document.getElementById('inputTituloEnqueteCRUD').value.trim();
-  const opcoesTexto = document.getElementById('inputOpcoesEnqueteCRUD').value.trim();
-  
-  if (!titulo || !opcoesTexto) {
-    alert('Preencha todos os campos');
-    return;
-  }
-  
-  const opcoes = opcoesTexto
-    .split('\n')
-    .map(o => o.trim())
-    .filter(o => o.length > 0);
-  
-  if (opcoes.length < 2) {
-    alert('Adicione pelo menos 2 opções');
-    return;
-  }
-  
-  if (opcoes.length > 10) {
-    alert('Máximo de 10 opções permitidas');
-    return;
-  }
-  
-  try {
-    if (enqueteId) {
-      // EDITAR
-      const { error } = await supabase
-        .from('cnv25_enquetes')
-        .update({
-          titulo: titulo,
-          opcoes: { opcoes: opcoes }
-        })
-        .eq('id', enqueteId);
-      
-      if (error) throw error;
-      
-      window.ModeradorCore.mostrarNotificacao('Enquete atualizada!', 'success');
-    } else {
-      // CRIAR
-      const { error } = await supabase
-        .from('cnv25_enquetes')
-        .insert([{
-          palestra_id: null,
-          titulo: titulo,
-          tipo: 'multipla_escolha',
-          modo: 'enquete',
-          opcoes: { opcoes: opcoes },
-          ativa: true
-        }]);
-      
-      if (error) throw error;
-      
-      window.ModeradorCore.mostrarNotificacao('Enquete criada!', 'success');
-    }
-    
-    fecharModalEnqueteCRUD();
-    
-    // Recarregar lista
-    if (window.ModuloEnquetes) {
-      await window.ModuloEnquetes.inicializar();
-    }
-    
-  } catch (error) {
-    console.error('Erro ao salvar enquete:', error);
-    alert('Erro ao salvar enquete');
+  if (window.ModuloEnquetes?.salvarEnqueteCRUD) {
+    await window.ModuloEnquetes.salvarEnqueteCRUD(e);
+  } else {
+    console.warn('ModuloEnquetes.salvarEnqueteCRUD não encontrado');
   }
 });
 
+// Excluir enquete (via módulo novo)
 async function excluirEnquete(enqueteId) {
-  abrirModalConfirmarExclusao(
-    'Tem certeza que deseja excluir esta enquete? Esta ação não pode ser desfeita.',
-    async () => {
-      try {
-        const { error } = await supabase
-          .from('cnv25_enquetes')
-          .delete()
-          .eq('id', enqueteId);
-        
-        if (error) throw error;
-        
-        window.ModeradorCore.mostrarNotificacao('Enquete excluída!', 'success');
-        
-        if (window.ModuloEnquetes) {
-          await window.ModuloEnquetes.inicializar();
-        }
-        
-      } catch (error) {
-        console.error('Erro ao excluir:', error);
-        alert('Erro ao excluir enquete');
-      }
-    }
-  );
+  if (window.ModuloEnquetes?.deletar) {
+    await window.ModuloEnquetes.deletar(enqueteId);
+  } else {
+    console.warn('ModuloEnquetes.deletar não encontrado');
+  }
 }
+
 
 // =====================================================
 // QUIZ - CRUD
@@ -216,7 +135,7 @@ document.getElementById('formQuizInfo')?.addEventListener('submit', async (e) =>
     const { data, error } = await supabase
       .from('cnv25_quiz')
       .insert([{
-        palestra_id: null,
+        // palestra_id foi removido do schema; quiz agora é global
         titulo: titulo,
         descricao: descricao,
         total_perguntas: numPerguntas,
