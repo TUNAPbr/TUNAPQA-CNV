@@ -262,6 +262,11 @@ async function excluirQuiz(quizId) {
           .delete()
           .eq('id', quizId);
         
+        // Atualizar lista no moderador, se o módulo estiver carregado
+        if (window.ModuloQuiz && typeof window.ModuloQuiz.recarregarQuizzes === 'function') {
+          window.ModuloQuiz.recarregarQuizzes();
+        }
+        
         if (error) throw error;
         
         window.ModeradorCore.mostrarNotificacao('Quiz excluído!', 'success');
