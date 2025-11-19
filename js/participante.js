@@ -50,7 +50,12 @@ let deviceId = null;
 let deviceIdHash = null;
 
 // Enquete (via BROADCAST)
-let broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null };
+let broadcast = { 
+  enquete_ativa: null, 
+  mostrar_resultado_enquete: false, 
+  modo_global: null,
+  quiz_ativo: null
+};
 let canalBroadcast = null;
 let enqueteAtiva = null;   // objeto da enquete ativa (se houver)
 let jaVotou = false;
@@ -248,13 +253,14 @@ async function carregarBroadcast() {
   try {
     const { data } = await window.supabase
       .from('cnv25_broadcast_controle')
-      .select('enquete_ativa, mostrar_resultado_enquete, modo_global')
+      .select('enquete_ativa, mostrar_resultado_enquete, modo_global, quiz_ativo')
       .eq('id', 1)
       .single();
 
     broadcast.enquete_ativa = data?.enquete_ativa || null;
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
     broadcast.modo_global = data?.modo_global || null;
+    broadcast.quiz_ativo = data?.quiz_ativo || null;
 
     await carregarEnqueteViaBroadcast();
   } catch (e) {
@@ -281,6 +287,7 @@ function conectarRealtimeBroadcast() {
       broadcast.mostrar_resultado_enquete = !!payload?.new?.mostrar_resultado_enquete;
       broadcast.modo_global = payload?.new?.modo_global || null;
       await carregarEnqueteViaBroadcast();
+      await carregarQuizViaBroadcast();
     })
     .subscribe();
 }
@@ -315,6 +322,42 @@ async function carregarEnqueteViaBroadcast() {
     jaVotou = false;
     atualizarSecaoEnquete();
     aplicarModo(derivarModo());
+  }
+}
+
+async function carregarQuizViaBroadcast() {
+  if (!broadcast.quiz_ativo || broadcast.modo_global !== 'quiz') {
+    quizAtivo = null;
+    perguntaAtual = null;
+    atualizarSecaoQuiz();
+    return;
+  }
+
+  // Buscar quiz por ID, sem palestra
+  try {
+    const { data: quiz, error } = await window.supabase
+      .from('cnv25_quiz')
+      .select('*')
+      .eq('id', broadcast.quiz_ativo)
+      .single();
+
+    if (error) throw error;
+
+    quizAtivo = quiz || null;
+
+    if (quizAtivo) {
+      await carregarPerguntaAtualQuiz();
+      conectarRealtimeQuiz();
+    } else {
+      perguntaAtual = null;
+    }
+
+    atualizarSecaoQuiz();
+  } catch (e) {
+    console.error('Erro em carregarQuizViaBroadcast:', e);
+    quizAtivo = null;
+    perguntaAtual = null;
+    atualizarSecaoQuiz();
   }
 }
 
@@ -396,7 +439,6 @@ async function carregarPalestraAtiva() {
 
     await carregarPalestra();
     await carregarControle();
-    await carregarQuizAtivo();
 
     conectarRealtimePalestra();
 
