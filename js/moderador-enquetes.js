@@ -124,6 +124,7 @@ const ModuloEnquetes = (() => {
     container.innerHTML = _enquetes.map(enq => {
       const ativa = enq.id === _enqueteAtivaId;
       const encerrada = !!enq.encerrada_em;
+      const mostrandoNoTelao = (_resultadoNoTelaoId === enq.id);
       const tipoLabel = traduzTipo(enq.tipo);
       const modoLabel = traduzModo(enq.modo); // enq.modo agora vem undefined, cai no default "Enquete"
       const created = formatarData(enq.created_at);
@@ -173,12 +174,6 @@ const ModuloEnquetes = (() => {
               >
                 ⏹ Desativar
               </button>
-              <button 
-                class="px-3 py-1 text-xs rounded bg-amber-500 text-white hover:bg-amber-600 transition"
-                onclick="window.ModuloEnquetes.encerrar('${enq.id}')"
-              >
-                📊 Encerrar / Mostrar resultado
-              </button>
             `}
 
             <button 
@@ -192,7 +187,7 @@ const ModuloEnquetes = (() => {
               class="px-3 py-1 text-xs rounded bg-purple-500 text-white hover:bg-purple-600 transition"
               onclick="window.ModuloEnquetes.mostrarResultadoTelao('${enq.id}')"
             >
-              📺 Mostrar no telão
+              ${mostrandoNoTelao ? '🙈 Ocultar do telão' : '📺 Mostrar no telão'}
             </button>
             
             <button 
