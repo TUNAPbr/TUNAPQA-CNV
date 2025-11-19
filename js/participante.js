@@ -698,7 +698,9 @@ function atualizarSecaoEnquete() {
   if (titulo) titulo.textContent = enqueteAtiva.titulo || 'Enquete';
 
   const labels = labelsAte10();
-  const opcoesRaw = (enqueteAtiva.opcoes?.opcoes || []);
+  const opcoesRaw = Array.isArray(enqueteAtiva.opcoes)
+    ? enqueteAtiva.opcoes
+    : (enqueteAtiva.opcoes?.opcoes || []);
   const total = Math.min(opcoesRaw.length, 10);
   const opcoes = opcoesRaw.slice(0, total);
 
