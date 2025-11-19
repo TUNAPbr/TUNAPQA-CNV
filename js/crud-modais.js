@@ -17,16 +17,19 @@ let quizEmCriacao = {
 // ENQUETE - CRUD (AGORA SÓ CHAMA O MÓDULO ENQUETES)
 // =====================================================
 
-// Abrir modal de nova enquete
 function abrirModalEnqueteNova() {
   if (window.ModuloEnquetes?.abrirModalNova) {
     window.ModuloEnquetes.abrirModalNova();
   } else {
-    console.warn('ModuloEnquetes.abrirModalNova não encontrado');
+    // fallback: abre modal bruto
+    const modal = document.getElementById('modalEnqueteCRUD');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
   }
 }
 
-// Abrir modal de edição de enquete
 function abrirModalEnqueteEditar(enqueteId) {
   if (window.ModuloEnquetes?.abrirModalEditar) {
     window.ModuloEnquetes.abrirModalEditar(enqueteId);
@@ -35,7 +38,6 @@ function abrirModalEnqueteEditar(enqueteId) {
   }
 }
 
-// Fechar modal de enquete
 function fecharModalEnqueteCRUD() {
   if (window.ModuloEnquetes?.fecharModalCRUD) {
     window.ModuloEnquetes.fecharModalCRUD();
@@ -48,17 +50,9 @@ function fecharModalEnqueteCRUD() {
   }
 }
 
-// Delegar o submit do formulário para o módulo de enquetes
-document.getElementById('formEnqueteCRUD')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (window.ModuloEnquetes?.salvarEnqueteCRUD) {
-    await window.ModuloEnquetes.salvarEnqueteCRUD(e);
-  } else {
-    console.warn('ModuloEnquetes.salvarEnqueteCRUD não encontrado');
-  }
-});
+// Não colocamos listener de submit aqui para evitar duplicidade.
+// O próprio ModuloEnquetes configura formEnqueteCRUD.onsubmit internamente.
 
-// Excluir enquete (via módulo novo)
 async function excluirEnquete(enqueteId) {
   if (window.ModuloEnquetes?.deletar) {
     await window.ModuloEnquetes.deletar(enqueteId);
