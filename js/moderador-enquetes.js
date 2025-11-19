@@ -544,6 +544,12 @@ const ModuloEnquetes = (() => {
         });
   
         _resultadoNoTelaoId = null;
+        // se quiser manter enquete ativa na lista, pode não mexer em _enqueteAtivaId aqui
+        // _enqueteAtivaId = null;
+  
+        // 🔴 AQUI é o ponto que faltava
+        renderizarLista();
+  
         window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete ocultado do telão.', 'info');
         return;
       }
@@ -559,12 +565,14 @@ const ModuloEnquetes = (() => {
       _resultadoNoTelaoId = enqueteId;
       _enqueteAtivaId = enqueteId;
       renderizarLista();
+  
       window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete exibido no telão.', 'info');
     } catch (err) {
       console.error('Erro ao alternar resultado no telão:', err);
       window.ModeradorCore?.mostrarNotificacao?.('Erro ao mostrar/ocultar resultado no telão.', 'error');
     }
   }
+
 
   // =====================================================
   // EXPORTAR CSV
