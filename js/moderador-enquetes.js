@@ -170,7 +170,14 @@ const ModuloEnquetes = (() => {
             >
               📈 Ver resultados
             </button>
-
+            
+            <button 
+              class="px-3 py-1 text-xs rounded bg-purple-500 text-white hover:bg-purple-600 transition"
+              onclick="window.ModuloEnquetes.mostrarResultadoTelao('${enq.id}')"
+            >
+              📺 Mostrar no telão
+            </button>
+            
             <button 
               class="px-3 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600 transition"
               onclick="window.ModuloEnquetes.deletar('${enq.id}')"
@@ -280,7 +287,7 @@ const ModuloEnquetes = (() => {
     const payload = {
       titulo,
       tipo,
-      opcoes: rawOpcoes,
+      opcoes: { opcoes: rawOpcoes },
       ativa: false
     };
 
@@ -449,19 +456,80 @@ const ModuloEnquetes = (() => {
 
   async function abrirResultados(enqueteId) {
     try {
+      // Busca enquete na lista local ou no banco
+      let enquete = _enquetes.find(e => e.id === enqueteId);
+      if (!enquete) {
+        enquete = await fetchEnquete(enqueteId);
+      }
+      if (!enquete) {
+        window.ModeradorCore?.mostrarNotificacao?.('Enquete não encontrada para exibir resultado.', 'error');
+        return;
+      }
+  
+      const resultado = await fetchResultadoEnquete(enquete.id);
+      const rows = resultado?.rows || [];
+      const labels = 'ABCDEFGHIJ'.split('');
+  
+      const opcoesRaw = Array.isArray(enquete.opcoes)
+        ? enquete.opcoes
+        : (enquete.opcoes?.opcoes || []);
+      const opcoes = opcoesRaw.slice(0, 10);
+  
+      const totalVotos = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
+  
+      const drawerTitulo = document.getElementById('drawerTitulo');
+      const drawerBody = document.getElementById('drawerBody');
+  
+      if (drawerTitulo) {
+        drawerTitulo.textContent = `Resultados — ${enquete.titulo || 'Enquete'}`;
+      }
+  
+      if (drawerBody) {
+        if (!opcoes.length) {
+          drawerBody.innerHTML = '<p class="text-gray-500">Esta enquete não possui opções cadastradas.</p>';
+        } else {
+          drawerBody.innerHTML = opcoes.map((txt, idx) => {
+            const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
+            const pct = totalVotos ? Math.round((v / totalVotos) * 100) : 0;
+            return `
+              <div class="border rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                  <div class="font-medium"><strong>${labels[idx]}.</strong> ${esc(txt)}</div>
+                  <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
+                </div>
+                <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+  
+      if (window.abrirResultadosDrawer) {
+        window.abrirResultadosDrawer();
+      }
+    } catch (err) {
+      console.error('Erro ao abrir resultados (moderador):', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao exibir resultados.', 'error');
+    }
+  }
+
+  async function mostrarResultadoTelao(enqueteId) {
+    try {
       await window.ModeradorCore.setModoGlobal('enquete', {
         enquete_ativa: enqueteId,
         mostrar_resultado_enquete: true,
         pergunta_exibida: null,
         quiz_ativo: null
       });
-
+  
       _enqueteAtivaId = enqueteId;
       renderizarLista();
-      window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete no telão.', 'info');
+      window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete exibido no telão.', 'info');
     } catch (err) {
-      console.error('Erro ao abrir resultados:', err);
-      window.ModeradorCore?.mostrarNotificacao?.('Erro ao abrir resultados.', 'error');
+      console.error('Erro ao mostrar resultado no telão:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao mostrar resultado no telão.', 'error');
     }
   }
 
@@ -609,6 +677,7 @@ const ModuloEnquetes = (() => {
     encerrar,
     deletar,
     abrirResultados,
+    mostrarResultadoTelao,
     exportarCSV,
     // CRUD
     abrirModalNova,
