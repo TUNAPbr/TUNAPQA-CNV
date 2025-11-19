@@ -7,6 +7,7 @@ const ModuloEnquetes = (() => {
   let _enquetes = [];
   let _enqueteAtivaId = null;
   let _canalEnquetes = null;
+  let _resultadoNoTelaoId = null;
 
   // Estado do CRUD
   let _editEnqueteId = null;
@@ -63,25 +64,41 @@ const ModuloEnquetes = (() => {
 
     _canalEnquetes = supabase
       .channel('mod_enquetes_global')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'cnv25_enquetes'
-      }, (payload) => {
-        const nova = payload.new;
-        if (!nova) return;
-
-        // Atualiza/insere na lista local
-        const idx = _enquetes.findIndex(e => e.id === nova.id);
-        if (idx >= 0) {
-          _enquetes[idx] = nova;
-        } else {
-          _enquetes.unshift(nova);
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cnv25_enquetes'
+        },
+        (payload) => {
+          const tipo = payload.eventType;
+    
+          if (tipo === 'DELETE') {
+            const oldId = payload.old?.id;
+            if (oldId) {
+              _enquetes = _enquetes.filter(e => e.id !== oldId);
+              if (_enqueteAtivaId === oldId) _enqueteAtivaId = null;
+              if (_resultadoNoTelaoId === oldId) _resultadoNoTelaoId = null;
+              renderizarLista();
+            }
+            return;
+          }
+    
+          const nova = payload.new;
+          if (!nova) return;
+    
+          const idx = _enquetes.findIndex(e => e.id === nova.id);
+          if (idx >= 0) {
+            _enquetes[idx] = nova;
+          } else {
+            _enquetes.unshift(nova);
+          }
+          renderizarLista();
         }
-
-        renderizarLista();
-      })
+      )
       .subscribe();
+
   }
 
   // =====================================================
@@ -424,11 +441,11 @@ const ModuloEnquetes = (() => {
   async function deletar(enqueteId) {
     const alvo = _enquetes.find(e => e.id === enqueteId);
     const titulo = alvo ? alvo.titulo : 'esta enquete';
-
+  
     if (!confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
-
+  
     try {
-      // Se ela for a ativa, desliga o semáforo
+      // Se ela for a ativa, desliga o semáforo global
       if (_enqueteAtivaId === enqueteId) {
         await window.ModeradorCore.setModoGlobal(null, {
           enquete_ativa: null,
@@ -437,16 +454,20 @@ const ModuloEnquetes = (() => {
           quiz_ativo: null
         });
         _enqueteAtivaId = null;
+        _resultadoNoTelaoId = null;
       }
-
+  
       const { error } = await supabase
         .from('cnv25_enquetes')
         .delete()
         .eq('id', enqueteId);
+  
       if (error) throw error;
-
+  
+      // Remove da lista local imediatamente
       _enquetes = _enquetes.filter(e => e.id !== enqueteId);
       renderizarLista();
+  
       window.ModeradorCore?.mostrarNotificacao?.('Enquete excluída.', 'success');
     } catch (err) {
       console.error('Erro ao excluir enquete:', err);
@@ -456,10 +477,10 @@ const ModuloEnquetes = (() => {
 
   async function abrirResultados(enqueteId) {
     try {
-      // Busca enquete na lista local ou no banco
+      // Busca enquete na lista local ou via serviço
       let enquete = _enquetes.find(e => e.id === enqueteId);
-      if (!enquete) {
-        enquete = await fetchEnquete(enqueteId);
+      if (!enquete && window.EnqueteService?.carregarEnquete) {
+        enquete = await window.EnqueteService.carregarEnquete(enqueteId);
       }
       if (!enquete) {
         window.ModeradorCore?.mostrarNotificacao?.('Enquete não encontrada para exibir resultado.', 'error');
@@ -515,8 +536,24 @@ const ModuloEnquetes = (() => {
     }
   }
 
+
   async function mostrarResultadoTelao(enqueteId) {
     try {
+      // Se já estamos mostrando o resultado desta enquete no telão, vamos ocultar
+      if (_resultadoNoTelaoId === enqueteId) {
+        await window.ModeradorCore.setModoGlobal(null, {
+          enquete_ativa: null,
+          mostrar_resultado_enquete: false,
+          pergunta_exibida: null,
+          quiz_ativo: null
+        });
+  
+        _resultadoNoTelaoId = null;
+        window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete ocultado do telão.', 'info');
+        return;
+      }
+  
+      // Caso contrário, mostrar resultado dessa enquete no telão
       await window.ModeradorCore.setModoGlobal('enquete', {
         enquete_ativa: enqueteId,
         mostrar_resultado_enquete: true,
@@ -524,12 +561,13 @@ const ModuloEnquetes = (() => {
         quiz_ativo: null
       });
   
+      _resultadoNoTelaoId = enqueteId;
       _enqueteAtivaId = enqueteId;
       renderizarLista();
       window.ModeradorCore?.mostrarNotificacao?.('Resultado da enquete exibido no telão.', 'info');
     } catch (err) {
-      console.error('Erro ao mostrar resultado no telão:', err);
-      window.ModeradorCore?.mostrarNotificacao?.('Erro ao mostrar resultado no telão.', 'error');
+      console.error('Erro ao alternar resultado no telão:', err);
+      window.ModeradorCore?.mostrarNotificacao?.('Erro ao mostrar/ocultar resultado no telão.', 'error');
     }
   }
 
@@ -629,6 +667,51 @@ const ModuloEnquetes = (() => {
   // =====================================================
   // UTILIDADES
   // =====================================================
+  async function fetchResultadoEnquete(enqueteId) {
+    try {
+      // 1) tenta view agregada
+      let viaView = true;
+      const resView = await supabase
+        .from('cnv25_enquete_resultado_v')
+        .select('*')
+        .eq('enquete_id', enqueteId);
+  
+      if (resView.error) {
+        viaView = false;
+      }
+  
+      if (viaView) {
+        return { rows: resView.data || [] };
+      }
+  
+      // 2) fallback: agrega no cliente
+      const { data: rs, error } = await supabase
+        .from('cnv25_enquete_respostas')
+        .select('resposta')
+        .eq('enquete_id', enqueteId);
+  
+      if (error) {
+        console.error('fetchResultadoEnquete (fallback):', error);
+        return { rows: [] };
+      }
+  
+      const cont = {};
+      (rs || []).forEach(r => {
+        const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
+        cont[idx] = (cont[idx] || 0) + 1;
+      });
+  
+      const rows = Object.entries(cont).map(([k, v]) => ({
+        opcao_index: parseInt(k, 10),
+        votos: v
+      }));
+  
+      return { rows };
+    } catch (e) {
+      console.error('Erro em fetchResultadoEnquete:', e);
+      return { rows: [] };
+    }
+  }
 
   function formatarData(ts) {
     if (!ts) return '';
