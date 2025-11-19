@@ -502,18 +502,16 @@ function atualizarSecaoPerguntas() {
 
   if (aberta) {
     secao.classList.remove('inactive');
-    if (statusEl) {
-      statusEl.textContent = '✅ ABERTAS';
-      statusEl.className = 'ml-auto px-3 py-1 rounded-full text-xs font-bold bg-green-500 text-white';
-    }
     if (btnEnviar) btnEnviar.disabled = false;
   } else {
     secao.classList.add('inactive');
-    if (statusEl) {
-      statusEl.textContent = controle?.silencio_ativo ? '🔇 SILÊNCIO' : '❌ FECHADAS';
-      statusEl.className = 'ml-auto px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white';
-    }
     if (btnEnviar) btnEnviar.disabled = true;
+  }
+
+  // Não exibir mais o chip de status ("ABERTAS", "FECHADAS", etc.)
+  if (statusEl) {
+    statusEl.textContent = '';
+    statusEl.className = 'hidden';
   }
 
   const limiteDinamico = validarElemento('limiteDinamico');
@@ -521,6 +519,7 @@ function atualizarSecaoPerguntas() {
     limiteDinamico.textContent = palestra.max_perguntas || 3;
   }
 }
+
 
 function configurarListeners() {
   const textarea = document.getElementById('textoPergunta');
@@ -688,14 +687,19 @@ function atualizarSecaoEnquete() {
   const opcoesEl = validarElemento('opcoesEnquete');
   const feedback = validarElemento('feedbackEnquete');
 
+  // Não queremos mais exibir um título logo abaixo do rótulo "Enquete",
+  // então mantemos o elemento, mas sem texto.
+  if (titulo) {
+    titulo.textContent = '';
+  }
+
   if (!enqueteAtiva) {
-    if (titulo) titulo.textContent = 'Enquete';
-    if (opcoesEl) opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Nenhuma enquete ativa.</p>';
+    if (opcoesEl) {
+      opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Nenhuma enquete ativa.</p>';
+    }
     feedback?.classList.add('hidden');
     return;
   }
-
-  if (titulo) titulo.textContent = enqueteAtiva.titulo || 'Enquete';
 
   const labels = labelsAte10();
   const opcoesRaw = Array.isArray(enqueteAtiva.opcoes)
@@ -704,33 +708,18 @@ function atualizarSecaoEnquete() {
   const total = Math.min(opcoesRaw.length, 10);
   const opcoes = opcoesRaw.slice(0, total);
 
-  // Se moderador optou por mostrar resultado no telão, mostramos barras aqui também
-  if (broadcast.mostrar_resultado_enquete) {
-    (async () => {
-      const { rows } = await fetchResultadoEnquete(enqueteAtiva.id);
-      const totalVotos = rows.reduce((acc,r)=>acc+(r.votos||0),0);
-      if (opcoesEl) {
-        opcoesEl.innerHTML = opcoes.map((txt, idx) => {
-          const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
-          const pct = totalVotos ? Math.round((v/totalVotos)*100) : 0;
-          return `
-            <div class="border rounded-lg p-3">
-              <div class="flex items-center justify-between">
-                <div class="font-medium"><strong>${labels[idx]}.</strong> ${esc(txt)}</div>
-                <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
-              </div>
-              <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
-                <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
-              </div>
-            </div>
-          `;
-        }).join('');
-      }
-    })();
+  if (!opcoes.length) {
+    if (opcoesEl) {
+      opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Esta enquete não possui opções cadastradas.</p>';
+    }
     return;
   }
 
-  // Fluxo normal de votação
+  // Se já votou e estamos mostrando resultado no telão, mantém mensagem neutra
+  if (feedback) {
+    feedback.classList.add('hidden');
+  }
+
   if (opcoesEl) {
     if (jaVotou) {
       opcoesEl.innerHTML = '<p class="text-sm text-gray-600">Você já votou. Aguardando resultados…</p>';
@@ -746,6 +735,7 @@ function atualizarSecaoEnquete() {
     }
   }
 }
+
 
 async function votarEnqueteParticipante(opcaoIndex) {
   if (!enqueteAtiva || jaVotou) return;
