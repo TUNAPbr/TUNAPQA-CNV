@@ -88,6 +88,9 @@ function displayPollResult(poll, resultado) {
   if (el.modeBadgeText) el.modeBadgeText.textContent = 'RESULTADOS';
   if (el.voteHint) el.voteHint.classList.add('hidden');
 
+  // 🔧 altura mínima dos cards de opção (em pixels)
+  const OPTION_CARD_MIN_HEIGHT = 100; // mude aqui: 100, 140, 160...
+
   const labels = 'ABCDEFGHIJ'.split('');
   const opcoesRaw = Array.isArray(poll?.opcoes)
     ? poll.opcoes
@@ -96,7 +99,7 @@ function displayPollResult(poll, resultado) {
   const rows = resultado?.rows || [];
   const total = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
 
-  // Título no telão: apenas o título da enquete
+  // Título no telão: somente o título da enquete
   if (el.pollTitle) el.pollTitle.textContent = poll?.titulo || 'Enquete';
 
   if (el.pollBody) {
@@ -109,9 +112,11 @@ function displayPollResult(poll, resultado) {
                 const row = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx));
                 const v = row?.votos || 0;
                 const pct = total ? Math.round((v / total) * 100) : 0;
+
                 return `
-                  <div class="border rounded-lg p-4 min-h-[160px] flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-2">
+                  <div class="border rounded-lg p-4 flex flex-col justify-between"
+                       style="min-height:${OPTION_CARD_MIN_HEIGHT}px">
+                    <div class="flex items-start justify-between mb-2">
                       <div class="font-semibold text-xl">
                         <span class="inline-block mr-2 text-gray-500">${labels[idx]}.</span>
                         <span>${escapeHtml(txt)}</span>
@@ -135,7 +140,6 @@ function displayPollResult(poll, resultado) {
 
   showMode('pollMode');
 }
-
 
 // ====== RENDER: PERGUNTA (destaque) ======
 async function fetchPergunta(perguntaId) {
