@@ -34,7 +34,8 @@ let broadcast = {
   enquete_ativa: null,
   mostrar_resultado_enquete: false,
   modo_global: null, // 'enquete' | 'perguntas' | 'quiz' | null
-  pergunta_exibida: null
+  pergunta_exibida: null,
+  quiz_ativo: null
 };
 let canalBroadcast = null;
 
@@ -247,6 +248,7 @@ async function carregarBroadcast() {
     broadcast.enquete_ativa = data?.enquete_ativa || null;
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
     broadcast.modo_global = data?.modo_global || null;
+    broadcast.quiz_ativo = payload.new.quiz_ativo ?? broadcast.quiz_ativo;
 
     decidirOQueExibir();
   } catch (e) {
@@ -276,6 +278,7 @@ function conectarRealtimeBroadcast() {
       broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
       broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
       broadcast.modo_global = payload.new?.modo_global || null;
+      broadcast.quiz_ativo = payload.new.quiz_ativo ?? broadcast.quiz_ativo;
       decidirOQueExibir();
     })
     .subscribe();
