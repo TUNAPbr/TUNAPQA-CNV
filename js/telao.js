@@ -89,34 +89,53 @@ function displayPollResult(poll, resultado) {
   if (el.voteHint) el.voteHint.classList.add('hidden');
 
   const labels = 'ABCDEFGHIJ'.split('');
-  const opcoes = poll?.opcoes?.opcoes || [];
+  const opcoesRaw = Array.isArray(poll?.opcoes)
+    ? poll.opcoes
+    : (poll?.opcoes?.opcoes || []);
+  const opcoes = opcoesRaw.slice(0, 10);
   const rows = resultado?.rows || [];
   const total = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
 
-  if (el.pollTitle) {
-    el.pollTitle.textContent = `Resultados — ${poll?.titulo || 'Enquete'}`;
-  }
+  // Título no telão: apenas o título da enquete
+  if (el.pollTitle) el.pollTitle.textContent = poll?.titulo || 'Enquete';
 
   if (el.pollBody) {
-    el.pollBody.innerHTML = opcoes.slice(0, 10).map((txt, idx) => {
-      const v = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx))?.votos || 0;
-      const pct = total ? Math.round((v / total) * 100) : 0;
-      return `
-        <div class="border rounded-lg p-3">
-          <div class="flex items-center justify-between">
-            <div class="font-medium"><strong>${labels[idx]}.</strong> ${escapeHtml(txt)}</div>
-            <div class="text-sm text-gray-600">${v} voto(s) • ${pct}%</div>
-          </div>
-          <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
-            <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+    el.pollBody.innerHTML = `
+      <div class="w-full flex items-center justify-center">
+        <div class="w-full max-w-5xl">
+          <div class="grid grid-cols-2 xl:grid-cols-3 gap-4">
+            ${
+              opcoes.map((txt, idx) => {
+                const row = rows.find(r => (r.opcao_index === idx || r.opcaoIndex === idx));
+                const v = row?.votos || 0;
+                const pct = total ? Math.round((v / total) * 100) : 0;
+                return `
+                  <div class="border rounded-lg p-4 min-h-[160px] flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="font-semibold text-xl">
+                        <span class="inline-block mr-2 text-gray-500">${labels[idx]}.</span>
+                        <span>${escapeHtml(txt)}</span>
+                      </div>
+                      <div class="text-sm text-gray-600 text-right">
+                        ${v} voto(s)<br>${pct}%
+                      </div>
+                    </div>
+                    <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                      <div class="h-2 rounded-full" style="width:${pct}%; background:#3b82f6"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')
+            }
           </div>
         </div>
-      `;
-    }).join('');
+      </div>
+    `;
   }
 
   showMode('pollMode');
 }
+
 
 // ====== RENDER: PERGUNTA (destaque) ======
 async function fetchPergunta(perguntaId) {
@@ -133,23 +152,27 @@ async function fetchPergunta(perguntaId) {
 }
 
 function displayPergunta(pergunta) {
+  if (el.pollTitle) el.pollTitle.classList.remove('hidden');
   if (el.modeBadgeText) el.modeBadgeText.textContent = 'PERGUNTA';
-  if (el.voteHint) el.voteHint.classList.add('hidden');
+  if (el.voteHint) el.voteHint.classList.add('hidden'); // não mostra "vote" em pergunta
 
-  // esconde o título padrão
+  // tira o "Pergunta em destaque"
   if (el.pollTitle) {
-    el.pollTitle.textContent = '';
-    el.pollTitle.classList.add('hidden');
+    el.pollTitle.textContent = '';            // sem texto
+    el.pollTitle.classList.add('hidden');     // esconde o <h2>
   }
 
   if (el.pollBody) {
     const autor = pergunta.anonimo ? 'Anônimo' : (pergunta.nome_opt || 'Participante');
+    // Card com altura padrão para acomodar ~140 caracteres e manter estética fixa
     el.pollBody.innerHTML = `
-      <div class="space-y-3">
-        <p style="font-size:56px; line-height:1.2; font-weight:700; letter-spacing:-0.02em;">
-          ${escapeHtml(pergunta.texto)}
-        </p>
-        <p class="text-lg" style="opacity:.6;">por ${escapeHtml(autor)}</p>
+      <div class="w-full flex items-center justify-center">
+        <div class="w-full max-w-5xl min-h-[260px] flex flex-col justify-center space-y-3">
+          <p style="font-size:56px; line-height:1.2; font-weight:700; letter-spacing:-0.02em;">
+            ${escapeHtml(pergunta.texto)}
+          </p>
+          <p class="text-lg" style="opacity:.6;">por ${escapeHtml(autor)}</p>
+        </div>
       </div>
     `;
   }
