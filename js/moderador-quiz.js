@@ -49,6 +49,12 @@ const ModuloQuiz = (() => {
       console.error('Erro ao carregar quizzes:', error);
     }
   }
+
+  async function recarregarQuizzes() {
+    await carregarQuizzes();
+    renderizarQuiz();
+  }
+
   
   function renderizarSelect() {
     const select = document.getElementById('quizSelect');
@@ -650,8 +656,9 @@ const ModuloQuiz = (() => {
     revelar,
     finalizar,
     exportarCSV,
-    onQuizAtivoMudou
+    recarregarQuizzes
   };
+
 })();
 
 // Expor globalmente
