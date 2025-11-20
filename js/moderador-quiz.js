@@ -322,14 +322,14 @@ async function irParaPergunta(ordem) {
         pergunta_atual: ordem
       })
       .eq('id', quizAtual.id);
-      
-      perguntasJaJogadas.add(ordem);
-      await carregarPerguntaAtual();
-      await carregarListaPerguntas();
-      renderizarQuiz();
-    
     
     if (error) throw error;
+    
+    perguntasJaJogadas.add(ordem);
+    
+    await carregarPerguntaAtual();
+    await carregarListaPerguntas();
+    renderizarQuiz();
     
     window.ModeradorCore.mostrarNotificacao(
       `Pergunta ${ordem} enviada para o telão e participantes.`,
@@ -400,7 +400,6 @@ async function revelarDaLista(ordem) {
         table: 'cnv25_quiz_respostas'
       }, () => {
         if (perguntaAtual) {
-          carregarStats();
         }
       })
       .subscribe();
@@ -432,6 +431,7 @@ async function revelarDaLista(ordem) {
     }
     
     const container = document.getElementById('quizPerguntaAtual');
+    const statusLegivel = getStatusLabel(quizAtual.status);
     
     // Quiz não iniciado
     if (quizAtual.status === 'preparando') {
@@ -532,7 +532,6 @@ async function revelarDaLista(ordem) {
         <div id="quizResumoStats" class="mt-4 text-sm text-gray-700 hidden"></div>
       `;
       
-      carregarStats();
       
     } else {
       container.innerHTML = `
@@ -543,75 +542,8 @@ async function revelarDaLista(ordem) {
       `;
     }
     atualizarBotaoIniciar();
-    rankingTelaoAtivo = false;
     atualizarBotaoRankingTelao();
     
-  }
-  
-  async function carregarStats() {
-    if (!perguntaAtual) {
-      return;
-    }
-    
-    try {
-      const stats = await obterStatsQuizPergunta(perguntaAtual.id);
-      
-      if (!stats) {
-        return;
-      }
-      
-      document.getElementById('totalRespostas').textContent = stats.total_respostas || 0;
-      document.getElementById('percAcerto').textContent = Math.round(stats.percentual_acerto || 0) + '%';
-      
-      // Gráfico
-      const labels = ['A', 'B', 'C', 'D'];
-      const data = [0, 0, 0, 0];
-      
-      if (stats.distribuicao_respostas) {
-        stats.distribuicao_respostas.forEach(d => {
-          data[d.opcao] = d.total_votos;
-        });
-      }
-      
-      const ctx = document.getElementById('chartQuiz');
-      if (chartQuiz) {
-        chartQuiz.destroy();
-      }
-      
-      const backgroundColors = labels.map((_, idx) => 
-        perguntaAtual.revelada && idx === perguntaAtual.resposta_correta ? '#27ae52' : '#2797ff'
-      );
-      
-      chartQuiz = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Respostas',
-            data: data,
-            backgroundColor: backgroundColors,
-            borderColor: '#1e293b',
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1 }
-            }
-          }
-        }
-      });
-      
-    } catch (error) {
-      console.error('Erro ao carregar stats:', error);
-    }
   }
   
   async function renderizarRanking() {
@@ -776,7 +708,6 @@ async function revelarDaLista(ordem) {
       
       perguntaAtual.revelada = true;
       renderizarQuiz();
-      await carregarStats();
       await carregarListaPerguntas();
       
       window.ModeradorCore.mostrarNotificacao('Resposta revelada!', 'success');
@@ -983,7 +914,6 @@ async function revelarDaLista(ordem) {
     
     if (quizAtual && perguntaAtual) {
       intervalStats = setInterval(() => {
-        carregarStats();
       }, 2000); // Atualizar a cada 2 segundos
     }
   }
