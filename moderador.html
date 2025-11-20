@@ -365,26 +365,35 @@
   
     <!-- Grid principal: 
     <!-- Lista de Perguntas -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  
+    <!-- 📚 Lista de Perguntas -->
     <div class="bg-gray-50 rounded-lg p-4">
       <h3 class="font-bold text-lg mb-4">📚 Perguntas do Quiz</h3>
-      <div id="quizListaPerguntas" class="space-y-2 max-h-[450px] overflow-y-auto">
+      <div id="quizListaPerguntas" class="space-y-2 max-h-[400px] overflow-y-auto">
+        <p class="text-gray-500 text-center py-8">
+          Selecione um quiz acima.
+        </p>
       </div>
     </div>
-    
-    <!-- Pergunta Atual -->
+  
+    <!-- 🎮 Pergunta Atual -->
     <div class="bg-gray-50 rounded-lg p-4">
       <h3 class="font-bold text-lg mb-4">🎮 Pergunta Atual</h3>
-      <div id="quizPerguntaAtual" class="min-h-[220px]">
+      <div id="quizPerguntaAtual" class="min-h-[240px]">
+        <p class="text-gray-500 text-center py-8">Nenhum quiz selecionado</p>
       </div>
     </div>
-    
-    <!-- Ranking -->
-    <div class="bg-gray-50 rounded-lg p-4 lg:col-span-2">
+  
+    <!-- 🏆 Ranking -->
+    <div class="bg-gray-50 rounded-lg p-4">
       <h3 class="font-bold text-lg mb-4">🏆 Ranking</h3>
-      <div id="quizRanking" class="max-h-[360px] overflow-y-auto">
+      <div id="quizRanking" class="max-h-[400px] overflow-y-auto">
+        <p class="text-gray-500 text-center py-8">Aguardando início do quiz</p>
       </div>
     </div>
-
+  
+  </div>
     
   <!-- MODAL CRIAR ENQUETE -->
   <div id="modalEnquete" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
