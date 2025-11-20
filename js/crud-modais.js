@@ -545,4 +545,8 @@ document.getElementById('btnConfirmarExclusao')?.addEventListener('click', async
   fecharModalConfirmarExclusao();
 });
 
+
+window.abrirModalEnqueteNova   = abrirModalEnqueteNova;
+window.abrirModalEnqueteEditar = abrirModalEnqueteEditar;
+window.fecharModalEnqueteCRUD  = fecharModalEnqueteCRUD;
 console.log('✅ CRUD Modais carregado');
