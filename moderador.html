@@ -280,121 +280,124 @@
       </div>
       <div id="drawerBackdrop" class="fixed inset-0 bg-black/30 hidden z-40" onclick="fecharResultados()"></div>
       
-      <!-- TAB 3: QUIZ -->
-      <div id="tabQuiz" class="tab-content p-6">
-        <div id="tabQuiz" class="tab-content p-6">
-          <!-- Linha 1: seleção e CRUD -->
-          <div class="flex flex-wrap items-center gap-2 mb-6">
-            <select 
-              id="quizSelect" 
-              class="px-4 py-2 border-2 border-gray-300 rounded-lg min-w-[260px]"
-            >
-              <option value="">Selecione um quiz...</option>
-            </select>
+  <!-- TAB 3: QUIZ -->
+  <div id="tabQuiz" class="tab-content p-6">
+    <!-- Bloco: Quiz atual (equivalente ao blkPalestraPerguntas) -->
+    <div id="blkQuizHeader" class="mb-4 bg-white rounded-xl p-4 shadow">
+      <label class="text-sm text-gray-600">Quiz atual</label>
+  
+      <!-- linha do select -->
+      <div class="mt-2">
+        <select 
+          id="quizSelect"
+          class="w-full border rounded px-3 py-2"
+        >
+          <option value="">Selecione um quiz...</option>
+        </select>
+      </div>
+  
+      <!-- linha dos botões CRUD -->
+      <div class="mt-3 flex justify-end gap-2">
+        <button
+          type="button"
+          class="px-3 py-2 bg-cnv-success text-white rounded hover:opacity-90"
+          onclick="abrirModalQuizNovo()"
+        >
+          Novo
+        </button>
+  
+        <button
+          type="button"
+          class="px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+          onclick="abrirModalQuizEditar()"
+        >
+          Editar
+        </button>
+  
+        <button
+          type="button"
+          class="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          onclick="abrirModalExcluirQuiz()"
+        >
+          Excluir
+        </button>
+  
+        <button
+          id="btnExportarQuiz"
+          type="button"
+          class="px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
+        >
+          Exportar
+        </button>
+      </div>
+    </div>
+  
+    <!-- Linha de botões de controle do Quiz (equivalente aos botões Abrir/Silêncio/Exportar) -->
+    <div class="flex gap-2 mb-6 flex-wrap">
+      <button 
+        id="btnIniciarQuiz"
+        class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600"
+      >
+        ▶️ Iniciar Quiz
+      </button>
+  
+      <button 
+        id="btnAvancarQuiz"
+        class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600"
+      >
+        ⏭️ Avançar Pergunta
+      </button>
+  
+      <button 
+        id="btnRevelarQuiz"
+        class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600"
+      >
+        👁️ Revelar Resposta
+      </button>
+  
+      <button 
+        id="btnFinalizarQuiz"
+        class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800"
+      >
+        🏁 Finalizar Quiz
+      </button>
+    </div>
+  
+    <!-- Grid principal: Pergunta Atual + Ranking (como os 3 cards de Perguntas) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Pergunta Atual + Stats -->
+      <div class="bg-gray-50 rounded-lg p-4">
+        <h3 class="font-bold text-lg mb-4">🎮 Pergunta Atual</h3>
+        <div id="quizPerguntaAtual">
+          <p class="text-gray-500 text-center py-8">Nenhum quiz selecionado</p>
+        </div>
         
-            <button 
-              type="button"
-              onclick="abrirModalQuizNovo()"
-              class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:opacity-90"
-            >
-              ➕ Criar Quiz
-            </button>
-        
-            <button 
-              type="button"
-              onclick="abrirModalQuizEditar()"
-              class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
-            >
-              ✏️ Editar Quiz
-            </button>
-        
-            <button 
-              type="button"
-              onclick="abrirModalExcluirQuiz()"
-              class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-            >
-              🗑 Excluir Quiz
-            </button>
-        
-            <button 
-              id="btnExportarQuiz"
-              class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
-            >
-              📥 Exportar Quiz
-            </button>
-          </div>
-        
-          <!-- Espaço visual entre CRUD e controle -->
-          <div class="h-2"></div>
-        
-          <!-- Linha 2: controle do Quiz ao vivo -->
-          <div class="flex flex-wrap items-center gap-2 mb-6">
-            <button 
-              id="btnIniciarQuiz"
-              class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600"
-            >
-              ▶️ Iniciar
-            </button>
-        
-            <button 
-              id="btnAvancarQuiz"
-              class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600"
-            >
-              ⏭️ Avançar
-            </button>
-        
-            <button 
-              id="btnRevelarQuiz"
-              class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600"
-            >
-              👁️ Revelar
-            </button>
-        
-            <button 
-              id="btnFinalizarQuiz"
-              class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800"
-            >
-              🏁 Finalizar
-            </button>
-          </div>
-
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Pergunta Atual + Stats -->
-          <div class="bg-gray-50 rounded-lg p-4">
-            <h3 class="font-bold text-lg mb-4">🎮 Pergunta Atual</h3>
-            <div id="quizPerguntaAtual">
-              <p class="text-gray-500 text-center py-8">Nenhum quiz selecionado</p>
+        <div id="quizStats" class="mt-6 hidden">
+          <h4 class="font-semibold mb-3">📊 Estatísticas</h4>
+          <canvas id="chartQuiz" height="200"></canvas>
+          <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+            <div class="bg-white p-3 rounded">
+              <p class="text-gray-600">Respostas:</p>
+              <p class="text-2xl font-bold text-cnv-primary" id="totalRespostas">0</p>
             </div>
-            
-            <div id="quizStats" class="mt-6 hidden">
-              <h4 class="font-semibold mb-3">📊 Estatísticas</h4>
-              <canvas id="chartQuiz" height="200"></canvas>
-              <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-                <div class="bg-white p-3 rounded">
-                  <p class="text-gray-600">Respostas:</p>
-                  <p class="text-2xl font-bold text-cnv-primary" id="totalRespostas">0</p>
-                </div>
-                <div class="bg-white p-3 rounded">
-                  <p class="text-gray-600">% Acerto:</p>
-                  <p class="text-2xl font-bold text-cnv-success" id="percAcerto">0%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Ranking -->
-          <div class="bg-gray-50 rounded-lg p-4">
-            <h3 class="font-bold text-lg mb-4">🏆 Ranking</h3>
-            <div id="quizRanking" class="max-h-96 overflow-y-auto">
-              <p class="text-gray-500 text-center py-8">Aguardando finalização</p>
+            <div class="bg-white p-3 rounded">
+              <p class="text-gray-600">% Acerto:</p>
+              <p class="text-2xl font-bold text-cnv-success" id="percAcerto">0%</p>
             </div>
           </div>
         </div>
       </div>
+      
+      <!-- Ranking -->
+      <div class="bg-gray-50 rounded-lg p-4">
+        <h3 class="font-bold text-lg mb-4">🏆 Ranking</h3>
+        <div id="quizRanking" class="max-h-96 overflow-y-auto">
+          <p class="text-gray-500 text-center py-8">Aguardando finalização do quiz</p>
+        </div>
+      </div>
     </div>
   </div>
-  
+    
   <!-- MODAL CRIAR ENQUETE -->
   <div id="modalEnquete" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
