@@ -56,6 +56,21 @@ const ModuloQuiz = (() => {
     renderizarQuiz();
   }
 
+  function previewPergunta(ordem) {
+    if (!perguntasQuiz || perguntasQuiz.length === 0) return;
+    const p = perguntasQuiz.find(q => q.ordem === ordem);
+    if (!p) return;
+  
+    // Atualiza apenas o estado local do moderador
+    perguntaAtual = p;
+  
+    // NÃO mexe em quizAtual.pergunta_atual
+    // NÃO faz update no banco
+    // NÃO chama broadcast
+  
+    renderizarQuiz();
+  }
+
   
   function renderizarSelect() {
     const select = document.getElementById('quizSelect');
@@ -195,7 +210,11 @@ function renderizarListaPerguntas() {
       }
       
       return `
-        <div class="p-3 rounded-lg flex items-center justify-between gap-3 ${statusClasses}">
+        <div 
+          class="p-3 rounded-lg flex items-center justify-between gap-3 ${statusClasses}"
+          onclick="window.ModuloQuiz.previewPergunta(${p.ordem})"
+          style="cursor: pointer;"
+        >
           <div class="flex-1 min-w-0">
             <p class="text-xs text-gray-500 mb-1">Pergunta ${p.ordem}</p>
             <p class="text-sm font-medium text-gray-800 truncate">
@@ -207,14 +226,14 @@ function renderizarListaPerguntas() {
             <button
               type="button"
               class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
-              onclick="window.ModuloQuiz.irParaPergunta(${p.ordem})"
+              onclick="event.stopPropagation(); window.ModuloQuiz.irParaPergunta(${p.ordem})"
             >
               ▶️ Play
             </button>
             <button
               type="button"
               class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
-              onclick="window.ModuloQuiz.revelarDaLista(${p.ordem})"
+              onclick="event.stopPropagation(); window.ModuloQuiz.revelarDaLista(${p.ordem})"
             >
               👁️ Revelar
             </button>
@@ -224,6 +243,7 @@ function renderizarListaPerguntas() {
     })
     .join('');
 }
+
 
 async function irParaPergunta(ordem) {
   if (!quizAtual) return;
@@ -241,14 +261,20 @@ async function irParaPergunta(ordem) {
     if (error) throw error;
     
     window.ModeradorCore.mostrarNotificacao(
-      `Pergunta ${ordem} exibida!`,
+      `Pergunta ${ordem} enviada para o telão e participantes.`,
       'info'
     );
+
+    // Atualiza local após mandar pro banco
+    await carregarPerguntaAtual();
+    await carregarListaPerguntas();
+    renderizarQuiz();
   } catch (e) {
     console.error('Erro ao ir para pergunta:', e);
     alert('Erro ao exibir a pergunta selecionada.');
   }
 }
+
 
 async function revelarDaLista(ordem) {
   if (!quizAtual) return;
@@ -913,16 +939,16 @@ async function revelarDaLista(ordem) {
     selecionarQuiz,
     desconectar,
     iniciar,
-    avancar,
-    revelar,
     finalizar,
     exportarCSV,
-    onQuizAtivoMudou,
+    // controle por pergunta
     irParaPergunta,
     revelarDaLista,
+    previewPergunta,
     carregarListaPerguntas,
     renderizarListaPerguntas
   };
+
 
 })();
 
