@@ -210,7 +210,6 @@ async function abrirModalQuizEditar() {
 
   const quizId = select.value;
 
-  try:
   try {
     const { data: quiz, error } = await supabase
       .from('cnv25_quiz')
@@ -219,6 +218,7 @@ async function abrirModalQuizEditar() {
       .single();
 
     if (error || !quiz) {
+      console.error('Erro ao carregar quiz para edição:', error);
       alert('Não foi possível carregar o quiz selecionado.');
       return;
     }
@@ -472,6 +472,8 @@ function abrirModalExcluirQuiz() {
     modal.classList.add('flex');
   }
 }
+
+// ---------- Wire-up de eventos dos formulários ----------
 
 // ---------- Wire-up de eventos dos formulários ----------
 
