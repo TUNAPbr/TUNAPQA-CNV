@@ -286,6 +286,8 @@
           <select id="quizSelect" class="px-4 py-2 border-2 border-gray-300 rounded-lg">
             <option value="">Selecione um quiz...</option>
           </select>
+        
+          <!-- CONTROLE AO VIVO -->
           <button id="btnIniciarQuiz" class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600">
             ▶️ Iniciar
           </button>
@@ -298,13 +300,28 @@
           <button id="btnFinalizarQuiz" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
             🏁 Finalizar
           </button>
+        
+          <!-- CRUD -->
           <button id="btnExportarQuiz" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
             📥 Exportar
           </button>
           <button 
+            type="button"
             onclick="abrirModalQuizNovo()"
             class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:opacity-90">
             ➕ Criar Quiz
+          </button>
+          <button 
+            type="button"
+            onclick="abrirModalQuizEditar()"
+            class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
+            ✏️ Editar Quiz
+          </button>
+          <button 
+            type="button"
+            onclick="abrirModalExcluirQuiz()"
+            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+            🗑 Excluir Quiz
           </button>
         </div>
         
