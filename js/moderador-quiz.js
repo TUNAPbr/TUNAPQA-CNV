@@ -20,6 +20,21 @@ const ModuloQuiz = (() => {
   // =====================================================
   // INICIALIZAÇÃO
   // =====================================================
+  function syncQuizNaLista() {
+    if (!quizAtual) return;
+  
+    quizzes = quizzes.map(q =>
+      q.id === quizAtual.id
+        ? { ...q, status: quizAtual.status }
+        : q
+    );
+  
+    renderizarSelect();
+  
+    const select = document.getElementById('quizSelect');
+    if (select) select.value = quizAtual.id;
+  }
+  
   function atualizarBotaoRankingTelao() {
     const btn = document.getElementById('btnToggleRankingTelao');
     if (!btn) return;
@@ -286,7 +301,7 @@ function renderizarListaPerguntas() {
             <p class="text-xs text-gray-500 mt-1">${statusLabel}</p>
           </div>
           <div class="flex flex-col gap-1">
-            ${!jaJogada ? `
+            ${!perguntasJaJogadas?.has?.(p.ordem) ? `
               <button
                 type="button"
                 class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
@@ -295,13 +310,24 @@ function renderizarListaPerguntas() {
                 ▶️ Play
               </button>
             ` : ''}
-            <button
-              type="button"
-              class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
-              onclick="event.stopPropagation(); window.ModuloQuiz.revelarDaLista(${p.ordem})"
-            >
-              👁️ Revelar
-            </button>
+          
+            ${revelada ? `
+              <button
+                type="button"
+                class="px-3 py-1 text-xs rounded bg-gray-300 text-gray-700 cursor-default"
+                disabled
+              >
+                ✅ Revelada
+              </button>
+            ` : `
+              <button
+                type="button"
+                class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
+                onclick="event.stopPropagation(); window.ModuloQuiz.revelarDaLista(${p.ordem})"
+              >
+                👁️ Revelar
+              </button>
+            `}
           </div>
         </div>
       `;
@@ -386,6 +412,7 @@ async function revelarDaLista(ordem) {
       }, async (payload) => {
         quizAtual = payload.new;
         await carregarPerguntaAtual();
+        syncQuizNaLista();
         await carregarListaPerguntas();
         renderizarQuiz();
       })
@@ -655,6 +682,7 @@ async function revelarDaLista(ordem) {
       alert('Erro ao iniciar quiz');
     }
     atualizarBotaoIniciar();
+    syncQuizNaLista();
   }
   
   async function avancar() {
@@ -770,6 +798,7 @@ async function revelarDaLista(ordem) {
     
     await renderizarRanking();
     atualizarBotaoIniciar();
+    syncQuizNaLista();
 
   }
 
@@ -822,6 +851,7 @@ async function revelarDaLista(ordem) {
       // 5) Atualiza estado local
       await selecionarQuiz(quizAtual.id);
       atualizarBotaoIniciar();
+      syncQuizNaLista();
   
       window.ModeradorCore.mostrarNotificacao('Quiz reiniciado com sucesso!', 'success');
     } catch (e) {
