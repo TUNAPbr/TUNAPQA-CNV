@@ -282,48 +282,82 @@
       
       <!-- TAB 3: QUIZ -->
       <div id="tabQuiz" class="tab-content p-6">
-        <div class="flex gap-2 mb-6 flex-wrap">
-          <select id="quizSelect" class="px-4 py-2 border-2 border-gray-300 rounded-lg">
-            <option value="">Selecione um quiz...</option>
-          </select>
+        <div id="tabQuiz" class="tab-content p-6">
+          <!-- Linha 1: seleção e CRUD -->
+          <div class="flex flex-wrap items-center gap-2 mb-6">
+            <select 
+              id="quizSelect" 
+              class="px-4 py-2 border-2 border-gray-300 rounded-lg min-w-[260px]"
+            >
+              <option value="">Selecione um quiz...</option>
+            </select>
         
-          <!-- CONTROLE AO VIVO -->
-          <button id="btnIniciarQuiz" class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600">
-            ▶️ Iniciar
-          </button>
-          <button id="btnAvancarQuiz" class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600">
-            ⏭️ Avançar
-          </button>
-          <button id="btnRevelarQuiz" class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600">
-            👁️ Revelar
-          </button>
-          <button id="btnFinalizarQuiz" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
-            🏁 Finalizar
-          </button>
+            <button 
+              type="button"
+              onclick="abrirModalQuizNovo()"
+              class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:opacity-90"
+            >
+              ➕ Criar Quiz
+            </button>
         
-          <!-- CRUD -->
-          <button id="btnExportarQuiz" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
-            📥 Exportar
-          </button>
-          <button 
-            type="button"
-            onclick="abrirModalQuizNovo()"
-            class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:opacity-90">
-            ➕ Criar Quiz
-          </button>
-          <button 
-            type="button"
-            onclick="abrirModalQuizEditar()"
-            class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
-            ✏️ Editar Quiz
-          </button>
-          <button 
-            type="button"
-            onclick="abrirModalExcluirQuiz()"
-            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-            🗑 Excluir Quiz
-          </button>
-        </div>
+            <button 
+              type="button"
+              onclick="abrirModalQuizEditar()"
+              class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+            >
+              ✏️ Editar Quiz
+            </button>
+        
+            <button 
+              type="button"
+              onclick="abrirModalExcluirQuiz()"
+              class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            >
+              🗑 Excluir Quiz
+            </button>
+        
+            <button 
+              id="btnExportarQuiz"
+              class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+            >
+              📥 Exportar Quiz
+            </button>
+          </div>
+        
+          <!-- Espaço visual entre CRUD e controle -->
+          <div class="h-2"></div>
+        
+          <!-- Linha 2: controle do Quiz ao vivo -->
+          <div class="flex flex-wrap items-center gap-2 mb-6">
+            <button 
+              id="btnIniciarQuiz"
+              class="px-4 py-2 bg-cnv-success text-white rounded-lg hover:bg-green-600"
+            >
+              ▶️ Iniciar
+            </button>
+        
+            <button 
+              id="btnAvancarQuiz"
+              class="px-4 py-2 bg-cnv-primary text-white rounded-lg hover:bg-blue-600"
+            >
+              ⏭️ Avançar
+            </button>
+        
+            <button 
+              id="btnRevelarQuiz"
+              class="px-4 py-2 bg-cnv-warning text-white rounded-lg hover:bg-yellow-600"
+            >
+              👁️ Revelar
+            </button>
+        
+            <button 
+              id="btnFinalizarQuiz"
+              class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800"
+            >
+              🏁 Finalizar
+            </button>
+          </div>
+
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Pergunta Atual + Stats -->
