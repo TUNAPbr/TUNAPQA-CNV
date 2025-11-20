@@ -379,17 +379,39 @@ async function handleSubmitPerguntaQuiz(event) {
   };
 
   try {
-    // upsert por (quiz_id, ordem) – precisa de unique no banco
-    const { error } = await supabase
+    // 1) Verifica se já existe pergunta para (quiz_id, ordem)
+    const { data: existentes, error: selectError } = await supabase
       .from('cnv25_quiz_perguntas')
-      .upsert(payload, { onConflict: 'quiz_id,ordem' });
+      .select('id')
+      .eq('quiz_id', quizId)
+      .eq('ordem', ordem);
 
-    if (error) throw error;
+    if (selectError) throw selectError;
 
+    if (existentes && existentes.length > 0) {
+      // 2a) Já existe -> UPDATE
+      const idExistente = existentes[0].id;
+
+      const { error: updateError } = await supabase
+        .from('cnv25_quiz_perguntas')
+        .update(payload)
+        .eq('id', idExistente);
+
+      if (updateError) throw updateError;
+    } else {
+      // 2b) Não existe -> INSERT
+      const { error: insertError } = await supabase
+        .from('cnv25_quiz_perguntas')
+        .insert(payload);
+
+      if (insertError) throw insertError;
+    }
+
+    // cache local
     QuizWizardState.perguntasCache[ordem] = payload;
 
+    // Já é a última pergunta?
     if (ordem >= QuizWizardState.totalPerguntas) {
-      // Concluiu todas
       if (window.ModuloQuiz && typeof window.ModuloQuiz.recarregarQuizzes === 'function') {
         window.ModuloQuiz.recarregarQuizzes();
       }
@@ -398,7 +420,7 @@ async function handleSubmitPerguntaQuiz(event) {
       return;
     }
 
-    // Próxima pergunta
+    // Avança para a próxima
     QuizWizardState.perguntaAtualIndex += 1;
     preencherFormularioPergunta(QuizWizardState.perguntaAtualIndex);
   } catch (e) {
@@ -406,6 +428,7 @@ async function handleSubmitPerguntaQuiz(event) {
     alert('Erro ao salvar pergunta do quiz.');
   }
 }
+
 
 // ---------- Exclusão de Quiz ----------
 
