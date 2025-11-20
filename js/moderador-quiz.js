@@ -8,6 +8,7 @@ const ModuloQuiz = (() => {
   let quizAtual = null;
   let perguntaAtual = null;
   let chartQuiz = null;
+  let perguntasQuiz = [];
   
   let canalQuiz = null;
   let canalQuizPerguntas = null;
@@ -77,7 +78,9 @@ const ModuloQuiz = (() => {
     if (!quizId) {
       quizAtual = null;
       perguntaAtual = null;
+      perguntasQuiz = [];
       limparQuiz();
+      renderizarListaPerguntas();
       return;
     }
     
@@ -86,8 +89,32 @@ const ModuloQuiz = (() => {
     if (!quizAtual) return;
     
     await carregarPerguntaAtual();
+    await carregarListaPerguntas();
     conectarRealtimeQuiz();
     renderizarQuiz();
+  }
+
+  async function verificarQuizAtivo() {
+    const controle = window.ModeradorCore.state.controle;
+    
+    if (controle?.quiz_ativo) {
+      const quiz = quizzes.find(q => q.id === controle.quiz_ativo);
+      
+      if (quiz) {
+        quizAtual = quiz;
+        document.getElementById('quizSelect').value = quiz.id;
+        await carregarPerguntaAtual();
+        await carregarListaPerguntas();
+        conectarRealtimeQuiz();
+        renderizarQuiz();
+      }
+    } else {
+      quizAtual = null;
+      perguntaAtual = null;
+      perguntasQuiz = [];
+      limparQuiz();
+      renderizarListaPerguntas();
+    }
   }
   
   async function carregarPerguntaAtual() {
@@ -105,6 +132,142 @@ const ModuloQuiz = (() => {
     
     perguntaAtual = data;
   }
+  async function carregarListaPerguntas() {
+  if (!quizAtual) {
+    perguntasQuiz = [];
+    renderizarListaPerguntas();
+    return;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('cnv25_quiz_perguntas')
+      .select('*')
+      .eq('quiz_id', quizAtual.id)
+      .order('ordem', { ascending: true });
+    
+    if (error) {
+      console.error('Erro ao carregar lista de perguntas do quiz:', error);
+      perguntasQuiz = [];
+    } else {
+      perguntasQuiz = data || [];
+    }
+    
+    renderizarListaPerguntas();
+  } catch (e) {
+    console.error('Erro inesperado ao carregar lista de perguntas:', e);
+    perguntasQuiz = [];
+    renderizarListaPerguntas();
+  }
+}
+
+function renderizarListaPerguntas() {
+  const container = document.getElementById('quizListaPerguntas');
+  if (!container) return;
+  
+  if (!quizAtual) {
+    container.innerHTML = '<p class="text-gray-500 text-center py-8">Selecione um quiz acima.</p>';
+    return;
+  }
+  
+  if (!perguntasQuiz || perguntasQuiz.length === 0) {
+    container.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma pergunta cadastrada para este quiz.</p>';
+    return;
+  }
+  
+  container.innerHTML = perguntasQuiz
+    .map((p) => {
+      const isAtual = quizAtual.pergunta_atual === p.ordem;
+      const revelada = p.revelada;
+      
+      let statusClasses = 'bg-gray-100 border border-gray-200';
+      let statusLabel = 'Não jogada';
+      
+      if (revelada) {
+        statusClasses = 'bg-blue-50 border border-blue-400';
+        statusLabel = 'Revelada';
+      }
+      if (isAtual) {
+        statusClasses = revelada
+          ? 'bg-green-50 border border-green-500'
+          : 'bg-green-50 border border-green-400';
+        statusLabel = revelada ? 'Atual (revelada)' : 'Atual';
+      }
+      
+      return `
+        <div class="p-3 rounded-lg flex items-center justify-between gap-3 ${statusClasses}">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-gray-500 mb-1">Pergunta ${p.ordem}</p>
+            <p class="text-sm font-medium text-gray-800 truncate">
+              ${window.ModeradorCore.esc(p.pergunta)}
+            </p>
+            <p class="text-xs text-gray-500 mt-1">${statusLabel}</p>
+          </div>
+          <div class="flex flex-col gap-1">
+            <button
+              type="button"
+              class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
+              onclick="window.ModuloQuiz.irParaPergunta(${p.ordem})"
+            >
+              ▶️ Play
+            </button>
+            <button
+              type="button"
+              class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
+              onclick="window.ModuloQuiz.revelarDaLista(${p.ordem})"
+            >
+              👁️ Revelar
+            </button>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+async function irParaPergunta(ordem) {
+  if (!quizAtual) return;
+  if (!ordem || ordem < 1 || ordem > quizAtual.total_perguntas) return;
+  
+  try {
+    const { error } = await supabase
+      .from('cnv25_quiz')
+      .update({
+        status: 'em_andamento',
+        pergunta_atual: ordem
+      })
+      .eq('id', quizAtual.id);
+    
+    if (error) throw error;
+    
+    window.ModeradorCore.mostrarNotificacao(
+      `Pergunta ${ordem} exibida!`,
+      'info'
+    );
+  } catch (e) {
+    console.error('Erro ao ir para pergunta:', e);
+    alert('Erro ao exibir a pergunta selecionada.');
+  }
+}
+
+async function revelarDaLista(ordem) {
+  if (!quizAtual) return;
+  if (!ordem || ordem < 1 || ordem > quizAtual.total_perguntas) return;
+  
+  try {
+    // Se não for a pergunta atual, muda pra ela
+    if (quizAtual.pergunta_atual !== ordem) {
+      await irParaPergunta(ordem);
+      await carregarPerguntaAtual();
+    }
+    
+    await revelar();
+    await carregarListaPerguntas();
+  } catch (e) {
+    console.error('Erro ao revelar pergunta da lista:', e);
+    alert('Erro ao revelar essa pergunta.');
+  }
+}
   
   // =====================================================
   // REALTIME
@@ -126,6 +289,7 @@ const ModuloQuiz = (() => {
       }, async (payload) => {
         quizAtual = payload.new;
         await carregarPerguntaAtual();
+        await carregarListaPerguntas();
         renderizarQuiz();
       })
       .subscribe();
@@ -215,7 +379,7 @@ const ModuloQuiz = (() => {
             <p class="text-sm text-gray-600">
               Pergunta <strong>${quizAtual.pergunta_atual}</strong> de <strong>${quizAtual.total_perguntas}</strong>
             </p>
-            ${perguntaAtual.tempo_limite > 0 ? `<span class="text-xs bg-cnv-warning text-white px-2 py-1 rounded">⏱️ ${perguntaAtual.tempo_limite}s</span>` : ''}
+            ${perguntaAtual.tempo_limite > 0 ? `<span class="text-xs bg-white px-3 py-1 rounded shadow-sm">⏱️ ${perguntaAtual.tempo_limite}s</span>` : ''}
           </div>
           <p class="font-semibold text-gray-800">${window.ModeradorCore.esc(perguntaAtual.pergunta)}</p>
         </div>
@@ -226,23 +390,37 @@ const ModuloQuiz = (() => {
             const revelada = perguntaAtual.revelada;
             
             return `
-              <div class="p-3 rounded-lg ${revelada && isCorreta ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-100'}">
+              <div class="p-3 rounded-lg ${
+                revelada && isCorreta
+                  ? 'bg-green-100 border-2 border-green-500'
+                  : 'bg-gray-100'
+              }">
                 <strong>${labels[idx]}.</strong> ${window.ModeradorCore.esc(op)}
-                ${revelada && isCorreta ? ' <span class="text-green-600 font-bold">✓ CORRETA</span>' : ''}
+                ${
+                  revelada && isCorreta
+                    ? ' <span class="text-green-600 font-bold">✓ CORRETA</span>'
+                    : ''
+                }
               </div>
             `;
           }).join('')}
         </div>
         
-        ${perguntaAtual.revelada ? `
+        ${
+          perguntaAtual.revelada
+            ? `
           <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
             <p class="text-sm text-green-800"><strong>✓ Resposta revelada!</strong> Clique em "Avançar" para próxima pergunta.</p>
           </div>
-        ` : `
+        `
+            : `
           <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
             <p class="text-sm text-blue-800">Aguardando respostas dos participantes...</p>
           </div>
-        `}
+        `
+        }
+        
+        <div id="quizResumoStats" class="mt-4 text-sm text-gray-700 hidden"></div>
       `;
       
       carregarStats();
@@ -254,7 +432,6 @@ const ModuloQuiz = (() => {
           <p class="text-sm text-gray-500 mt-2">Aguardando primeira pergunta</p>
         </div>
       `;
-      document.getElementById('quizStats').classList.add('hidden');
     }
   }
   
@@ -461,6 +638,10 @@ const ModuloQuiz = (() => {
       
       window.ModeradorCore.mostrarNotificacao(`Pergunta ${proximaPergunta} exibida!`, 'info');
       
+      // Atualiza ranking e lista de perguntas após avançar
+      await renderizarRanking();
+      await carregarListaPerguntas();
+      
     } catch (error) {
       console.error('Erro ao avançar:', error);
       alert('Erro ao avançar para próxima pergunta');
@@ -486,6 +667,7 @@ const ModuloQuiz = (() => {
       perguntaAtual.revelada = true;
       renderizarQuiz();
       await carregarStats();
+      await carregarListaPerguntas();
       
       window.ModeradorCore.mostrarNotificacao('Resposta revelada!', 'success');
       
@@ -647,16 +829,20 @@ const ModuloQuiz = (() => {
   // =====================================================
   // API PÚBLICA
   // =====================================================
-  
   return {
     inicializar,
+    selecionarQuiz,
     desconectar,
     iniciar,
     avancar,
     revelar,
     finalizar,
     exportarCSV,
-    recarregarQuizzes
+    onQuizAtivoMudou,
+    irParaPergunta,
+    revelarDaLista,
+    carregarListaPerguntas,
+    renderizarListaPerguntas
   };
 
 })();
