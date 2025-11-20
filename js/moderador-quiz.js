@@ -433,6 +433,7 @@ async function revelarDaLista(ordem) {
         </div>
       `;
     }
+    atualizarBotaoIniciar();
   }
   
   async function carregarStats() {
@@ -708,8 +709,90 @@ async function revelarDaLista(ordem) {
       console.error('Erro ao finalizar quiz:', error);
       alert('Erro ao finalizar quiz');
     }
+    
+    await renderizarRanking();
+    atualizarBotaoIniciar();
+
   }
- 
+
+  async function reiniciarQuiz() {
+    if (!quizAtual) {
+      alert('Selecione um quiz primeiro');
+      return;
+    }
+  
+    if (!confirm(`Reiniciar o quiz "${quizAtual.titulo}"? Isso vai zerar respostas e estatísticas.`)) {
+      return;
+    }
+  
+    try {
+      // 1) Apaga respostas
+      await supabase
+        .from('cnv25_quiz_respostas')
+        .delete()
+        .eq('quiz_id', quizAtual.id);
+  
+      // 2) Reseta perguntas (revelada = false)
+      await supabase
+        .from('cnv25_quiz_perguntas')
+        .update({ revelada: false })
+        .eq('quiz_id', quizAtual.id);
+  
+      // 3) Reseta quiz
+      const { error } = await supabase
+        .from('cnv25_quiz')
+        .update({
+          status: 'preparando',
+          pergunta_atual: 0,
+          iniciado_em: null,
+          finalizado_em: null
+        })
+        .eq('id', quizAtual.id);
+  
+      if (error) throw error;
+  
+      // 4) Limpa ranking visual
+      if (typeof renderizarRanking === 'function') {
+        await renderizarRanking();
+      }
+  
+      // 5) Atualiza estado local
+      await selecionarQuiz(quizAtual.id);
+  
+      window.ModeradorCore.mostrarNotificacao('Quiz reiniciado com sucesso!', 'success');
+    } catch (e) {
+      console.error('Erro ao reiniciar quiz:', e);
+      alert('Erro ao reiniciar quiz.');
+    }
+  }
+  
+  function atualizarBotaoIniciar() {
+    const btnIniciar = document.getElementById('btnIniciarQuiz');
+    if (!btnIniciar) return;
+  
+    if (!quizAtual || !quizAtual.status || quizAtual.status === 'preparando') {
+      // Quiz ainda não começou
+      btnIniciar.textContent = '▶️ Iniciar Quiz';
+      btnIniciar.classList.remove('bg-gray-500', 'hover:bg-gray-600');
+      btnIniciar.classList.add('bg-cnv-success', 'hover:bg-green-600');
+    } else {
+      // Já foi iniciado / em andamento / finalizado -> mostra "Reiniciar"
+      btnIniciar.textContent = '🔄 Reiniciar Quiz';
+      btnIniciar.classList.remove('bg-cnv-success', 'hover:bg-green-600');
+      btnIniciar.classList.add('bg-gray-500', 'hover:bg-gray-600');
+    }
+  }
+  
+  async function handleBotaoIniciar() {
+    if (!quizAtual || !quizAtual.status || quizAtual.status === 'preparando') {
+      // fluxo normal de iniciar
+      await iniciar();
+    } else {
+      // fluxo de reiniciar
+      await reiniciarQuiz();
+    }
+  }
+
   // =====================================================
   // EXPORTAR CSV
   // =====================================================
@@ -802,24 +885,20 @@ async function revelarDaLista(ordem) {
   // =====================================================
   
   function configurarEventos() {
-    const quizSelect = document.getElementById('quizSelect');
-    const btnIniciar = document.getElementById('btnIniciarQuiz');
-    const btnAvancar = document.getElementById('btnAvancarQuiz');
-    const btnRevelar = document.getElementById('btnRevelarQuiz');
+    const quizSelect   = document.getElementById('quizSelect');
+    const btnIniciar   = document.getElementById('btnIniciarQuiz');
     const btnFinalizar = document.getElementById('btnFinalizarQuiz');
-    const btnExportar = document.getElementById('btnExportarQuiz');
+    const btnExportar  = document.getElementById('btnExportarQuiz');
     
     if (quizSelect) {
-      quizSelect.addEventListener('change', function() {
+      quizSelect.addEventListener('change', function () {
         selecionarQuiz(this.value);
       });
     }
     
-    if (btnIniciar) btnIniciar.onclick = iniciar;
-    if (btnAvancar) btnAvancar.onclick = avancar;
-    if (btnRevelar) btnRevelar.onclick = revelar;
+    if (btnIniciar)   btnIniciar.onclick   = handleBotaoIniciar;
     if (btnFinalizar) btnFinalizar.onclick = finalizar;
-    if (btnExportar) btnExportar.onclick = exportarCSV;
+    if (btnExportar)  btnExportar.onclick  = exportarCSV;
     
     if (!quizSelect || !btnIniciar) {
       console.warn('⚠️ Alguns elementos do quiz não foram encontrados');
