@@ -363,40 +363,35 @@
       </button>
     </div>
   
-    <!-- Grid principal: Pergunta Atual + Ranking (como os 3 cards de Perguntas) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Pergunta Atual + Stats -->
+    <!-- Grid principal: 
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <!-- Lista de Perguntas -->
+      <div class="bg-gray-50 rounded-lg p-4">
+        <h3 class="font-bold text-lg mb-4">📚 Perguntas do Quiz</h3>
+        <div id="quizListaPerguntas" class="space-y-2 max-h-96 overflow-y-auto">
+          <p class="text-gray-500 text-center py-8">
+            Selecione um quiz acima.
+          </p>
+        </div>
+      </div>
+    
+      <!-- Pergunta Atual -->
       <div class="bg-gray-50 rounded-lg p-4">
         <h3 class="font-bold text-lg mb-4">🎮 Pergunta Atual</h3>
         <div id="quizPerguntaAtual">
           <p class="text-gray-500 text-center py-8">Nenhum quiz selecionado</p>
         </div>
-        
-        <div id="quizStats" class="mt-6 hidden">
-          <h4 class="font-semibold mb-3">📊 Estatísticas</h4>
-          <canvas id="chartQuiz" height="200"></canvas>
-          <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div class="bg-white p-3 rounded">
-              <p class="text-gray-600">Respostas:</p>
-              <p class="text-2xl font-bold text-cnv-primary" id="totalRespostas">0</p>
-            </div>
-            <div class="bg-white p-3 rounded">
-              <p class="text-gray-600">% Acerto:</p>
-              <p class="text-2xl font-bold text-cnv-success" id="percAcerto">0%</p>
-            </div>
-          </div>
-        </div>
+        <!-- NÃO TEM MAIS CARD DE ESTATÍSTICAS AQUI -->
       </div>
-      
+    
       <!-- Ranking -->
       <div class="bg-gray-50 rounded-lg p-4">
         <h3 class="font-bold text-lg mb-4">🏆 Ranking</h3>
         <div id="quizRanking" class="max-h-96 overflow-y-auto">
-          <p class="text-gray-500 text-center py-8">Aguardando finalização do quiz</p>
+          <p class="text-gray-500 text-center py-8">Aguardando início do quiz</p>
         </div>
       </div>
     </div>
-  </div>
     
   <!-- MODAL CRIAR ENQUETE -->
   <div id="modalEnquete" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
