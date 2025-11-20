@@ -19,6 +19,23 @@ const ModuloQuiz = (() => {
   // INICIALIZAÇÃO
   // =====================================================
   
+  function getStatusLabel(status) {
+    switch (status) {
+      case 'preparando':
+      case 'nao_iniciado':
+      case null:
+      case undefined:
+        return 'Não iniciado';
+      case 'iniciado':
+      case 'em_andamento':
+        return 'Iniciado';
+      case 'finalizado':
+        return 'Finalizado';
+      default:
+        return status;
+    }
+  }
+  
   async function inicializar() {
     console.log('🎮 Módulo Quiz inicializando...');
   
@@ -379,6 +396,19 @@ async function revelarDaLista(ordem) {
       document.getElementById('quizRanking').innerHTML = '<p class="text-gray-500 text-center py-8">Aguardando início</p>';
       return;
     }
+
+    if (quizAtual && !perguntaAtual) {
+      const statusLegivel = getStatusLabel(quizAtual.status);
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <p class="text-gray-600">Quiz selecionado: <strong>${window.ModeradorCore.esc(quizAtual.titulo)}</strong></p>
+          <p class="text-sm text-gray-500 mt-2">Status: <strong>${statusLegivel}</strong></p>
+          <p class="text-xs text-gray-400 mt-1">Clique em uma pergunta na lista para pré-visualizar ou em ▶️ Play para enviar ao telão.</p>
+        </div>
+      `;
+      atualizarBotaoIniciar();
+      return;
+    }
     
     // Quiz finalizado
     if (quizAtual.status === 'finalizado') {
@@ -401,6 +431,7 @@ async function revelarDaLista(ordem) {
         <div class="bg-cnv-primary bg-opacity-10 p-4 rounded-lg mb-4">
           <div class="flex items-center justify-between mb-2">
             <p class="text-sm text-gray-600">
+              Status: <strong>${statusLegivel}</strong><br>
               Pergunta <strong>${quizAtual.pergunta_atual}</strong> de <strong>${quizAtual.total_perguntas}</strong>
             </p>
             ${perguntaAtual.tempo_limite > 0 ? `<span class="text-xs bg-white px-3 py-1 rounded shadow-sm">⏱️ ${perguntaAtual.tempo_limite}s</span>` : ''}
@@ -634,6 +665,7 @@ async function revelarDaLista(ordem) {
       console.error('Erro ao iniciar quiz:', error);
       alert('Erro ao iniciar quiz');
     }
+    atualizarBotaoIniciar();
   }
   
   async function avancar() {
@@ -713,7 +745,25 @@ async function revelarDaLista(ordem) {
           finalizado_em: new Date().toISOString()
         })
         .eq('id', quizAtual.id);
-  
+
+      // Atualiza estado local
+      quizAtual.status = 'finalizado';
+      
+      // Recarrega pergunta e lista para refletir o estado final
+      await carregarPerguntaAtual();
+      await carregarListaPerguntas();
+      
+      // Recalcula ranking visual
+      if (typeof renderizarRanking === 'function') {
+        await renderizarRanking();
+      }
+      
+      // Atualiza botão Iniciar/Reiniciar
+      atualizarBotaoIniciar();
+      
+      // Re-renderiza o card
+      renderizarQuiz();
+
       if (error) throw error;
   
       // Desliga modo QUIZ no broadcast
@@ -778,6 +828,7 @@ async function revelarDaLista(ordem) {
   
       // 5) Atualiza estado local
       await selecionarQuiz(quizAtual.id);
+      atualizarBotaoIniciar();
   
       window.ModeradorCore.mostrarNotificacao('Quiz reiniciado com sucesso!', 'success');
     } catch (e) {
@@ -790,18 +841,21 @@ async function revelarDaLista(ordem) {
     const btnIniciar = document.getElementById('btnIniciarQuiz');
     if (!btnIniciar) return;
   
-    if (!quizAtual || !quizAtual.status || quizAtual.status === 'preparando') {
-      // Quiz ainda não começou
+    const status = quizAtual?.status || 'preparando';
+  
+    if (status === 'preparando' || status === 'nao_iniciado') {
+      // Não iniciado
       btnIniciar.textContent = '▶️ Iniciar Quiz';
       btnIniciar.classList.remove('bg-gray-500', 'hover:bg-gray-600');
       btnIniciar.classList.add('bg-cnv-success', 'hover:bg-green-600');
     } else {
-      // Já foi iniciado / em andamento / finalizado -> mostra "Reiniciar"
+      // Já foi iniciado ou finalizado => permite reiniciar
       btnIniciar.textContent = '🔄 Reiniciar Quiz';
       btnIniciar.classList.remove('bg-cnv-success', 'hover:bg-green-600');
       btnIniciar.classList.add('bg-gray-500', 'hover:bg-gray-600');
     }
   }
+
   
   async function handleBotaoIniciar() {
     if (!quizAtual || !quizAtual.status || quizAtual.status === 'preparando') {
