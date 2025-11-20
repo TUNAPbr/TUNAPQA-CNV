@@ -9,6 +9,8 @@ const ModuloQuiz = (() => {
   let perguntaAtual = null;
   let chartQuiz = null;
   let perguntasQuiz = [];
+  let rankingTelaoAtivo = false;
+  let perguntasJaJogadas = new Set();
   
   let canalQuiz = null;
   let canalQuizPerguntas = null;
@@ -18,6 +20,49 @@ const ModuloQuiz = (() => {
   // =====================================================
   // INICIALIZAÇÃO
   // =====================================================
+  function atualizarBotaoRankingTelao() {
+    const btn = document.getElementById('btnToggleRankingTelao');
+    if (!btn) return;
+  
+    if (rankingTelaoAtivo) {
+      btn.textContent = '📺 Ocultar ranking no telão';
+    } else {
+      btn.textContent = '📺 Mostrar ranking no telão';
+    }
+  }
+  
+  async function toggleRankingTelao() {
+    if (!quizAtual) {
+      alert('Selecione um quiz para mostrar o ranking.');
+      return;
+    }
+  
+    const novoAtivo = !rankingTelaoAtivo;
+  
+    try {
+      if (novoAtivo) {
+        // Liga modo "ranking do quiz" no broadcast
+        await window.ModeradorCore.setModoGlobal('quiz_ranking', {
+          quiz_ativo: quizAtual.id,
+          enquete_ativa: null,
+          mostrar_resultado_enquete: false
+        });
+      } else {
+        // Volta para modo normal de quiz
+        await window.ModeradorCore.setModoGlobal('quiz', {
+          quiz_ativo: quizAtual.id,
+          enquete_ativa: null,
+          mostrar_resultado_enquete: false
+        });
+      }
+  
+      rankingTelaoAtivo = novoAtivo;
+      atualizarBotaoRankingTelao();
+    } catch (e) {
+      console.error('Erro ao alternar ranking no telão:', e);
+      alert('Erro ao alternar exibição do ranking no telão.');
+    }
+  }
   
   function getStatusLabel(status) {
     switch (status) {
@@ -211,6 +256,7 @@ function renderizarListaPerguntas() {
     .map((p) => {
       const isAtual = quizAtual.pergunta_atual === p.ordem;
       const revelada = p.revelada;
+      const jaJogada = perguntasJaJogadas.has(p.ordem);
       
       let statusClasses = 'bg-gray-100 border border-gray-200';
       let statusLabel = 'Não jogada';
@@ -240,13 +286,15 @@ function renderizarListaPerguntas() {
             <p class="text-xs text-gray-500 mt-1">${statusLabel}</p>
           </div>
           <div class="flex flex-col gap-1">
-            <button
-              type="button"
-              class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
-              onclick="event.stopPropagation(); window.ModuloQuiz.irParaPergunta(${p.ordem})"
-            >
-              ▶️ Play
-            </button>
+            ${!jaJogada ? `
+              <button
+                type="button"
+                class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
+                onclick="event.stopPropagation(); window.ModuloQuiz.irParaPergunta(${p.ordem})"
+              >
+                ▶️ Play
+              </button>
+            ` : ''}
             <button
               type="button"
               class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
@@ -274,6 +322,12 @@ async function irParaPergunta(ordem) {
         pergunta_atual: ordem
       })
       .eq('id', quizAtual.id);
+      
+      perguntasJaJogadas.add(ordem);
+      await carregarPerguntaAtual();
+      await carregarListaPerguntas();
+      renderizarQuiz();
+    
     
     if (error) throw error;
     
@@ -489,6 +543,9 @@ async function revelarDaLista(ordem) {
       `;
     }
     atualizarBotaoIniciar();
+    rankingTelaoAtivo = false;
+    atualizarBotaoRankingTelao();
+    
   }
   
   async function carregarStats() {
@@ -818,6 +875,11 @@ async function revelarDaLista(ordem) {
           finalizado_em: null
         })
         .eq('id', quizAtual.id);
+
+      perguntasJaJogadas = new Set();
+      await selecionarQuiz(quizAtual.id);
+      atualizarBotaoIniciar();
+      renderizarListaPerguntas();
   
       if (error) throw error;
   
@@ -963,6 +1025,9 @@ async function revelarDaLista(ordem) {
     const btnIniciar   = document.getElementById('btnIniciarQuiz');
     const btnFinalizar = document.getElementById('btnFinalizarQuiz');
     const btnExportar  = document.getElementById('btnExportarQuiz');
+    const btnToggleRankingTelao = document.getElementById('btnToggleRankingTelao');
+    
+    if (btnToggleRankingTelao) btnToggleRankingTelao.onclick = toggleRankingTelao;
     
     if (quizSelect) {
       quizSelect.addEventListener('change', function () {
