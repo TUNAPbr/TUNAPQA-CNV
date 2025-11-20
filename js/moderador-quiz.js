@@ -376,7 +376,6 @@ async function revelarDaLista(ordem) {
         </div>
       `;
       
-      document.getElementById('quizStats').classList.add('hidden');
       document.getElementById('quizRanking').innerHTML = '<p class="text-gray-500 text-center py-8">Aguardando início</p>';
       return;
     }
@@ -390,7 +389,6 @@ async function revelarDaLista(ordem) {
         </div>
       `;
       
-      document.getElementById('quizStats').classList.add('hidden');
       renderizarRanking();
       return;
     }
@@ -464,7 +462,6 @@ async function revelarDaLista(ordem) {
   
   async function carregarStats() {
     if (!perguntaAtual) {
-      document.getElementById('quizStats').classList.add('hidden');
       return;
     }
     
@@ -472,11 +469,9 @@ async function revelarDaLista(ordem) {
       const stats = await obterStatsQuizPergunta(perguntaAtual.id);
       
       if (!stats) {
-        document.getElementById('quizStats').classList.add('hidden');
         return;
       }
       
-      document.getElementById('quizStats').classList.remove('hidden');
       document.getElementById('totalRespostas').textContent = stats.total_respostas || 0;
       document.getElementById('percAcerto').textContent = Math.round(stats.percentual_acerto || 0) + '%';
       
@@ -578,7 +573,6 @@ async function revelarDaLista(ordem) {
       <p class="text-gray-500 text-center py-8">Selecione um quiz acima</p>
     `;
     
-    document.getElementById('quizStats').classList.add('hidden');
     document.getElementById('quizRanking').innerHTML = '';
     
     if (chartQuiz) {
