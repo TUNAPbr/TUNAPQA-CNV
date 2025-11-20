@@ -17,24 +17,162 @@
     body {
       background: linear-gradient(135deg, #2797ff 0%, #0b67bc 100%);
       min-height: 100vh;
+      position: relative;
     }
     .card-section { transition: all .3s ease; }
     .card-section.inactive { opacity: .5; pointer-events: none; }
-  </style>
-</head>
+    
+    /* Efeito de ondas suaves no fundo */
+    .wave-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      background-image: 
+        radial-gradient(circle at 20% 30%, rgba(255,255,255,0.2) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(255,255,255,0.15) 0%, transparent 50%);
+    }
+    
+    /* Card com glassmorphism leve */
+    .glass-card {
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Header com gradiente oceânico */
+    .ocean-header {
+      background: linear-gradient(135deg, #2797ff 0%, #0b67bc 70%, #0a5ba0 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ocean-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 200%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      animation: wave-shine 3s infinite;
+    }
+    
+    @keyframes wave-shine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    
+    /* Inputs mais modernos */
+    .modern-input {
+      border: 2px solid #e5e7eb;
+      transition: all 0.3s ease;
+    }
+    
+    .modern-input:focus {
+      outline: none;
+      border-color: #2797ff;
+      box-shadow: 0 0 0 3px rgba(39, 151, 255, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    /* Botões com efeito */
+    .btn-ocean {
+      background: linear-gradient(135deg, #2797ff 0%, #0b67bc 100%);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn-ocean::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    
+    .btn-ocean:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+    
+    .btn-ocean:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(39, 151, 255, 0.4);
+    }
+    
+    /* Badges mais elegantes */
+    .status-badge {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .status-badge::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: badge-shine 2s infinite;
+    }
+    
+    @keyframes badge-shine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    
+    /* Container principal com z-index */
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Seções com transição suave */
+    .section-enter {
+      animation: slideIn 0.4s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style></head>
 
 <body class="p-4">
-  <div class="max-w-4xl mx-auto space-y-6">
+  <!-- Efeito de ondas no fundo -->
+  <div class="wave-bg"></div>
+  
+  <div class="cnv-bubbles" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  
+  <div class="max-w-4xl mx-auto space-y-6 content-wrapper">
 
     <!-- Estados de página -->
     <div id="loading" class="text-white text-center py-8">Carregando…</div>
     <div id="semPalestra" class="hidden text-white text-center py-8">Nenhuma palestra ativa.</div>
 
     <!-- CARD ÚNICO (header + corpo dinâmico) -->
-    <div id="conteudo" class="hidden">
-      <div class="bg-white rounded-2xl shadow overflow-hidden"> <!-- CARD ÚNICO -->
+    <div id="conteudo" class="hidden section-enter">
+      <div class="glass-card rounded-2xl shadow overflow-hidden"> <!-- CARD ÚNICO -->
         <!-- HEADER do CARD (dinâmico) -->
-        <div id="cardHeader" class="px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-500">
+        <div id="cardHeader" class="ocean-header px-5 py-4">
           <div class="flex items-center gap-3">
             <div>
               <h1 id="cardHeadTitle" class="text-white text-2xl font-bold">—</h1>
@@ -47,11 +185,11 @@
         <div class="p-4">
           <!-- AGUARDANDO -->
           <div id="cardAguardando" class="text-gray-600">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">⏳</span>
+            <div class="flex items-center gap-3 bg-blue-50 rounded-xl p-4 border-2 border-blue-100">
+              <span class="text-3xl">🌊</span>
               <div>
-                <p class="font-semibold">Aguardando instruções do moderador…</p>
-                <p class="text-sm text-gray-500">Assim que algo for ativado, aparece aqui.</p>
+                <p class="font-semibold text-blue-900">Aguardando instruções do moderador…</p>
+                <p class="text-sm text-blue-600">Assim que algo for ativado, aparece aqui.</p>
               </div>
             </div>
           </div>
@@ -60,20 +198,20 @@
           <div id="secaoPerguntas" class="card-section hidden">
             <div class="flex items-center gap-2 mb-3">
               <h2 class="font-bold text-lg">Perguntas</h2>
-              <span id="statusPerguntas" class="ml-auto px-3 py-1 rounded-full text-xs font-bold bg-gray-300 text-white">—</span>
+              <span id="statusPerguntas" class="status-badge ml-auto px-3 py-1 rounded-full text-xs font-bold bg-gray-300 text-white">—</span>
             </div>
       
-            <form id="formPergunta" class="space-y-2">
-              <input id="nomeParticipante" class="w-full border rounded px-3 py-2" placeholder="Seu nome (opcional)" />
-              <input id="emailParticipante" class="w-full border rounded px-3 py-2" placeholder="Seu e-mail (opcional)" />
-              <textarea id="textoPergunta" maxlength="140" class="w-full border rounded px-3 py-2" placeholder="Sua pergunta"></textarea>
+            <form id="formPergunta" class="space-y-3">
+              <input id="nomeParticipante" class="modern-input w-full rounded-lg px-4 py-3" placeholder="Seu nome (opcional)" />
+              <input id="emailParticipante" class="modern-input w-full rounded-lg px-4 py-3" placeholder="Seu e-mail (opcional)" />
+              <textarea id="textoPergunta" maxlength="140" class="modern-input w-full rounded-lg px-4 py-3 min-h-[100px]" placeholder="Sua pergunta"></textarea>
       
               <div class="flex items-center justify-between text-sm text-gray-600">
                 <span id="contador">0 / 140</span>
                 <span>Enviadas: <strong id="contadorEnviadas">0</strong> / <strong id="limiteDinamico">3</strong></span>
               </div>
       
-              <button id="btnEnviar" class="px-4 py-2 bg-blue-600 text-white rounded">Enviar Pergunta</button>
+              <button id="btnEnviar" class="btn-ocean w-full px-6 py-3 text-white rounded-lg font-semibold shadow-lg">Enviar Pergunta</button>
             </form>
       
             <div id="feedbackPergunta" class="hidden mt-4"></div>
