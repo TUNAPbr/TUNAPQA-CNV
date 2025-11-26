@@ -1068,6 +1068,19 @@ function exibirFeedbackResposta() {
   const labels = ['A', 'B', 'C', 'D'];
   const corretaLabel = labels[perguntaAtual.resposta_correta];
 
+  // 🔥 Atualizar visualmente os botões
+  perguntaAtual.opcoes.forEach((_, idx) => {
+    const btn = document.getElementById(`opcaoQuiz${idx}`);
+    if (btn) {
+      if (idx === perguntaAtual.resposta_correta) {
+        btn.classList.add('bg-green-500', 'text-white', 'border-4', 'border-green-700');
+        btn.classList.remove('bg-cnv-alternate', 'bg-cnv-primary');
+      } else {
+        btn.classList.add('opacity-50');
+      }
+    }
+  });
+
   if (perguntaAtual.acertei) {
     mostrarFeedback('feedbackQuiz', 'sucesso', `✓ Você acertou! Resposta: ${corretaLabel} | +${perguntaAtual.pontos} pontos`);
   } else {
