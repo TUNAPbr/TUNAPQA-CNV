@@ -793,6 +793,13 @@ const ModuloQuiz = (() => {
       
       const msg = novoEstado ? 'Resposta revelada!' : 'Resposta ocultada!';
       window.ModeradorCore.mostrarNotificacao(msg, 'success');
+
+      if (novoEstado) {
+        // Aguardar 1s para dar tempo das respostas serem processadas
+        setTimeout(async () => {
+          await renderizarRanking();
+        }, 1500);
+      }
       
     } catch (error) {
       console.error('Erro ao revelar:', error);
