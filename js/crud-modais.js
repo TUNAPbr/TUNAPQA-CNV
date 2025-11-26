@@ -18,6 +18,11 @@ let quizEmCriacao = {
 // =====================================================
 
 function abrirModalEnqueteNova() {
+  // 🔥 FIX: Trocar para aba de enquetes ANTES de abrir modal
+  if (window.ModeradorCore?.trocarAba) {
+    window.ModeradorCore.trocarAba('enquetes');
+  }
+  
   if (window.ModuloEnquetes?.abrirModalNova) {
     window.ModuloEnquetes.abrirModalNova();
   } else {
@@ -31,6 +36,11 @@ function abrirModalEnqueteNova() {
 }
 
 function abrirModalEnqueteEditar(enqueteId) {
+  // 🔥 FIX: Trocar para aba de enquetes ANTES de abrir modal
+  if (window.ModeradorCore?.trocarAba) {
+    window.ModeradorCore.trocarAba('enquetes');
+  }
+  
   if (window.ModuloEnquetes?.abrirModalEditar) {
     window.ModuloEnquetes.abrirModalEditar(enqueteId);
   } else {
@@ -495,8 +505,6 @@ function abrirModalExcluirQuiz() {
     modal.classList.add('flex');
   }
 }
-
-// ---------- Wire-up de eventos dos formulários ----------
 
 // ---------- Wire-up de eventos dos formulários ----------
 
