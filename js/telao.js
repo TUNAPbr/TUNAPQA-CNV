@@ -573,18 +573,20 @@ async function exibirResultadoQuiz() {
           <div class="grid grid-cols-2 gap-4">
             ${perguntaAtual.opcoes.map((op, idx) => {
               const votos = distribuicao[idx] || 0;
-              const pct = totalRespostas > 0 ? Math.round((votos / totalRespostas) * 100) : 0;
+              const pct = totalRespostas > 0 ? Math.round((votos / totalResposas) * 100) : 0;
               const isCorreta = idx === corretaIdx;
+              const borderClass = isCorreta ? 'border-green-500 bg-green-50' : 'border-gray-300';
+              const barColor = isCorreta ? 'bg-green-500' : 'bg-blue-500';
 
               return `
-                <div class="border-2 ${isCorreta ? 'border-green-500 bg-green-50' : 'border-gray-300'} rounded-lg p-4">
+                <div class="border-2 ${borderClass} rounded-lg p-4">
                   <div class="flex items-center justify-between mb-2">
                     <span class="font-bold text-lg">${labels[idx]}. ${escapeHtml(op)}</span>
                     ${isCorreta ? '<span class="text-green-600 text-2xl">✓</span>' : ''}
                   </div>
                   <div class="text-right text-sm text-gray-600 mb-2">${votos} votos (${pct}%)</div>
                   <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div class="h-2 rounded-full ${isCorreta ? 'bg-green-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+                    <div class="h-2 rounded-full ${barColor}" style="width:${pct}%"></div>
                   </div>
                 </div>
               `;
