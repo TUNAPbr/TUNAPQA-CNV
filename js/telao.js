@@ -576,6 +576,11 @@ async function decidirOQueExibir() {
       return;
     }
 
+    if (broadcast.quiz_countdown_state === 'resultado_revelado') {
+      await exibirResultadoQuiz();
+      return;
+    }
+
     // 🔥 PERGUNTA ATIVA (com countdown)
     if (state === 'pergunta_ativa') {
       displayQuizPergunta();
