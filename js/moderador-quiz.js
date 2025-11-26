@@ -1,5 +1,5 @@
 // =====================================================
-// MODERADOR - MÓDULO DE QUIZ
+// MODERADOR - MÓDULO DE QUIZ V2 (COM COUNTDOWN)
 // =====================================================
 
 const ModuloQuiz = (() => {
@@ -224,173 +224,203 @@ const ModuloQuiz = (() => {
     
     perguntaAtual = data;
   }
+  
   async function carregarListaPerguntas() {
-  if (!quizAtual) {
-    perguntasQuiz = [];
-    renderizarListaPerguntas();
-    return;
-  }
-  
-  try {
-    const { data, error } = await supabase
-      .from('cnv25_quiz_perguntas')
-      .select('*')
-      .eq('quiz_id', quizAtual.id)
-      .order('ordem', { ascending: true });
-    
-    if (error) {
-      console.error('Erro ao carregar lista de perguntas do quiz:', error);
+    if (!quizAtual) {
       perguntasQuiz = [];
-    } else {
-      perguntasQuiz = data || [];
+      renderizarListaPerguntas();
+      return;
     }
     
-    renderizarListaPerguntas();
-  } catch (e) {
-    console.error('Erro inesperado ao carregar lista de perguntas:', e);
-    perguntasQuiz = [];
-    renderizarListaPerguntas();
-  }
-}
-
-function renderizarListaPerguntas() {
-  const container = document.getElementById('quizListaPerguntas');
-  if (!container) return;
-  
-  if (!quizAtual) {
-    container.innerHTML = '<p class="text-gray-500 text-center py-8">Selecione um quiz acima.</p>';
-    return;
-  }
-  
-  if (!perguntasQuiz || perguntasQuiz.length === 0) {
-    container.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma pergunta cadastrada para este quiz.</p>';
-    return;
-  }
-  
-  container.innerHTML = perguntasQuiz
-    .map((p) => {
-      const isAtual = quizAtual.pergunta_atual === p.ordem;
-      const revelada = p.revelada;
-      const jaJogada = perguntasJaJogadas.has(p.ordem);
+    try {
+      const { data, error } = await supabase
+        .from('cnv25_quiz_perguntas')
+        .select('*')
+        .eq('quiz_id', quizAtual.id)
+        .order('ordem', { ascending: true });
       
-      let statusClasses = 'bg-gray-100 border border-gray-200';
-      let statusLabel = 'Não jogada';
-      
-      if (revelada) {
-        statusClasses = 'bg-blue-50 border border-blue-400';
-        statusLabel = 'Revelada';
-      }
-      if (isAtual) {
-        statusClasses = revelada
-          ? 'bg-green-50 border border-green-500'
-          : 'bg-green-50 border border-green-400';
-        statusLabel = revelada ? 'Atual (revelada)' : 'Atual';
+      if (error) {
+        console.error('Erro ao carregar lista de perguntas do quiz:', error);
+        perguntasQuiz = [];
+      } else {
+        perguntasQuiz = data || [];
       }
       
-      return `
-        <div 
-          class="p-3 rounded-lg flex items-center justify-between gap-3 ${statusClasses}"
-          onclick="window.ModuloQuiz.previewPergunta(${p.ordem})"
-          style="cursor: pointer;"
-        >
-          <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-500 mb-1">Pergunta ${p.ordem}</p>
-            <p class="text-sm font-medium text-gray-800 truncate">
-              ${window.ModeradorCore.esc(p.pergunta)}
-            </p>
-            <p class="text-xs text-gray-500 mt-1">${statusLabel}</p>
-          </div>
-          <div class="flex flex-col gap-1">
-            ${!perguntasJaJogadas?.has?.(p.ordem) ? `
-              <button
-                type="button"
-                class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
-                onclick="event.stopPropagation(); window.ModuloQuiz.irParaPergunta(${p.ordem})"
-              >
-                ▶️ Play
-              </button>
-            ` : ''}
-          
-            ${revelada ? `
-              <button
-                type="button"
-                class="px-3 py-1 text-xs rounded bg-gray-300 text-gray-700 cursor-default"
-                disabled
-              >
-                ✅ Revelada
-              </button>
-            ` : `
-              <button
-                type="button"
-                class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
-                onclick="event.stopPropagation(); window.ModuloQuiz.revelarDaLista(${p.ordem})"
-              >
-                👁️ Revelar
-              </button>
-            `}
-          </div>
-        </div>
-      `;
-    })
-    .join('');
-}
+      renderizarListaPerguntas();
+    } catch (e) {
+      console.error('Erro inesperado ao carregar lista de perguntas:', e);
+      perguntasQuiz = [];
+      renderizarListaPerguntas();
+    }
+  }
 
-
-async function irParaPergunta(ordem) {
-  if (!quizAtual) return;
-  if (!ordem || ordem < 1 || ordem > quizAtual.total_perguntas) return;
-  
-  try {
-    const { error } = await supabase
-      .from('cnv25_quiz')
-      .update({
-        status: 'em_andamento',
-        pergunta_atual: ordem
+  function renderizarListaPerguntas() {
+    const container = document.getElementById('quizListaPerguntas');
+    if (!container) return;
+    
+    if (!quizAtual) {
+      container.innerHTML = '<p class="text-gray-500 text-center py-8">Selecione um quiz acima.</p>';
+      return;
+    }
+    
+    if (!perguntasQuiz || perguntasQuiz.length === 0) {
+      container.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma pergunta cadastrada para este quiz.</p>';
+      return;
+    }
+    
+    container.innerHTML = perguntasQuiz
+      .map((p) => {
+        const isAtual = quizAtual.pergunta_atual === p.ordem;
+        const revelada = p.revelada;
+        const jaJogada = perguntasJaJogadas.has(p.ordem);
+        
+        let statusClasses = 'bg-gray-100 border border-gray-200';
+        let statusLabel = 'Não jogada';
+        
+        if (revelada) {
+          statusClasses = 'bg-blue-50 border border-blue-400';
+          statusLabel = 'Revelada';
+        }
+        if (isAtual) {
+          statusClasses = revelada
+            ? 'bg-green-50 border border-green-500'
+            : 'bg-green-50 border border-green-400';
+          statusLabel = revelada ? 'Atual (revelada)' : 'Atual';
+        }
+        
+        return `
+          <div 
+            class="p-3 rounded-lg flex items-center justify-between gap-3 ${statusClasses}"
+            onclick="window.ModuloQuiz.previewPergunta(${p.ordem})"
+            style="cursor: pointer;"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-gray-500 mb-1">Pergunta ${p.ordem}</p>
+              <p class="text-sm font-medium text-gray-800 truncate">
+                ${window.ModeradorCore.esc(p.pergunta)}
+              </p>
+              <p class="text-xs text-gray-500 mt-1">${statusLabel}</p>
+            </div>
+            <div class="flex flex-col gap-1">
+              ${!perguntasJaJogadas?.has?.(p.ordem) ? `
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs rounded bg-cnv-primary text-white hover:bg-blue-700"
+                  onclick="event.stopPropagation(); window.ModuloQuiz.irParaPergunta(${p.ordem})"
+                >
+                  ▶️ Play
+                </button>
+              ` : ''}
+            
+              ${revelada ? `
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs rounded bg-gray-300 text-gray-700 cursor-default"
+                  disabled
+                >
+                  ✅ Revelada
+                </button>
+              ` : `
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
+                  onclick="event.stopPropagation(); window.ModuloQuiz.revelarDaLista(${p.ordem})"
+                >
+                  👁️ Revelar
+                </button>
+              `}
+            </div>
+          </div>
+        `;
       })
-      .eq('id', quizAtual.id);
-    
-    if (error) throw error;
-    
-    perguntasJaJogadas.add(ordem);
-    
-    await carregarPerguntaAtual();
-    await carregarListaPerguntas();
-    renderizarQuiz();
-    
-    window.ModeradorCore.mostrarNotificacao(
-      `Pergunta ${ordem} enviada para o telão e participantes.`,
-      'info'
-    );
-
-    // Atualiza local após mandar pro banco
-    await carregarPerguntaAtual();
-    await carregarListaPerguntas();
-    renderizarQuiz();
-  } catch (e) {
-    console.error('Erro ao ir para pergunta:', e);
-    alert('Erro ao exibir a pergunta selecionada.');
+      .join('');
   }
-}
 
-
-async function revelarDaLista(ordem) {
-  if (!quizAtual) return;
-  if (!ordem || ordem < 1 || ordem > quizAtual.total_perguntas) return;
-  
-  try {
-    // Se não for a pergunta atual, muda pra ela
-    if (quizAtual.pergunta_atual !== ordem) {
-      await irParaPergunta(ordem);
+  // =====================================================
+  // 🔥 FUNÇÃO PRINCIPAL: IR PARA PERGUNTA (PLAY)
+  // =====================================================
+  async function irParaPergunta(ordem) {
+    if (!quizAtual) return;
+    if (!ordem || ordem < 1 || ordem > quizAtual.total_perguntas) return;
+    
+    try {
+      // 1️⃣ Atualizar quiz no banco
+      const { error: quizError } = await supabase
+        .from('cnv25_quiz')
+        .update({
+          status: 'em_andamento',
+          pergunta_atual: ordem
+        })
+        .eq('id', quizAtual.id);
+      
+      if (quizError) throw quizError;
+      
+      // 2️⃣ Atualizar broadcast - COUNTDOWN INICIAL
+      const { error: broadcastError } = await supabase
+        .from('cnv25_broadcast_controle')
+        .update({
+          modo_global: 'quiz',
+          quiz_ativo: quizAtual.id,
+          quiz_countdown_state: 'countdown_inicial', // 🔥 NOVO!
+          enquete_ativa: null,
+          mostrar_resultado_enquete: false,
+          pergunta_exibida: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', 1);
+      
+      if (broadcastError) throw broadcastError;
+      
+      // 3️⃣ Após 3 segundos, mudar para "pergunta_ativa"
+      setTimeout(async () => {
+        const { error } = await supabase
+          .from('cnv25_broadcast_controle')
+          .update({
+            quiz_countdown_state: 'pergunta_ativa',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', 1);
+        
+        if (error) console.error('Erro ao atualizar countdown state:', error);
+      }, 3000);
+      
+      // 4️⃣ Marcar como já jogada
+      perguntasJaJogadas.add(ordem);
+      
+      // 5️⃣ Atualizar UI local
       await carregarPerguntaAtual();
+      await carregarListaPerguntas();
+      renderizarQuiz();
+      
+      window.ModeradorCore.mostrarNotificacao(
+        `Pergunta ${ordem} enviada para o telão! Countdown de 3s iniciado.`,
+        'success'
+      );
+
+    } catch (e) {
+      console.error('Erro ao ir para pergunta:', e);
+      alert('Erro ao exibir a pergunta selecionada.');
     }
-    
-    await revelar();
-    await carregarListaPerguntas();
-  } catch (e) {
-    console.error('Erro ao revelar pergunta da lista:', e);
-    alert('Erro ao revelar essa pergunta.');
   }
-}
+
+  async function revelarDaLista(ordem) {
+    if (!quizAtual) return;
+    if (!ordem || ordem < 1 || ordem > quizAtual.total_perguntas) return;
+    
+    try {
+      // Se não for a pergunta atual, muda pra ela
+      if (quizAtual.pergunta_atual !== ordem) {
+        await irParaPergunta(ordem);
+        await carregarPerguntaAtual();
+      }
+      
+      await revelar();
+      await carregarListaPerguntas();
+    } catch (e) {
+      console.error('Erro ao revelar pergunta da lista:', e);
+      alert('Erro ao revelar essa pergunta.');
+    }
+  }
   
   // =====================================================
   // REALTIME
@@ -653,7 +683,8 @@ async function revelarDaLista(ordem) {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
         quiz_ativo: quizAtual.id,
-        pergunta_exibida: null
+        pergunta_exibida: null,
+        quiz_countdown_state: null // ainda não há pergunta
       });
   
       if (!ok) {
@@ -667,14 +698,14 @@ async function revelarDaLista(ordem) {
         .update({
           status: 'iniciado',
           iniciado_em: new Date().toISOString(),
-          pergunta_atual: 0 // primeira pergunta vem com "Avançar"
+          pergunta_atual: 0 // primeira pergunta vem com "Play"
         })
         .eq('id', quizAtual.id);
   
       if (error) throw error;
   
       window.ModeradorCore.mostrarNotificacao(
-        'Quiz iniciado! Clique em "Avançar" para ir à primeira pergunta.',
+        'Quiz iniciado! Clique em "▶️ Play" em uma pergunta para começar.',
         'success'
       );
     } catch (error) {
@@ -727,12 +758,24 @@ async function revelarDaLista(ordem) {
     }
     
     try {
-      const { error } = await supabase
+      // 1️⃣ Marca pergunta como revelada
+      const { error: perguntaError } = await supabase
         .from('cnv25_quiz_perguntas')
         .update({ revelada: true })
         .eq('id', perguntaAtual.id);
       
-      if (error) throw error;
+      if (perguntaError) throw perguntaError;
+      
+      // 2️⃣ Atualizar broadcast para modo "aguardando"
+      const { error: broadcastError } = await supabase
+        .from('cnv25_broadcast_controle')
+        .update({
+          quiz_countdown_state: 'aguardando_proxima',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', 1);
+      
+      if (broadcastError) throw broadcastError;
       
       perguntaAtual.revelada = true;
       renderizarQuiz();
@@ -787,7 +830,8 @@ async function revelarDaLista(ordem) {
         enquete_ativa: null,
         mostrar_resultado_enquete: false,
         quiz_ativo: null,
-        pergunta_exibida: null
+        pergunta_exibida: null,
+        quiz_countdown_state: null
       });
   
       window.ModeradorCore.mostrarNotificacao('Quiz finalizado!', 'success');
@@ -1014,6 +1058,7 @@ async function revelarDaLista(ordem) {
     iniciar,
     finalizar,
     exportarCSV,
+    recarregarQuizzes,
     // controle por pergunta
     irParaPergunta,
     revelarDaLista,
@@ -1028,4 +1073,4 @@ async function revelarDaLista(ordem) {
 // Expor globalmente
 window.ModuloQuiz = ModuloQuiz;
 
-console.log('✅ Módulo Quiz carregado');
+console.log('✅ Módulo Quiz V2 (com countdown) carregado');
