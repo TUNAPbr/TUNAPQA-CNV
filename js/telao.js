@@ -411,6 +411,18 @@ function conectarRealtimeBroadcast() {
       broadcast.quiz_countdown_state = payload.new?.quiz_countdown_state || null; // 🔥 NOVO
       decidirOQueExibir();
     })
+    // Escutar revelação de pergunta
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'cnv25_quiz_perguntas'
+    }, async (payload) => {
+      if (payload.new.revelada && perguntaAtual && payload.new.id === perguntaAtual.id) {
+        perguntaAtual = payload.new;
+        // Mostra resultado quando revelar
+        await exibirResultadoQuiz();
+      }
+    })
     .subscribe();
 }
 
@@ -497,6 +509,88 @@ async function decidirOQueExibir() {
   }
 
   displayEmptyMode();
+}
+
+// ====== RENDER: QUIZ - RESULTADO (APÓS REVELAR) ======
+async function exibirResultadoQuiz() {
+  if (!perguntaAtual) return;
+
+  hideAllModes();
+  el.pollMode?.classList.remove('hidden');
+  showContent();
+
+  const labels = ['A', 'B', 'C', 'D'];
+  const corretaIdx = perguntaAtual.resposta_correta;
+  const corretaLabel = labels[corretaIdx];
+  const corretaTexto = perguntaAtual.opcoes[corretaIdx];
+
+  // Buscar estatísticas
+  const { data: stats } = await supabase
+    .from('cnv25_quiz_respostas')
+    .select('resposta_escolhida, correta')
+    .eq('quiz_pergunta_id', perguntaAtual.id);
+
+  const distribuicao = [0, 0, 0, 0];
+  let totalRespostas = 0;
+  let totalAcertos = 0;
+
+  (stats || []).forEach(r => {
+    distribuicao[r.resposta_escolhida] = (distribuicao[r.resposta_escolhida] || 0) + 1;
+    totalRespostas++;
+    if (r.correta) totalAcertos++;
+  });
+
+  const percentualAcerto = totalRespostas > 0 ? Math.round((totalAcertos / totalRespostas) * 100) : 0;
+
+  if (el.modeBadgeText) el.modeBadgeText.textContent = 'RESPOSTA CORRETA';
+  if (el.voteHint) el.voteHint.classList.add('hidden');
+  if (el.pollTitle) {
+    el.pollTitle.textContent = `Resposta: ${corretaLabel}`;
+    el.pollTitle.classList.remove('hidden');
+  }
+
+  if (el.pollBody) {
+    el.pollBody.innerHTML = `
+      <div class="w-full flex items-center justify-center">
+        <div class="w-full max-w-5xl space-y-6">
+          <!-- Resposta Correta Destaque -->
+          <div class="bg-green-100 border-4 border-green-500 rounded-xl p-6 text-center">
+            <p class="text-2xl font-bold text-green-800 mb-2">✓ RESPOSTA CORRETA</p>
+            <p class="text-4xl font-bold">${corretaLabel}. ${escapeHtml(corretaTexto)}</p>
+          </div>
+
+          <!-- Estatísticas -->
+          <div class="bg-blue-50 rounded-xl p-6 text-center">
+            <p class="text-6xl font-bold text-blue-600">${percentualAcerto}%</p>
+            <p class="text-lg text-gray-700">acertaram esta pergunta</p>
+            <p class="text-sm text-gray-500 mt-2">${totalAcertos} de ${totalRespostas} participantes</p>
+          </div>
+
+          <!-- Distribuição de Respostas -->
+          <div class="grid grid-cols-2 gap-4">
+            ${perguntaAtual.opcoes.map((op, idx) => {
+              const votos = distribuicao[idx] || 0;
+              const pct = totalRespostas > 0 ? Math.round((votos / totalRespostas) * 100) : 0;
+              const isCorreta = idx === corretaIdx;
+
+              return `
+                <div class="border-2 ${isCorreta ? 'border-green-500 bg-green-50' : 'border-gray-300'} rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-lg">${labels[idx]}. ${escapeHtml(op)}</span>
+                    ${isCorreta ? '<span class="text-green-600 text-2xl">✓</span>' : ''}
+                  </div>
+                  <div class="text-right text-sm text-gray-600 mb-2">${votos} votos (${pct}%)</div>
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full ${isCorreta ? 'bg-green-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 // ====== UTILS ======
