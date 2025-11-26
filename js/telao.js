@@ -348,14 +348,17 @@ function displayQuizPergunta() {
     if (timeLeft <= 0) {
       clearInterval(countdownPerguntaTimer);
       countdownPerguntaTimer = null;
+
+      hideAllModes();
+      showContent();
       
       // 🔥 EXIBIR "TEMPO ESGOTADO!"
       if (el.quizCountdownContainer) {
         el.quizCountdownContainer.innerHTML = `
-          <div class="flex justify-center items-center w-full h-full">
+          <div class="flex justify-center items-center w-full h-screen">
             <div class="countdown-display countdown-urgent">
-              <span class="countdown-number text-red-600 text-8xl">⏰</span>
-              <span class="countdown-label text-red-600 text-4xl font-bold">TEMPO ESGOTADO!</span>
+              <span class="countdown-number text-red-600" style="font-size: 120px;">⏰</span>
+              <span class="countdown-label text-red-600" style="font-size: 48px; font-weight: bold;">TEMPO<br>ESGOTADO!</span>
             </div>
           </div>
         `;
@@ -537,6 +540,11 @@ async function decidirOQueExibir() {
 
   // 🔥 QUIZ COM ESTADOS
   if (broadcast.modo_global === 'quiz') {
+
+    if (broadcast.quiz_countdown_state === 'countdown_inicial') {
+      displayQuizCountdownInicial(3);
+      return;
+    }
 
     if (broadcast.mostrar_ranking_quiz) {
       await exibirRankingQuiz();
