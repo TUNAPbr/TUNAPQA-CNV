@@ -651,23 +651,25 @@ const ModuloQuiz = (() => {
   }
 
   async function revelarDaLista(ordem) {
-    if (!quizAtual) return;
+  if (!quizAtual) return;
 
-    const pergunta = perguntasQuiz.find((p) => p.ordem === ordem);
+  // Buscar a pergunta
+  const pergunta = perguntasQuiz.find((p) => p.ordem === ordem);
     if (!pergunta) return;
-
-    try:
+  
+    try {
+      // Alternar estado revelado
       const novoEstado = !pergunta.revelada;
-
+  
       // Atualizar no banco
       const { error: perguntaError } = await supabase
         .from('cnv25_quiz_perguntas')
         .update({ revelada: novoEstado })
         .eq('id', pergunta.id);
-
+  
       if (perguntaError) throw perguntaError;
-
-      // Se está revelando E é a pergunta atual, atualiza broadcast para resultado
+  
+      // Se está revelando E é a pergunta atual, atualizar broadcast para "resultado_revelado"
       if (novoEstado && quizAtual.pergunta_atual === ordem) {
         const { error: broadcastError } = await supabase
           .from('cnv25_broadcast_controle')
@@ -676,11 +678,11 @@ const ModuloQuiz = (() => {
             updated_at: new Date().toISOString()
           })
           .eq('id', 1);
-
+  
         if (broadcastError) throw broadcastError;
       }
-
-      // Se está ocultando E é a pergunta atual, volta para pergunta_ativa
+  
+      // Se está ocultando E é a pergunta atual, voltar para "pergunta_ativa"
       if (!novoEstado && quizAtual.pergunta_atual === ordem) {
         const { error: broadcastError } = await supabase
           .from('cnv25_broadcast_controle')
@@ -689,27 +691,27 @@ const ModuloQuiz = (() => {
             updated_at: new Date().toISOString()
           })
           .eq('id', 1);
-
+  
         if (broadcastError) throw broadcastError;
       }
-
+  
       // Atualizar estado local
       pergunta.revelada = novoEstado;
       if (perguntaAtual?.ordem === ordem) {
         perguntaAtual.revelada = novoEstado;
       }
-
-      // Re-render
+  
+      // Re-renderizar
       renderizarListaPerguntas();
       renderizarQuiz();
-
+  
       // Atualizar ranking se revelou
       if (novoEstado) {
         setTimeout(async () => {
           await renderizarRanking();
         }, 1000);
       }
-
+  
       const msg = novoEstado ? 'Resposta revelada!' : 'Resposta ocultada!';
       window.ModeradorCore.mostrarNotificacao(msg, 'success');
     } catch (error) {
