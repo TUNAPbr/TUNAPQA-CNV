@@ -320,8 +320,8 @@ function displayQuizPergunta() {
   const tempoLimite = perguntaAtual.tempo_limite || 30;
 
   if (el.quizCountdownContainer) {
-    el.quizCountdownContainer.innerHTML = 
-      <div style="display: flex; justify-content: center; align-items: center; width: 100%;">`
+    el.quizCountdownContainer.innerHTML = `
+      <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
         <div class="countdown-display">
           <span id="countdownPerguntaNumero" class="countdown-number">${tempoLimite}</span>
           <span class="countdown-label">segundos</span>
