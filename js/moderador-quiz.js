@@ -867,25 +867,42 @@ const ModuloQuiz = (() => {
       return;
     }
   
+    // 🔥 CORREÇÃO 1: Adicionar ( antes da crase
     if (!confirm(`Reiniciar o quiz "${quizAtual.titulo}"? Isso vai zerar respostas e estatísticas.`)) {
       return;
     }
   
     try {
-      // 1) Apaga respostas
-      await supabase
-        .from('cnv25_quiz_respostas')
-        .delete()
+      // 🔥 CORREÇÃO 2: Buscar IDs das perguntas primeiro
+      const { data: perguntas, error: errP } = await supabase
+        .from('cnv25_quiz_perguntas')
+        .select('id')
         .eq('quiz_id', quizAtual.id);
   
+      if (errP) throw errP;
+  
+      const pergIds = (perguntas || []).map(p => p.id);
+  
+      // 1) Apaga respostas usando os IDs das perguntas
+      if (pergIds.length > 0) {
+        const { error: errDelResp } = await supabase
+          .from('cnv25_quiz_respostas')
+          .delete()
+          .in('quiz_pergunta_id', pergIds); // 🔥 AQUI ESTÁ A CORREÇÃO
+  
+        if (errDelResp) throw errDelResp;
+      }
+  
       // 2) Reseta perguntas (revelada = false)
-      await supabase
+      const { error: errUpPerg } = await supabase
         .from('cnv25_quiz_perguntas')
         .update({ revelada: false })
         .eq('quiz_id', quizAtual.id);
   
+      if (errUpPerg) throw errUpPerg;
+  
       // 3) Reseta quiz
-      const { error } = await supabase
+      const { error: errUpQuiz } = await supabase
         .from('cnv25_quiz')
         .update({
           status: 'preparando',
@@ -894,28 +911,41 @@ const ModuloQuiz = (() => {
           finalizado_em: null
         })
         .eq('id', quizAtual.id);
-
+  
+      if (errUpQuiz) throw errUpQuiz;
+  
+      // 4) Limpa broadcast
+      const { error: errBc } = await supabase
+        .from('cnv25_broadcast_controle')
+        .update({
+          quiz_ativo: null,
+          modo_global: null,
+          quiz_countdown_state: null,
+          mostrar_ranking_quiz: false
+        })
+        .eq('id', 1);
+  
+      if (errBc) throw errBc;
+  
+      // 5) Limpa estado local
       perguntasJaJogadas = new Set();
-      await selecionarQuiz(quizAtual.id);
-      atualizarBotaoIniciar();
-      renderizarListaPerguntas();
   
-      if (error) throw error;
-  
-      // 4) Limpa ranking visual
+      // 6) Limpa ranking visual
       if (typeof renderizarRanking === 'function') {
         await renderizarRanking();
       }
   
-      // 5) Atualiza estado local
+      // 7) Atualiza estado local
       await selecionarQuiz(quizAtual.id);
       atualizarBotaoIniciar();
+      renderizarListaPerguntas();
       syncQuizNaLista();
   
       window.ModeradorCore.mostrarNotificacao('Quiz reiniciado com sucesso!', 'success');
+  
     } catch (e) {
       console.error('Erro ao reiniciar quiz:', e);
-      alert('Erro ao reiniciar quiz.');
+      alert('Erro ao reiniciar quiz: ' + e.message);
     }
   }
   
