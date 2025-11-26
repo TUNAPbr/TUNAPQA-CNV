@@ -1,5 +1,5 @@
 // ============================================================
-// TELÃO — Enquetes & Perguntas via BROADCAST GLOBAL (desacoplado)
+// TELÃO — Enquetes, Perguntas & Quiz via BROADCAST GLOBAL
 // ============================================================
 
 // ====== ELEMENTOS DE UI ======
@@ -13,7 +13,7 @@ const el = {
   pollTitle: document.getElementById('pollTitle'),
   pollBody: document.getElementById('pollBody'),
 
-  // placeholders de quiz (mantidos p/ compatibilidade futura)
+  // quiz
   quizQuestionMode: document.getElementById('quizQuestionMode'),
   quizResultMode: document.getElementById('quizResultMode'),
   quizProgress: document.getElementById('quizProgress'),
@@ -33,14 +33,18 @@ let currentMode = 'loading';
 let broadcast = {
   enquete_ativa: null,
   mostrar_resultado_enquete: false,
-  modo_global: null, // 'enquete' | 'perguntas' | 'quiz' | null
+  modo_global: null,
   pergunta_exibida: null,
-  quiz_ativo: null
+  quiz_ativo: null,
+  quiz_countdown_state: null // 🔥 NOVO
 };
 let canalBroadcast = null;
 
-// (opcional) se futuramente voltarmos a usar palestra ativa
-let canalPalestraAtiva = null;
+// Quiz
+let quizAtual = null;
+let perguntaAtual = null;
+let countdownInicialTimer = null;
+let countdownPerguntaTimer = null;
 
 // ====== HELPERS VISUAIS ======
 function showContent() {
@@ -89,8 +93,7 @@ function displayPollResult(poll, resultado) {
   if (el.modeBadgeText) el.modeBadgeText.textContent = 'RESULTADOS';
   if (el.voteHint) el.voteHint.classList.add('hidden');
 
-  // 🔧 altura mínima dos cards de opção (em pixels)
-  const OPTION_CARD_MIN_HEIGHT = 100; // mude aqui: 100, 140, 160...
+  const OPTION_CARD_MIN_HEIGHT = 100;
 
   const labels = 'ABCDEFGHIJ'.split('');
   const opcoesRaw = Array.isArray(poll?.opcoes)
@@ -100,7 +103,6 @@ function displayPollResult(poll, resultado) {
   const rows = resultado?.rows || [];
   const total = rows.reduce((acc, r) => acc + (r.votos || 0), 0);
 
-  // Título no telão: somente o título da enquete
   if (el.pollTitle) el.pollTitle.textContent = poll?.titulo || 'Enquete';
 
   if (el.pollBody) {
@@ -159,17 +161,15 @@ async function fetchPergunta(perguntaId) {
 function displayPergunta(pergunta) {
   if (el.pollTitle) el.pollTitle.classList.remove('hidden');
   if (el.modeBadgeText) el.modeBadgeText.textContent = 'PERGUNTA';
-  if (el.voteHint) el.voteHint.classList.add('hidden'); // não mostra "vote" em pergunta
+  if (el.voteHint) el.voteHint.classList.add('hidden');
 
-  // tira o "Pergunta em destaque"
   if (el.pollTitle) {
-    el.pollTitle.textContent = '';            // sem texto
-    el.pollTitle.classList.add('hidden');     // esconde o <h2>
+    el.pollTitle.textContent = '';
+    el.pollTitle.classList.add('hidden');
   }
 
   if (el.pollBody) {
     const autor = pergunta.anonimo ? 'Anônimo' : (pergunta.nome_opt || 'Participante');
-    // Card com altura padrão para acomodar ~140 caracteres e manter estética fixa
     el.pollBody.innerHTML = `
       <div class="w-full flex items-center justify-center">
         <div class="w-full max-w-5xl min-h-[260px] flex flex-col justify-center space-y-3">
@@ -200,7 +200,6 @@ async function fetchEnquete(enqueteId) {
 }
 
 async function fetchResultadoEnquete(enqueteId) {
-  // 1) tenta view agregada
   let viaView = true;
   const resView = await supabase
     .from('cnv25_enquete_resultado_v')
@@ -212,7 +211,6 @@ async function fetchResultadoEnquete(enqueteId) {
     return { rows: resView.data || [] };
   }
 
-  // 2) fallback: agrega no cliente
   const { data: rs, error } = await supabase
     .from('cnv25_enquete_respostas')
     .select('resposta')
@@ -234,12 +232,140 @@ async function fetchResultadoEnquete(enqueteId) {
   return { rows };
 }
 
+// ====== QUIZ: FETCH ======
+async function fetchQuiz(quizId) {
+  const { data, error } = await supabase
+    .from('cnv25_quiz')
+    .select('*')
+    .eq('id', quizId)
+    .single();
+  if (error) {
+    console.error('fetchQuiz:', error);
+    return null;
+  }
+  return data;
+}
+
+async function fetchPerguntaQuiz(quizId, ordem) {
+  const { data, error } = await supabase
+    .from('cnv25_quiz_perguntas')
+    .select('*')
+    .eq('quiz_id', quizId)
+    .eq('ordem', ordem)
+    .single();
+  if (error) {
+    console.error('fetchPerguntaQuiz:', error);
+    return null;
+  }
+  return data;
+}
+
+// ====== RENDER: QUIZ - COUNTDOWN INICIAL (3s) ======
+function displayQuizCountdownInicial() {
+  hideAllModes();
+  el.quizQuestionMode?.classList.remove('hidden');
+  showContent();
+
+  if (el.quizProgress && quizAtual) {
+    el.quizProgress.textContent = `Pergunta ${quizAtual.pergunta_atual}/${quizAtual.total_perguntas}`;
+  }
+
+  if (el.quizQuestionText) {
+    el.quizQuestionText.textContent = 'Prepare-se!';
+  }
+
+  if (el.quizCountdownContainer) {
+    el.quizCountdownContainer.innerHTML = `
+      <div class="countdown-display countdown-urgent">
+        <span id="countdownNumero" class="countdown-number">3</span>
+        <span class="countdown-label">segundos</span>
+      </div>
+    `;
+  }
+
+  if (countdownInicialTimer) clearInterval(countdownInicialTimer);
+
+  let count = 3;
+  const display = document.getElementById('countdownNumero');
+
+  countdownInicialTimer = setInterval(() => {
+    count--;
+    if (display) display.textContent = count;
+    
+    if (count <= 0) {
+      clearInterval(countdownInicialTimer);
+      countdownInicialTimer = null;
+    }
+  }, 1000);
+}
+
+// ====== RENDER: QUIZ - PERGUNTA ATIVA ======
+function displayQuizPergunta() {
+  hideAllModes();
+  el.quizQuestionMode?.classList.remove('hidden');
+  showContent();
+
+  if (!perguntaAtual) return;
+
+  if (el.quizProgress && quizAtual) {
+    el.quizProgress.textContent = `Pergunta ${quizAtual.pergunta_atual}/${quizAtual.total_perguntas}`;
+  }
+
+  if (el.quizQuestionText) {
+    el.quizQuestionText.textContent = perguntaAtual.pergunta || '';
+  }
+
+  // Countdown da pergunta
+  const tempoLimite = perguntaAtual.tempo_limite || 30;
+
+  if (el.quizCountdownContainer) {
+    el.quizCountdownContainer.innerHTML = `
+      <div class="countdown-display">
+        <span id="countdownPerguntaNumero" class="countdown-number">${tempoLimite}</span>
+        <span class="countdown-label">segundos</span>
+      </div>
+    `;
+  }
+
+  if (countdownPerguntaTimer) clearInterval(countdownPerguntaTimer);
+
+  let timeLeft = tempoLimite;
+  const display = document.getElementById('countdownPerguntaNumero');
+  const countdownDiv = document.querySelector('.countdown-display');
+
+  countdownPerguntaTimer = setInterval(() => {
+    timeLeft--;
+    if (display) display.textContent = timeLeft;
+    
+    // Urgente nos últimos 5s
+    if (timeLeft <= 5 && countdownDiv) {
+      countdownDiv.classList.add('countdown-urgent');
+    }
+    
+    if (timeLeft <= 0) {
+      clearInterval(countdownPerguntaTimer);
+      countdownPerguntaTimer = null;
+    }
+  }, 1000);
+}
+
+// ====== RENDER: QUIZ - AGUARDANDO ======
+function displayQuizAguardando() {
+  displayEmptyMode();
+  
+  // Pode customizar se quiser mensagem específica
+  const emptyDiv = document.querySelector('#emptyMode p');
+  if (emptyDiv) {
+    emptyDiv.textContent = 'Aguardando próxima pergunta...';
+  }
+}
+
 // ====== BROADCAST (CARREGAR / REALTIME) ======
 async function carregarBroadcast() {
   try {
     const { data, error } = await supabase
       .from('cnv25_broadcast_controle')
-      .select('enquete_ativa, mostrar_resultado_enquete, modo_global, pergunta_exibida')
+      .select('enquete_ativa, mostrar_resultado_enquete, modo_global, pergunta_exibida, quiz_ativo, quiz_countdown_state')
       .eq('id', 1)
       .single();
     if (error) throw error;
@@ -248,7 +374,8 @@ async function carregarBroadcast() {
     broadcast.enquete_ativa = data?.enquete_ativa || null;
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
     broadcast.modo_global = data?.modo_global || null;
-    broadcast.quiz_ativo = payload.new.quiz_ativo ?? broadcast.quiz_ativo;
+    broadcast.quiz_ativo = data?.quiz_ativo || null;
+    broadcast.quiz_countdown_state = data?.quiz_countdown_state || null; // 🔥 NOVO
 
     decidirOQueExibir();
   } catch (e) {
@@ -257,7 +384,9 @@ async function carregarBroadcast() {
       enquete_ativa: null,
       mostrar_resultado_enquete: false,
       modo_global: null,
-      pergunta_exibida: null
+      pergunta_exibida: null,
+      quiz_ativo: null,
+      quiz_countdown_state: null
     };
     displayEmptyMode();
   }
@@ -278,7 +407,8 @@ function conectarRealtimeBroadcast() {
       broadcast.enquete_ativa = payload.new?.enquete_ativa || null;
       broadcast.mostrar_resultado_enquete = !!payload.new?.mostrar_resultado_enquete;
       broadcast.modo_global = payload.new?.modo_global || null;
-      broadcast.quiz_ativo = payload.new.quiz_ativo ?? broadcast.quiz_ativo;
+      broadcast.quiz_ativo = payload.new?.quiz_ativo || null;
+      broadcast.quiz_countdown_state = payload.new?.quiz_countdown_state || null; // 🔥 NOVO
       decidirOQueExibir();
     })
     .subscribe();
@@ -309,7 +439,6 @@ async function decidirOQueExibir() {
   }
 
   if (broadcast.modo_global === 'perguntas') {
-    // EXIBIR PERGUNTA EM DESTAQUE
     if (!broadcast.pergunta_exibida) {
       displayEmptyMode();
       return;
@@ -323,9 +452,47 @@ async function decidirOQueExibir() {
     return;
   }
 
+  // 🔥 QUIZ COM ESTADOS
   if (broadcast.modo_global === 'quiz') {
-    // placeholder — implementação de quiz no telão pode vir depois
-    displayEmptyMode();
+    if (!broadcast.quiz_ativo) {
+      displayEmptyMode();
+      return;
+    }
+
+    quizAtual = await fetchQuiz(broadcast.quiz_ativo);
+    if (!quizAtual || !quizAtual.pergunta_atual) {
+      displayEmptyMode();
+      return;
+    }
+
+    perguntaAtual = await fetchPerguntaQuiz(quizAtual.id, quizAtual.pergunta_atual);
+    if (!perguntaAtual) {
+      displayEmptyMode();
+      return;
+    }
+
+    const state = broadcast.quiz_countdown_state;
+
+    // 🔥 COUNTDOWN INICIAL (3s)
+    if (state === 'countdown_inicial') {
+      displayQuizCountdownInicial();
+      return;
+    }
+
+    // 🔥 PERGUNTA ATIVA (com countdown)
+    if (state === 'pergunta_ativa') {
+      displayQuizPergunta();
+      return;
+    }
+
+    // 🔥 AGUARDANDO PRÓXIMA
+    if (state === 'aguardando_proxima') {
+      displayQuizAguardando();
+      return;
+    }
+
+    // Default: aguardando
+    displayQuizAguardando();
     return;
   }
 
@@ -342,14 +509,10 @@ function escapeHtml(text) {
 // ====== BOOT ======
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    // visual inicial
     displayEmptyMode();
-
-    // carrega broadcast + liga realtime
     await carregarBroadcast();
     conectarRealtimeBroadcast();
-
-    console.log('✅ Telão ouvindo cnv25_broadcast_controle (broadcast global)');
+    console.log('✅ Telão ouvindo cnv25_broadcast_controle (broadcast global + quiz)');
   } catch (e) {
     console.error('Erro ao iniciar Telão:', e);
     displayEmptyMode();
@@ -360,6 +523,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 window.addEventListener('beforeunload', () => {
   try {
     if (canalBroadcast) supabase.removeChannel(canalBroadcast);
-    if (canalPalestraAtiva) supabase.removeChannel(canalPalestraAtiva);
+    if (countdownInicialTimer) clearInterval(countdownInicialTimer);
+    if (countdownPerguntaTimer) clearInterval(countdownPerguntaTimer);
   } catch (_) {}
 });
