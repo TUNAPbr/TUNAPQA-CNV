@@ -1,6 +1,5 @@
 // =====================================================
-// PARTICIPANTE v2 — Enquete via BROADCAST global
-// Perguntas/Quiz continuam por palestra
+// PARTICIPANTE v3 — Quiz com Countdown + Broadcast
 // =====================================================
 
 // -------------------------
@@ -54,10 +53,11 @@ let broadcast = {
   enquete_ativa: null, 
   mostrar_resultado_enquete: false, 
   modo_global: null,
-  quiz_ativo: null
+  quiz_ativo: null,
+  quiz_countdown_state: null // 🔥 NOVO
 };
 let canalBroadcast = null;
-let enqueteAtiva = null;   // objeto da enquete ativa (se houver)
+let enqueteAtiva = null;
 let jaVotou = false;
 
 // Quiz por palestra
@@ -71,7 +71,7 @@ let acertosTotal = 0;
 let canalPalestraAtiva = null;
 let canalPalestra = null;
 let canalControle = null;
-let canalEnquete = null; // para ouvir UPDATE da enquete específica
+let canalEnquete = null;
 let canalQuiz = null;
 
 // Countdown (fallback seguro)
@@ -226,7 +226,7 @@ function renderCardHeader() {
 //  INICIALIZAÇÃO
 // -------------------------
 async function inicializar() {
-  console.log('👤 Participante v2 inicializando...');
+  console.log('👤 Participante v3 inicializando...');
   if (!validarElementosHTML()) return;
 
   deviceId = getDeviceId();
@@ -234,7 +234,7 @@ async function inicializar() {
 
   // RT: palestra ativa (perguntas/quiz)
   conectarRealtimePalestraAtiva();
-  // RT: broadcast global (enquete)
+  // RT: broadcast global (enquete + quiz)
   conectarRealtimeBroadcast();
 
   // Carga inicial
@@ -247,13 +247,13 @@ async function inicializar() {
 }
 
 // -------------------------
-//  BROADCAST (ENQUETE GLOBAL)
+//  BROADCAST (ENQUETE + QUIZ GLOBAL)
 // -------------------------
 async function carregarBroadcast() {
   try {
     const { data } = await window.supabase
       .from('cnv25_broadcast_controle')
-      .select('enquete_ativa, mostrar_resultado_enquete, modo_global, quiz_ativo')
+      .select('enquete_ativa, mostrar_resultado_enquete, modo_global, quiz_ativo, quiz_countdown_state')
       .eq('id', 1)
       .single();
 
@@ -261,14 +261,24 @@ async function carregarBroadcast() {
     broadcast.mostrar_resultado_enquete = !!data?.mostrar_resultado_enquete;
     broadcast.modo_global = data?.modo_global || null;
     broadcast.quiz_ativo = data?.quiz_ativo || null;
+    broadcast.quiz_countdown_state = data?.quiz_countdown_state || null; // 🔥 NOVO
 
     await carregarEnqueteViaBroadcast();
+    await carregarQuizViaBroadcast();
   } catch (e) {
     console.error('Erro ao carregar broadcast:', e);
-    broadcast = { enquete_ativa: null, mostrar_resultado_enquete: false, modo_global: null };
+    broadcast = { 
+      enquete_ativa: null, 
+      mostrar_resultado_enquete: false, 
+      modo_global: null,
+      quiz_ativo: null,
+      quiz_countdown_state: null
+    };
     enqueteAtiva = null;
     jaVotou = false;
+    quizAtivo = null;
     atualizarSecaoEnquete();
+    atualizarSecaoQuiz();
     aplicarModo(derivarModo());
   }
 }
@@ -286,6 +296,9 @@ function conectarRealtimeBroadcast() {
       broadcast.enquete_ativa = payload?.new?.enquete_ativa || null;
       broadcast.mostrar_resultado_enquete = !!payload?.new?.mostrar_resultado_enquete;
       broadcast.modo_global = payload?.new?.modo_global || null;
+      broadcast.quiz_ativo = payload?.new?.quiz_ativo || null;
+      broadcast.quiz_countdown_state = payload?.new?.quiz_countdown_state || null; // 🔥 NOVO
+      
       await carregarEnqueteViaBroadcast();
       await carregarQuizViaBroadcast();
     })
@@ -325,15 +338,16 @@ async function carregarEnqueteViaBroadcast() {
   }
 }
 
+// 🔥 CARREGAR QUIZ VIA BROADCAST (COM COUNTDOWN STATE)
 async function carregarQuizViaBroadcast() {
   if (!broadcast.quiz_ativo || broadcast.modo_global !== 'quiz') {
     quizAtivo = null;
     perguntaAtual = null;
     atualizarSecaoQuiz();
+    aplicarModo(derivarModo());
     return;
   }
 
-  // Buscar quiz por ID, sem palestra
   try {
     const { data: quiz, error } = await window.supabase
       .from('cnv25_quiz')
@@ -353,11 +367,13 @@ async function carregarQuizViaBroadcast() {
     }
 
     atualizarSecaoQuiz();
+    aplicarModo(derivarModo());
   } catch (e) {
     console.error('Erro em carregarQuizViaBroadcast:', e);
     quizAtivo = null;
     perguntaAtual = null;
     atualizarSecaoQuiz();
+    aplicarModo(derivarModo());
   }
 }
 
@@ -384,13 +400,13 @@ function conectarRealtimeEnquete() {
 }
 
 // -------------------------
-//  PALESTRA ATIVA (PERGUNTAS/QUIZ)
+//  PALESTRA ATIVA (PERGUNTAS)
 // -------------------------
 function conectarRealtimePalestraAtiva() {
   if (canalPalestraAtiva) return;
 
   canalPalestraAtiva = window.supabase
-    .channel('palestra_ativa_part_v2')
+    .channel('palestra_ativa_part_v3')
     .on('postgres_changes', {
       event: 'UPDATE',
       schema: 'public',
@@ -422,9 +438,7 @@ async function carregarPalestraAtiva() {
       palestraId = null;
       palestra = null;
       controle = null;
-      quizAtivo = null;
 
-      // Conteúdo pode ter ENQUETE via broadcast, então não mostramos "sem palestra"
       mostrarConteudo();
       atualizarUI();
       aplicarModo(derivarModo());
@@ -527,7 +541,6 @@ function atualizarUI() {
   atualizarSecaoPerguntas();
   atualizarSecaoEnquete();
   atualizarSecaoQuiz();
-  // cabeçalho do card é atualizado dentro de aplicarModo()
 }
 
 // -------------------------
@@ -550,7 +563,6 @@ function atualizarSecaoPerguntas() {
     if (btnEnviar) btnEnviar.disabled = true;
   }
 
-  // Não exibir mais o chip de status ("ABERTAS", "FECHADAS", etc.)
   if (statusEl) {
     statusEl.textContent = '';
     statusEl.className = 'hidden';
@@ -654,7 +666,6 @@ async function enviarPergunta() {
     registrarEnvio();
     mostrarFeedback('feedbackPergunta', 'sucesso', 'Pergunta enviada! Aguarde aprovação.');
 
-    // Reset campos
     const tp = document.getElementById('textoPergunta');
     const np = document.getElementById('nomeParticipante');
     const ep = document.getElementById('emailParticipante');
@@ -694,33 +705,6 @@ async function atualizarContadorEnviadas() {
 // -------------------------
 function labelsAte10(){ return 'ABCDEFGHIJ'.split(''); }
 
-async function fetchResultadoEnquete(enqueteId){
-  // tenta view agregada; fallback
-  let viaView = true;
-  const r1 = await window.supabase
-    .from('cnv25_enquete_resultado_v')
-    .select('*')
-    .eq('enquete_id', enqueteId);
-  if (r1.error) viaView = false;
-
-  if (viaView) {
-    return { rows: r1.data || [] };
-  } else {
-    const { data: rs, error } = await window.supabase
-      .from('cnv25_enquete_respostas')
-      .select('resposta')
-      .eq('enquete_id', enqueteId);
-    if (error) { console.error(error); return { rows: [] }; }
-    const cont = {};
-    (rs||[]).forEach(r=>{
-      const idx = parseInt(r.resposta?.opcaoIndex ?? r.resposta?.opcao_index ?? 0, 10) || 0;
-      cont[idx] = (cont[idx]||0) + 1;
-    });
-    const rows = Object.entries(cont).map(([k,v])=>({ opcao_index: parseInt(k,10), votos: v }));
-    return { rows };
-  }
-}
-
 function atualizarSecaoEnquete() {
   const secao = validarElemento('secaoEnquete');
   if (!secao) return;
@@ -729,8 +713,6 @@ function atualizarSecaoEnquete() {
   const opcoesEl = validarElemento('opcoesEnquete');
   const feedback = validarElemento('feedbackEnquete');
 
-  // Não queremos mais exibir um título logo abaixo do rótulo "Enquete",
-  // então mantemos o elemento, mas sem texto.
   if (titulo) {
     titulo.textContent = '';
   }
@@ -757,7 +739,6 @@ function atualizarSecaoEnquete() {
     return;
   }
 
-  // Se já votou e estamos mostrando resultado no telão, mantém mensagem neutra
   if (feedback) {
     feedback.classList.add('hidden');
   }
@@ -797,26 +778,28 @@ async function votarEnqueteParticipante(opcaoIndex) {
 }
 
 // -------------------------
-//  SEÇÃO: QUIZ  (por palestra)
+//  SEÇÃO: QUIZ (VIA BROADCAST COM COUNTDOWN)
 // -------------------------
-async function carregarQuizAtivo() {
-  quizAtivo = await obterQuizAtivo(palestraId);
-  if (quizAtivo) {
-    await carregarPerguntaAtualQuiz();
-    conectarRealtimeQuiz();
-  } else {
-    perguntaAtual = null;
-  }
-  atualizarSecaoQuiz();
-  aplicarModo(derivarModo());
-}
+
+// Estado específico do quiz
+let quizCountdownState = null;
+let countdownInicialTimer = null;
 
 async function carregarPerguntaAtualQuiz() {
   if (!quizAtivo || !quizAtivo.pergunta_atual || quizAtivo.pergunta_atual === 0) {
     perguntaAtual = null;
     return;
   }
-  perguntaAtual = await obterPerguntaAtualQuiz(quizAtivo.id, quizAtivo.pergunta_atual);
+  
+  const { data } = await window.supabase
+    .from('cnv25_quiz_perguntas')
+    .select('*')
+    .eq('quiz_id', quizAtivo.id)
+    .eq('ordem', quizAtivo.pergunta_atual)
+    .single();
+  
+  perguntaAtual = data;
+  
   if (perguntaAtual) {
     const responded = await verificouRespondeuQuiz(perguntaAtual.id, deviceIdHash);
     if (responded) {
@@ -836,7 +819,7 @@ function conectarRealtimeQuiz() {
   if (canalQuiz) window.supabase.removeChannel(canalQuiz);
 
   canalQuiz = window.supabase
-    .channel(`quiz:${quizAtivo.id}`)
+    .channel(`quiz_part:${quizAtivo.id}`)
     .on('postgres_changes', {
       event: 'UPDATE',
       schema: 'public',
@@ -846,9 +829,8 @@ function conectarRealtimeQuiz() {
       quizAtivo = payload.new;
       if (quizAtivo.status === 'finalizado') {
         await exibirResultadoFinal();
-      } else {
-        await aplicarModo(derivarModo());
       }
+      await carregarPerguntaAtualQuiz();
       atualizarSecaoQuiz();
     })
     .on('postgres_changes', {
@@ -885,20 +867,87 @@ function atualizarSecaoQuiz() {
 
   if (!aguardando || !perguntaDiv || !finalizado) return;
 
+  // 🔥 LÓGICA DE ESTADOS DO QUIZ
   if (quizAtivo.status === 'finalizado') {
     aguardando.classList.add('hidden');
     perguntaDiv.classList.add('hidden');
     finalizado.classList.remove('hidden');
-  } else if (!perguntaAtual || perguntaAtual.jaRespondeu) {
+    return;
+  }
+
+  // Se não há pergunta atual, aguardando
+  if (!perguntaAtual) {
     aguardando.classList.remove('hidden');
     perguntaDiv.classList.add('hidden');
     finalizado.classList.add('hidden');
-  } else {
+    aguardando.innerHTML = '<p class="text-gray-600 text-center py-4">Aguardando próxima pergunta...</p>';
+    return;
+  }
+
+  // 🔥 COUNTDOWN INICIAL (3 segundos)
+  const broadcastState = broadcast.quiz_countdown_state;
+  
+  if (broadcastState === 'countdown_inicial' && !perguntaAtual.jaRespondeu) {
+    aguardando.classList.add('hidden');
+    perguntaDiv.classList.remove('hidden');
+    finalizado.classList.add('hidden');
+    renderizarCountdownInicial();
+    return;
+  }
+
+  // 🔥 PERGUNTA ATIVA (com countdown e opções)
+  if (broadcastState === 'pergunta_ativa' && !perguntaAtual.jaRespondeu) {
     aguardando.classList.add('hidden');
     perguntaDiv.classList.remove('hidden');
     finalizado.classList.add('hidden');
     renderizarPerguntaQuiz();
+    return;
   }
+
+  // 🔥 AGUARDANDO PRÓXIMA (já respondeu ou revelada)
+  if (perguntaAtual.jaRespondeu || broadcastState === 'aguardando_proxima') {
+    aguardando.classList.remove('hidden');
+    perguntaDiv.classList.add('hidden');
+    finalizado.classList.add('hidden');
+    aguardando.innerHTML = '<p class="text-gray-600 text-center py-4">Aguardando próxima pergunta...</p>';
+    return;
+  }
+
+  // Default: aguardando
+  aguardando.classList.remove('hidden');
+  perguntaDiv.classList.add('hidden');
+  finalizado.classList.add('hidden');
+}
+
+// 🔥 COUNTDOWN INICIAL (3 SEGUNDOS)
+function renderizarCountdownInicial() {
+  const opcoesContainer = validarElemento('opcoesQuiz');
+  if (!opcoesContainer) return;
+
+  opcoesContainer.innerHTML = `
+    <div class="text-center py-12">
+      <div class="inline-flex flex-col items-center justify-center w-32 h-32 rounded-full border-8 border-cnv-primary bg-cnv-primary bg-opacity-10">
+        <span id="countdownInicial" class="text-6xl font-bold text-cnv-primary">3</span>
+      </div>
+      <p class="mt-4 text-lg text-gray-600">Prepare-se!</p>
+    </div>
+  `;
+
+  if (countdownInicialTimer) clearInterval(countdownInicialTimer);
+
+  let count = 3;
+  const display = document.getElementById('countdownInicial');
+
+  countdownInicialTimer = setInterval(() => {
+    count--;
+    if (display) display.textContent = count;
+    
+    if (count <= 0) {
+      clearInterval(countdownInicialTimer);
+      countdownInicialTimer = null;
+      // Aguarda o broadcast mudar para 'pergunta_ativa'
+    }
+  }, 1000);
 }
 
 // Countdown integrado
@@ -941,6 +990,9 @@ function renderizarPerguntaQuiz() {
     </button>
   `).join('');
 
+  // Resetar tempo de início para cálculo correto
+  tempoInicio = Date.now();
+
   if (_countdownInstance) _countdownInstance.stop();
   _countdownInstance = new CountdownTimer({
     duration: tempoLimite,
@@ -971,7 +1023,21 @@ function renderizarPerguntaQuiz() {
 async function responderQuizParticipante(opcaoIndex) {
   if (!perguntaAtual || perguntaAtual.jaRespondeu) return;
 
+  // Para o countdown
   if (_countdownInstance) _countdownInstance.stop();
+
+  // Desabilita todos os botões
+  document.querySelectorAll('[id^="opcaoQuiz"]').forEach(btn => {
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+  });
+
+  // Destaca o botão clicado
+  const btnClicado = document.getElementById(`opcaoQuiz${opcaoIndex}`);
+  if (btnClicado) {
+    btnClicado.classList.remove('opacity-50');
+    btnClicado.classList.add('bg-cnv-primary', 'text-white', 'font-bold');
+  }
 
   const tempoResposta = Math.floor((Date.now() - (tempoInicio || Date.now())) / 1000);
 
@@ -1040,4 +1106,4 @@ window.addEventListener('beforeunload', () => {
   } catch (e) {}
 });
 
-console.log('✅ Participante v2 (broadcast enquetes + semáforo global) carregado');
+console.log('✅ Participante v3 (quiz com countdown) carregado');
