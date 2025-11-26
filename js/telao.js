@@ -277,6 +277,7 @@ function displayQuizCountdownInicial() {
   if (el.quizCountdownContainer) {
     el.quizCountdownContainer.innerHTML = `
       <div class="countdown-display countdown-urgent">
+        <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
         <span id="countdownNumero" class="countdown-number">3</span>
         <span class="countdown-label">segundos</span>
       </div>
@@ -319,10 +320,12 @@ function displayQuizPergunta() {
   const tempoLimite = perguntaAtual.tempo_limite || 30;
 
   if (el.quizCountdownContainer) {
-    el.quizCountdownContainer.innerHTML = `
-      <div class="countdown-display">
-        <span id="countdownPerguntaNumero" class="countdown-number">${tempoLimite}</span>
-        <span class="countdown-label">segundos</span>
+    el.quizCountdownContainer.innerHTML = 
+      <div style="display: flex; justify-content: center; align-items: center; width: 100%;">`
+        <div class="countdown-display">
+          <span id="countdownPerguntaNumero" class="countdown-number">${tempoLimite}</span>
+          <span class="countdown-label">segundos</span>
+        </div>
       </div>
     `;
   }
