@@ -602,6 +602,18 @@ const ModuloQuiz = (() => {
     atualizarBotaoRankingTelao();
     
   }
+  async function obterRankingQuiz(quizId) {
+    try {
+      const { data, error } = await supabase
+        .rpc('cnv25_quiz_ranking', { quiz_uuid: quizId });
+  
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Erro ao buscar ranking do quiz:', error);
+      return [];
+    }
+  }
   
   async function renderizarRanking() {
     if (!quizAtual) return;
