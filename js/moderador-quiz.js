@@ -321,7 +321,6 @@ const ModuloQuiz = (() => {
                   ${revelada ? '👁️ Ocultar' : '👁️ Revelar'}
                 </button>
               `}
-            </div>
           </div>
         `;
       })
