@@ -315,18 +315,10 @@ const ModuloQuiz = (() => {
               ${revelada ? `
                 <button
                   type="button"
-                  class="px-3 py-1 text-xs rounded bg-gray-300 text-gray-700 cursor-default"
-                  disabled
-                >
-                  ✅ Revelada
-                </button>
-              ` : `
-                <button
-                  type="button"
-                  class="px-3 py-1 text-xs rounded bg-cnv-warning text-white hover:bg-yellow-600"
+                  class="px-3 py-1 text-xs rounded ${revelada ? 'bg-gray-500 hover:bg-gray-600' : 'bg-cnv-warning hover:bg-yellow-600'} text-white"
                   onclick="event.stopPropagation(); window.ModuloQuiz.revelarDaLista(${p.ordem})"
                 >
-                  👁️ Revelar
+                  ${revelada ? '👁️ Ocultar' : '👁️ Revelar'}
                 </button>
               `}
             </div>
@@ -571,20 +563,21 @@ const ModuloQuiz = (() => {
             `;
           }).join('')}
         </div>
-        
-        ${
-          perguntaAtual.revelada
-            ? `
-          <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-            <p class="text-sm text-green-800"><strong>✓ Resposta revelada!</strong> Clique em "Avançar" para próxima pergunta.</p>
-          </div>
-        `
-            : `
-          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-            <p class="text-sm text-blue-800">Aguardando respostas dos participantes...</p>
-          </div>
-        `
-        }
+        <div class="${perguntaAtual.revelada ? 'bg-green-50 border-green-500' : 'bg-blue-50 border-blue-500'} border-l-4 p-4 rounded flex items-center justify-between">
+          <p class="text-sm ${perguntaAtual.revelada ? 'text-green-800' : 'text-blue-800'}">
+            ${perguntaAtual.revelada 
+              ? '<strong>✓ Resposta revelada no telão!</strong>' 
+              : 'Aguardando respostas dos participantes...'
+            }
+          </p>
+          <button
+            type="button"
+            class="px-4 py-2 rounded ${perguntaAtual.revelada ? 'bg-gray-500 hover:bg-gray-600' : 'bg-purple-600 hover:bg-purple-700'} text-white transition"
+            onclick="window.ModuloQuiz.revelar()"
+          >
+            ${perguntaAtual.revelada ? '👁️ Ocultar Resposta' : '✅ Revelar Resposta'}
+          </button>
+        </div>
         
         <div id="quizResumoStats" class="mt-4 text-sm text-gray-700 hidden"></div>
       `;
@@ -614,7 +607,76 @@ const ModuloQuiz = (() => {
       return [];
     }
   }
-  
+  async function revelarDaLista(ordem) {
+    if (!quizAtual) return;
+    
+    // Buscar a pergunta
+    const pergunta = perguntasQuiz.find(p => p.ordem === ordem);
+    if (!pergunta) return;
+    
+    try {
+      // Alternar estado revelado
+      const novoEstado = !pergunta.revelada;
+      
+      // Atualizar no banco
+      const { error: perguntaError } = await supabase
+        .from('cnv25_quiz_perguntas')
+        .update({ revelada: novoEstado })
+        .eq('id', pergunta.id);
+      
+      if (perguntaError) throw perguntaError;
+      
+      // Se está revelando E é a pergunta atual, atualizar broadcast
+      if (novoEstado && quizAtual.pergunta_atual === ordem) {
+        const { error: broadcastError } = await supabase
+          .from('cnv25_broadcast_controle')
+          .update({
+            quiz_countdown_state: 'resultado_revelado',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', 1);
+        
+        if (broadcastError) throw broadcastError;
+      }
+      
+      // Se está ocultando E é a pergunta atual, voltar para pergunta_ativa
+      if (!novoEstado && quizAtual.pergunta_atual === ordem) {
+        const { error: broadcastError } = await supabase
+          .from('cnv25_broadcast_controle')
+          .update({
+            quiz_countdown_state: 'pergunta_ativa',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', 1);
+        
+        if (broadcastError) throw broadcastError;
+      }
+      
+      // Atualizar estado local
+      pergunta.revelada = novoEstado;
+      if (perguntaAtual?.ordem === ordem) {
+        perguntaAtual.revelada = novoEstado;
+      }
+      
+      // Re-renderizar
+      renderizarListaPerguntas();
+      renderizarQuiz();
+      
+      // Atualizar ranking se revelou
+      if (novoEstado) {
+        setTimeout(async () => {
+          await renderizarRanking();
+        }, 1000);
+      }
+      
+      const msg = novoEstado ? 'Resposta revelada!' : 'Resposta ocultada!';
+      window.ModeradorCore.mostrarNotificacao(msg, 'success');
+      
+    } catch (error) {
+      console.error('Erro ao revelar:', error);
+      alert('Erro ao revelar resposta');
+    }
+  }
   async function renderizarRanking() {
     if (!quizAtual) return;
     
