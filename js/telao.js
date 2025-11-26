@@ -307,23 +307,23 @@ function displayQuizPergunta() {
   hideAllModes();
   el.quizQuestionMode?.classList.remove('hidden');
   showContent();
-
+  
   if (!perguntaAtual) return;
-
+  
   if (el.quizProgress && quizAtual) {
     el.quizProgress.textContent = `Pergunta ${quizAtual.pergunta_atual}/${quizAtual.total_perguntas}`;
   }
-
+  
   if (el.quizQuestionText) {
     el.quizQuestionText.textContent = perguntaAtual.pergunta || '';
   }
-
+  
   // Countdown da pergunta
   const tempoLimite = perguntaAtual.tempo_limite || 30;
-
+  
   if (el.quizCountdownContainer) {
     el.quizCountdownContainer.innerHTML = `
-      <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
+      <div class="flex justify-center items-center w-full">
         <div class="countdown-display">
           <span id="countdownPerguntaNumero" class="countdown-number">${tempoLimite}</span>
           <span class="countdown-label">segundos</span>
@@ -331,26 +331,48 @@ function displayQuizPergunta() {
       </div>
     `;
   }
-
-  if (countdownPerguntaTimer) clearInterval(countdownPerguntaTimer);
-
+  
+  // Limpar timer anterior
+  if (countdownPerguntaTimer) {
+    clearInterval(countdownPerguntaTimer);
+    countdownPerguntaTimer = null;
+  }
+  
   let timeLeft = tempoLimite;
   const display = document.getElementById('countdownPerguntaNumero');
   const countdownDiv = document.querySelector('.countdown-display');
-
+  
   countdownPerguntaTimer = setInterval(() => {
     timeLeft--;
-    if (display) display.textContent = timeLeft;
+    
+    if (timeLeft <= 0) {
+      clearInterval(countdownPerguntaTimer);
+      countdownPerguntaTimer = null;
+      
+      // 🔥 EXIBIR "TEMPO ESGOTADO!"
+      if (el.quizCountdownContainer) {
+        el.quizCountdownContainer.innerHTML = `
+          <div class="flex justify-center items-center w-full h-full">
+            <div class="countdown-display countdown-urgent">
+              <span class="countdown-number text-red-600 text-8xl">⏰</span>
+              <span class="countdown-label text-red-600 text-4xl font-bold">TEMPO ESGOTADO!</span>
+            </div>
+          </div>
+        `;
+      }
+      return;
+    }
+    
+    // Atualizar display
+    if (display) {
+      display.textContent = timeLeft;
+    }
     
     // Urgente nos últimos 5s
     if (timeLeft <= 5 && countdownDiv) {
       countdownDiv.classList.add('countdown-urgent');
     }
     
-    if (timeLeft <= 0) {
-      clearInterval(countdownPerguntaTimer);
-      countdownPerguntaTimer = null;
-    }
   }, 1000);
 }
 
