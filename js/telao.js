@@ -541,6 +541,12 @@ async function decidirOQueExibir() {
   // 🔥 QUIZ COM ESTADOS
   if (broadcast.modo_global === 'quiz') {
 
+    // 🔥 PRIORIDADE: Mostrar ranking se solicitado
+    if (broadcast.mostrar_ranking_quiz && broadcast.quiz_ativo) {
+      await exibirRankingQuiz();
+      return;
+    }
+
     if (broadcast.quiz_countdown_state === 'countdown_inicial') {
       displayQuizCountdownInicial(3);
       return;
