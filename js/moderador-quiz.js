@@ -764,39 +764,35 @@ const ModuloQuiz = (() => {
   async function revelar() {
     if (!perguntaAtual) return;
     
-    if (perguntaAtual.revelada) {
-      alert('Resposta já foi revelada');
-      return;
-    }
-    
     try {
-      // 1️⃣ Marca pergunta como revelada
+      // Alternar estado revelado
+      const novoEstado = !perguntaAtual.revelada;
+      
+      // Atualizar no banco
       const { error: perguntaError } = await supabase
         .from('cnv25_quiz_perguntas')
-        .update({ revelada: true })
+        .update({ revelada: novoEstado })
         .eq('id', perguntaAtual.id);
       
       if (perguntaError) throw perguntaError;
-
-      // AGUARDAR 5 SEGUNDOS ANTES DE MUDAR ESTADO
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 segundos
       
-      // 2️⃣ Atualizar broadcast para modo "aguardando"
+      // Atualizar broadcast
       const { error: broadcastError } = await supabase
         .from('cnv25_broadcast_controle')
         .update({
-          quiz_countdown_state: 'aguardando_proxima',
+          quiz_countdown_state: novoEstado ? 'resultado_revelado' : 'pergunta_ativa',
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
       
       if (broadcastError) throw broadcastError;
       
-      perguntaAtual.revelada = true;
+      perguntaAtual.revelada = novoEstado;
       renderizarQuiz();
       await carregarListaPerguntas();
       
-      window.ModeradorCore.mostrarNotificacao('Resposta revelada!', 'success');
+      const msg = novoEstado ? 'Resposta revelada!' : 'Resposta ocultada!';
+      window.ModeradorCore.mostrarNotificacao(msg, 'success');
       
     } catch (error) {
       console.error('Erro ao revelar:', error);
