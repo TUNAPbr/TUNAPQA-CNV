@@ -961,7 +961,7 @@ function renderizarPerguntaQuiz() {
   if (!perguntaAtual || !opcoesContainer) return;
 
   if (num && quizAtivo) num.textContent = `${quizAtivo.pergunta_atual}/${quizAtivo.total_perguntas}`;
-  if (txt) txt.textContent = perguntaAtual.pergunta || '—';
+  if (txt) txt.textContent = '';
 
   const labels = ['A','B','C','D'];
   const opcoes = (perguntaAtual.opcoes || []).slice(0, 4);
@@ -969,11 +969,6 @@ function renderizarPerguntaQuiz() {
   const tempoLimite = perguntaAtual.tempo_limite || 30;
   const countdownHTML = `
     <div class="mb-4 text-center">
-      <div class="inline-flex items-center gap-2 bg-cnv-warning bg-opacity-20 px-4 py-2 rounded-lg">
-        <span class="text-2xl">⏱️</span>
-        <span id="countdownDisplay" class="text-2xl font-bold text-cnv-warning">${tempoLimite}</span>
-        <span class="text-sm text-gray-600">segundos</span>
-      </div>
       <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
         <div id="countdownBar" class="bg-cnv-warning h-2 rounded-full transition-all" style="width:100%"></div>
       </div>
@@ -997,12 +992,7 @@ function renderizarPerguntaQuiz() {
   _countdownInstance = new CountdownTimer({
     duration: tempoLimite,
     onTick: (left) => {
-      const display = document.getElementById('countdownDisplay');
       const bar = document.getElementById('countdownBar');
-      if (display) {
-        display.textContent = left;
-        if (left <= 5) display.classList.add('text-red-600');
-      }
       if (bar) {
         bar.style.width = (left / tempoLimite * 100) + '%';
         if (left <= 10) { bar.classList.remove('bg-cnv-warning'); bar.classList.add('bg-red-500'); }
