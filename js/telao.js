@@ -666,7 +666,7 @@ async function exibirResultadoQuiz() {
           <div class="grid grid-cols-2 gap-4">
             ${perguntaAtual.opcoes.map((op, idx) => {
               const votos = distribuicao[idx] || 0;
-              const pct = totalRespostas > 0 ? Math.round((votos / totalResposas) * 100) : 0;
+              const pct = totalRespostas > 0 ? Math.round((votos / totalRespostas) * 100) : 0;
               const isCorreta = idx === corretaIdx;
               const borderClass = isCorreta ? 'border-green-500 bg-green-50' : 'border-gray-300';
               const barColor = isCorreta ? 'bg-green-500' : 'bg-blue-500';
