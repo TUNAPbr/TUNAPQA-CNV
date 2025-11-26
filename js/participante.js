@@ -283,6 +283,46 @@ async function carregarBroadcast() {
   }
 }
 
+async function carregarPerguntaAtual() {
+  if (!quizAtivo?.id) {
+    console.warn('⚠️ Nenhum quiz ativo para carregar pergunta');
+    return;
+  }
+  
+  try {
+    // 1. Buscar qual é a pergunta atual do quiz
+    const { data: quiz, error: errQuiz } = await supabase
+      .from('cnv25_quiz')
+      .select('pergunta_atual')
+      .eq('id', quizAtivo.id)
+      .single();
+    
+    if (errQuiz) throw errQuiz;
+    if (!quiz || quiz.pergunta_atual === 0) {
+      console.log('⏸️ Quiz ainda não iniciou');
+      return;
+    }
+    
+    // 2. Buscar os dados da pergunta
+    const { data: pergunta, error: errPerg } = await supabase
+      .from('cnv25_quiz_perguntas')
+      .select('*')
+      .eq('quiz_id', quizAtivo.id)
+      .eq('ordem', quiz.pergunta_atual)
+      .single();
+    
+    if (errPerg) throw errPerg;
+    
+    if (pergunta) {
+      perguntaAtual = pergunta;
+      console.log('✅ Pergunta carregada:', pergunta.ordem, '-', pergunta.pergunta);
+    }
+    
+  } catch (err) {
+    console.error('❌ Erro ao carregar pergunta atual:', err);
+  }
+}
+
 function conectarRealtimeBroadcast() {
   if (canalBroadcast) return;
   canalBroadcast = window.supabase
@@ -293,11 +333,27 @@ function conectarRealtimeBroadcast() {
       table: 'cnv25_broadcast_controle',
       filter: 'id=eq.1'
     }, async (payload) => {
+      
+      console.log('🔔 Broadcast atualizado:', payload.new); // LOG
+      
       broadcast.enquete_ativa = payload?.new?.enquete_ativa || null;
       broadcast.mostrar_resultado_enquete = !!payload?.new?.mostrar_resultado_enquete;
       broadcast.modo_global = payload?.new?.modo_global || null;
       broadcast.quiz_ativo = payload?.new?.quiz_ativo || null;
-      broadcast.quiz_countdown_state = payload?.new?.quiz_countdown_state || null; // 🔥 NOVO
+      broadcast.quiz_countdown_state = payload?.new?.quiz_countdown_state || null;
+      
+      // 🔥 FORÇA RELOAD DA PERGUNTA quando countdown muda
+      if (broadcast.quiz_countdown_state === 'countdown_inicial') {
+        console.log('🔄 Countdown inicial - carregando pergunta...');
+        await carregarPerguntaAtual();
+        renderizarCountdownInicial();
+      }
+      
+      if (broadcast.quiz_countdown_state === 'pergunta_ativa') {
+        console.log('🔄 Pergunta ativa - carregando pergunta...');
+        await carregarPerguntaAtual();
+        renderizarPerguntaQuiz();
+      }
       
       await carregarEnqueteViaBroadcast();
       await carregarQuizViaBroadcast();
