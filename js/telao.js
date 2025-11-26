@@ -276,10 +276,12 @@ function displayQuizCountdownInicial() {
 
   if (el.quizCountdownContainer) {
     el.quizCountdownContainer.innerHTML = `
-      <div class="countdown-display countdown-urgent">
-        <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-        <span id="countdownNumero" class="countdown-number">3</span>
-        <span class="countdown-label">segundos</span>
+      <div class="flex justify-center items-center w-full h-screen">
+        <div class="countdown-display countdown-urgent">
+          <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
+          <span id="countdownNumero" class="countdown-number">3</span>
+          <span class="countdown-label">segundos</span>
+        </div>  
       </div>
     `;
   }
@@ -429,6 +431,50 @@ function conectarRealtimeBroadcast() {
     .subscribe();
 }
 
+async function exibirRankingQuiz() {
+  if (!quizAtivo?.id) return;
+  
+  try {
+    const { data: ranking, error } = await supabase
+      .rpc('cnv25_quiz_ranking', { quiz_uuid: quizAtivo.id });
+    
+    if (error) throw error;
+    
+    const top10 = (ranking || []).slice(0, 10);
+    
+    let html = `
+      <div class="p-8">
+        <h1 class="text-6xl font-bold text-center mb-8">🏆 RANKING</h1>
+        <div class="space-y-4">
+    `;
+    
+    top10.forEach((item, idx) => {
+      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
+      html += `
+        <div class="bg-white rounded-lg p-6 shadow-lg flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-4xl font-bold">${medal}</span>
+            <span class="text-2xl">Participante ${item.device_id_hash.substring(0, 8)}</span>
+          </div>
+          <div class="text-right">
+            <div class="text-3xl font-bold text-green-600">${item.pontos_totais} pts</div>
+            <div class="text-lg text-gray-600">${item.total_acertos} acertos</div>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `</div></div>`;
+    
+    if (el.quizQuestionContainer) {
+      el.quizQuestionContainer.innerHTML = html;
+    }
+    
+  } catch (err) {
+    console.error('Erro ao exibir ranking:', err);
+  }
+}
+
 // ====== DECISOR (UMA COISA POR VEZ) ======
 async function decidirOQueExibir() {
   // "Semáforo" global
@@ -469,6 +515,12 @@ async function decidirOQueExibir() {
 
   // 🔥 QUIZ COM ESTADOS
   if (broadcast.modo_global === 'quiz') {
+
+    if (broadcast.mostrar_ranking_quiz) {
+      await exibirRankingQuiz();
+      return;
+    }
+    
     if (!broadcast.quiz_ativo) {
       displayEmptyMode();
       return;
