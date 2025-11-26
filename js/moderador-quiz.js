@@ -778,7 +778,7 @@ const ModuloQuiz = (() => {
       
       if (perguntaError) throw perguntaError;
 
-      / AGUARDAR 5 SEGUNDOS ANTES DE MUDAR ESTADO
+      // AGUARDAR 5 SEGUNDOS ANTES DE MUDAR ESTADO
       await new Promise(resolve => setTimeout(resolve, 5000)); // 5 segundos
       
       // 2️⃣ Atualizar broadcast para modo "aguardando"
