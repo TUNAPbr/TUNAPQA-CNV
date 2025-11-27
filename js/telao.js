@@ -470,43 +470,64 @@ async function exibirRankingQuiz() {
     
     if (error) throw error;
     
+    hideAllModes();
+    showContent();
+    
     const top10 = (ranking || []).slice(0, 10);
     
     let html = `
-      <div class="p-8">
-        <h1 class="text-6xl font-bold text-center mb-8">🏆 RANKING</h1>
-        <div class="space-y-4">
+      <div class="p-8 bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
+        <h1 class="text-7xl font-bold text-center mb-12 text-purple-800">🏆 RANKING</h1>
+        <div class="max-w-4xl mx-auto space-y-4">
     `;
     
-    top10.forEach((item, idx) => {
-      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
-      html += `
-        <div class="bg-white rounded-lg p-6 shadow-lg flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <span class="text-4xl font-bold">${medal}</span>
-            <span class="text-2xl">Participante ${item.device_id_hash.substring(0, 8)}</span>
+    if (top10.length === 0) {
+      html += `<div class="text-center text-3xl text-gray-500">Nenhuma resposta ainda</div>`;
+    } else {
+      top10.forEach((item, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
+        const bgColor = idx === 0 ? 'bg-yellow-100 border-yellow-400' : 
+                        idx === 1 ? 'bg-gray-100 border-gray-400' : 
+                        idx === 2 ? 'bg-orange-100 border-orange-400' : 'bg-white border-gray-300';
+        
+        html += `
+          <div class="${bgColor} border-4 rounded-lg p-6 shadow-lg flex items-center justify-between">
+            <div class="flex items-center gap-6">
+              <span class="text-5xl font-bold">${medal}</span>
+              <span class="text-3xl font-semibold">Participante ${item.device_id_hash.substring(0, 8)}</span>
+            </div>
+            <div class="text-right">
+              <div class="text-4xl font-bold text-green-600">${item.pontos_totais} pts</div>
+              <div class="text-xl text-gray-600">${item.total_acertos} acertos</div>
+            </div>
           </div>
-          <div class="text-right">
-            <div class="text-3xl font-bold text-green-600">${item.pontos_totais} pts</div>
-            <div class="text-lg text-gray-600">${item.total_acertos} acertos</div>
-          </div>
-        </div>
-      `;
-    });
+        `;
+      });
+    }
     
     html += `</div></div>`;
     
-    if (el.quizQuestionContainer) {
-      el.quizQuestionContainer.innerHTML = html;
+    // 🔥 USAR CONTAINER CORRETO, NÃO document.body
+    const mainContent = document.getElementById('mainContent');
+    if (mainContent) {
+      mainContent.innerHTML = html;
     }
     
   } catch (err) {
     console.error('Erro ao exibir ranking:', err);
   }
 }
-
 // ====== DECISOR (UMA COISA POR VEZ) ======
 async function decidirOQueExibir() {
+  const broadcast = await buscarBroadcast();
+  if (!broadcast) return;
+  
+  // Ranking
+  if (broadcast.mostrar_ranking_quiz && broadcast.quiz_ativo) {
+    await exibirRankingQuiz();
+    return;
+  }
+  
   // "Semáforo" global
   if (broadcast.modo_global === 'enquete') {
     if (!broadcast.enquete_ativa) {
