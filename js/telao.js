@@ -490,11 +490,14 @@ async function exibirRankingQuiz() {
                         idx === 1 ? 'bg-gray-100 border-gray-400' : 
                         idx === 2 ? 'bg-orange-100 border-orange-400' : 'bg-white border-gray-300';
         
+        // 🔥 ADICIONE ESTA LINHA:
+        const nome = item.nome_participante || `Participante ${item.device_id_hash.substring(0, 8)}`;
+        
         html += `
           <div class="${bgColor} border-4 rounded-lg p-6 shadow-lg flex items-center justify-between">
             <div class="flex items-center gap-6">
               <span class="text-5xl font-bold">${medal}</span>
-              <span class="text-3xl font-semibold">Participante ${item.device_id_hash.substring(0, 8)}</span>
+              <span class="text-3xl font-semibold">${nome}</span>
             </div>
             <div class="text-right">
               <div class="text-4xl font-bold text-green-600">${item.pontos_totais} pts</div>
