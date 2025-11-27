@@ -11,6 +11,56 @@ function validarElemento(id) {
   return el;
 }
 
+let nomeParticipante = null;
+
+function solicitarNomeParticipante() {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold mb-4 text-center">Bem-vindo ao Quiz!</h2>
+        <p class="text-gray-600 mb-6 text-center">Digite seu nome para participar:</p>
+        <input 
+          type="text" 
+          id="nomeParticipante" 
+          class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg mb-4 focus:border-blue-500 focus:outline-none"
+          placeholder="Seu nome"
+          maxlength="20"
+        />
+        <button 
+          id="btnConfirmarNome" 
+          class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+        >
+          Entrar no Quiz
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const input = document.getElementById('nomeParticipante');
+    const btn = document.getElementById('btnConfirmarNome');
+    
+    input.focus();
+    
+    const confirmar = () => {
+      const nome = input.value.trim();
+      if (!nome) {
+        alert('Por favor, digite seu nome!');
+        return;
+      }
+      document.body.removeChild(modal);
+      resolve(nome);
+    };
+    
+    btn.onclick = confirmar;
+    input.onkeypress = (e) => {
+      if (e.key === 'Enter') confirmar();
+    };
+  });
+}
+
 function validarElementosHTML() {
   const ids = [
     'loading','semPalestra','conteudo',
@@ -396,6 +446,21 @@ async function carregarEnqueteViaBroadcast() {
 
 // 🔥 CARREGAR QUIZ VIA BROADCAST (COM COUNTDOWN STATE)
 async function carregarQuizViaBroadcast() {
+  const idQuiz = broadcast.quiz_ativo;
+  
+  if (!idQuiz) {
+    quizAtivo = null;
+    perguntaAtual = null;
+    renderizarParticipante();
+    return;
+  }
+  
+  // SOLICTAR NOME QUANDO QUIZ INICIA
+  if (!nomeParticipante) {
+    nomeParticipante = await solicitarNomeParticipante();
+    console.log('👤 Nome do participante:', nomeParticipante);
+  }
+  
   if (!broadcast.quiz_ativo || broadcast.modo_global !== 'quiz') {
     quizAtivo = null;
     perguntaAtual = null;
@@ -890,15 +955,22 @@ function conectarRealtimeQuiz() {
       atualizarSecaoQuiz();
     })
     .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'cnv25_quiz_perguntas'
-    }, (payload) => {
-      if (perguntaAtual && payload.new.id === perguntaAtual.id && payload.new.revelada) {
-        perguntaAtual = payload.new;
-        exibirFeedbackResposta();
-      }
-    })
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'cnv25_quiz_perguntas'
+      }, async (payload) => {
+        console.log('🔔 Pergunta atualizada:', payload.new);
+        
+        // 🔥 Só reagir se mudou de false para true
+        if (perguntaAtual && 
+            payload.new.id === perguntaAtual.id && 
+            payload.new.revelada === true &&
+            perguntaAtual.revelada === false) {
+          
+          perguntaAtual.revelada = true;
+          await exibirFeedbackResposta();
+        }
+      })
     .subscribe();
 }
 
