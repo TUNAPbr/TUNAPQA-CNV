@@ -1058,7 +1058,6 @@ const ModuloQuiz = (() => {
           quiz_ativo: null,
           modo_global: null,
           quiz_countdown_state: null,
-          mostrar_ranking_quiz: false
         })
         .eq('id', 1);
 
