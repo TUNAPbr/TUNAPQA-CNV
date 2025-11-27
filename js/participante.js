@@ -1140,51 +1140,63 @@ function renderizarPerguntaQuiz() {
 
 async function responderQuizParticipante(opcaoIndex) {
   if (!perguntaAtual || perguntaAtual.jaRespondeu) return;
-
+  
   // Para o countdown
   if (_countdownInstance) _countdownInstance.stop();
-
+  
   // Desabilita todos os botões
   document.querySelectorAll('[id^="opcaoQuiz"]').forEach(btn => {
     btn.disabled = true;
     btn.classList.add('opacity-50', 'cursor-not-allowed');
   });
-
+  
   // Destaca o botão clicado
   const btnClicado = document.getElementById(`opcaoQuiz${opcaoIndex}`);
   if (btnClicado) {
     btnClicado.classList.remove('opacity-50');
     btnClicado.classList.add('bg-cnv-primary', 'text-white', 'font-bold');
   }
-
+  
   const tempoResposta = Math.floor((Date.now() - (tempoInicio || Date.now())) / 1000);
-
+  
   try {
-    const resultado = await responderPerguntaQuiz(
-      perguntaAtual.id,
-      deviceIdHash,
-      opcaoIndex,
-      tempoResposta
-    );
-
-    if (resultado?.error) {
-      mostrarFeedback('feedbackQuiz', 'erro', resultado.error);
+    // 🔥 INSERT DIRETO NO BANCO
+    const acertou = opcaoIndex === perguntaAtual.resposta_correta;
+    const pontos = acertou ? Math.max(1000 - (tempoResposta * 10), 100) : 0;
+    
+    const { data: resultado, error } = await window.supabase
+      .from('cnv25_quiz_respostas')
+      .insert({
+        quiz_pergunta_id: perguntaAtual.id,
+        device_id_hash: deviceIdHash,
+        nome_participante: nomeParticipante,  // 🔥 NOME AQUI
+        resposta_escolhida: opcaoIndex,
+        tempo_resposta: tempoResposta,
+        correta: acertou
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Erro ao salvar resposta:', error);
+      mostrarFeedback('feedbackQuiz', 'erro', 'Erro ao enviar resposta');
       return;
     }
-
+    
+    // Processar resultado
     perguntaAtual.jaRespondeu = true;
     perguntaAtual.minhaResposta = opcaoIndex;
-    perguntaAtual.acertei = !!resultado.correta;
-    perguntaAtual.pontos = resultado.pontos || 0;
-
-    if (resultado.correta) {
+    perguntaAtual.acertei = acertou;
+    perguntaAtual.pontos = pontos;
+    
+    if (acertou) {
       acertosTotal++;
-      pontuacaoTotal += (resultado.pontos || 0);
+      pontuacaoTotal += pontos;
     }
-
+    
     mostrarFeedback('feedbackQuiz', 'info', '✓ Resposta registrada! Aguarde a revelação...');
     atualizarSecaoQuiz();
-
+    
   } catch (e) {
     console.error('Erro ao responder quiz:', e);
     mostrarFeedback('feedbackQuiz', 'erro', 'Erro ao enviar resposta');
