@@ -276,12 +276,11 @@ function displayQuizCountdownInicial() {
 
   if (el.quizCountdownContainer) {
     el.quizCountdownContainer.innerHTML = `
-      <div class="flex justify-center items-center w-full h-screen">
+      <div class="flex justify-center items-center w-full" style="height: 400px;">
         <div class="countdown-display countdown-urgent">
-          <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-          <span id="countdownNumero" class="countdown-number">3</span>
+          <span id="countdownNumero" class="countdown-number">${numero}</span>
           <span class="countdown-label">segundos</span>
-        </div>  
+        </div>
       </div>
     `;
   }
@@ -381,12 +380,18 @@ function displayQuizPergunta() {
 
 // ====== RENDER: QUIZ - AGUARDANDO ======
 function displayQuizAguardando() {
-  displayEmptyMode();
+  hideAllModes();
+  showContent();
   
-  // Pode customizar se quiser mensagem específica
-  const emptyDiv = document.querySelector('#emptyMode p');
-  if (emptyDiv) {
-    emptyDiv.textContent = 'Aguardando próxima pergunta...';
+  if (el.quizCountdownContainer) {
+    el.quizCountdownContainer.innerHTML = `
+      <div class="flex justify-center items-center w-full" style="height: 400px;">
+        <div class="text-center">
+          <div class="text-6xl mb-4">⏸️</div>
+          <p class="text-3xl font-bold text-gray-600">Aguardando próxima pergunta...</p>
+        </div>
+      </div>
+    `;
   }
 }
 
@@ -588,8 +593,8 @@ async function decidirOQueExibir() {
     }
 
     // 🔥 PERGUNTA ATIVA (com countdown)
-    if (state === 'pergunta_ativa') {
-      displayQuizPergunta();
+    if (broadcast.quiz_countdown_state === 'aguardando_proxima') {
+      displayQuizAguardando();
       return;
     }
 
@@ -647,44 +652,51 @@ async function exibirResultadoQuiz() {
 
   if (el.pollBody) {
     el.pollBody.innerHTML = `
-      <div class="w-full flex items-center justify-center">
-        <div class="w-full max-w-5xl space-y-6">
-          <!-- Resposta Correta Destaque -->
-          <div class="bg-green-100 border-4 border-green-500 rounded-xl p-6 text-center">
-            <p class="text-2xl font-bold text-green-800 mb-2">✓ RESPOSTA CORRETA</p>
-            <p class="text-4xl font-bold">${corretaLabel}. ${escapeHtml(corretaTexto)}</p>
+      <div class="w-full px-8 py-4">
+        <!-- Linha 1: Resposta Correta -->
+        <div class="bg-green-100 border-4 border-green-500 rounded-xl p-4 text-center mb-4">
+          <p class="text-3xl font-bold">${corretaLabel}. ${escapeHtml(corretaTexto)}</p>
+        </div>
+        
+        <!-- Linha 2: Container lado a lado -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <!-- Resposta Correta (esquerda) -->
+          <div class="bg-green-50 border-2 border-green-500 rounded-xl p-4">
+            <p class="text-lg font-bold text-green-800 mb-2">✓ RESPOSTA CORRETA</p>
+            <p class="text-2xl font-bold">${corretaLabel}</p>
           </div>
-
-          <!-- Estatísticas -->
-          <div class="bg-blue-50 rounded-xl p-6 text-center">
-            <p class="text-6xl font-bold text-blue-600">${percentualAcerto}%</p>
-            <p class="text-lg text-gray-700">acertaram esta pergunta</p>
-            <p class="text-sm text-gray-500 mt-2">${totalAcertos} de ${totalRespostas} participantes</p>
+          
+          <!-- Percentual (direita) -->
+          <div class="bg-blue-50 border-2 border-blue-500 rounded-xl p-4 text-center">
+            <p class="text-5xl font-bold text-blue-600">${percentualAcerto}%</p>
+            <p class="text-sm text-gray-700">acertaram</p>
+            <p class="text-xs text-gray-500">${totalAcertos}/${totalRespostas} participantes</p>
           </div>
-
-          <!-- Distribuição de Respostas -->
-          <div class="grid grid-cols-2 gap-4">
-            ${perguntaAtual.opcoes.map((op, idx) => {
-              const votos = distribuicao[idx] || 0;
-              const pct = totalRespostas > 0 ? Math.round((votos / totalRespostas) * 100) : 0;
-              const isCorreta = idx === corretaIdx;
-              const borderClass = isCorreta ? 'border-green-500 bg-green-50' : 'border-gray-300';
-              const barColor = isCorreta ? 'bg-green-500' : 'bg-blue-500';
-
-              return `
-                <div class="border-2 ${borderClass} rounded-lg p-4">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-bold text-lg">${labels[idx]}. ${escapeHtml(op)}</span>
-                    ${isCorreta ? '<span class="text-green-600 text-2xl">✓</span>' : ''}
-                  </div>
-                  <div class="text-right text-sm text-gray-600 mb-2">${votos} votos (${pct}%)</div>
-                  <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div class="h-2 rounded-full ${barColor}" style="width:${pct}%"></div>
-                  </div>
+        </div>
+        
+        <!-- Linha 3: Grid A B C D -->
+        <div class="grid grid-cols-4 gap-3">
+          ${perguntaAtual.opcoes.map((op, idx) => {
+            const votos = distribuicao[idx] || 0;
+            const pct = totalRespostas > 0 ? Math.round((votos / totalRespostas) * 100) : 0;
+            const isCorreta = idx === corretaIdx;
+            const borderClass = isCorreta ? 'border-green-500 bg-green-50' : 'border-gray-300';
+            const barColor = isCorreta ? 'bg-green-500' : 'bg-blue-500';
+            
+            return `
+              <div class="border-2 ${borderClass} rounded-lg p-3">
+                <div class="text-center mb-2">
+                  <span class="font-bold text-2xl">${labels[idx]}</span>
+                  ${isCorreta ? '<span class="text-green-600 text-2xl ml-2">✓</span>' : ''}
                 </div>
-              `;
-            }).join('')}
-          </div>
+                <div class="text-center text-sm mb-2">${votos} votos</div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                  <div class="h-3 rounded-full ${barColor}" style="width:${pct}%"></div>
+                </div>
+                <div class="text-center text-xs text-gray-600 mt-1">${pct}%</div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     `;
